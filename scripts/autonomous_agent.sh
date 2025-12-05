@@ -79,21 +79,32 @@ fi
 log_info "Launching Claude Code in headless mode..."
 log_info "Task: Execute next work stream from roadmap using TDD workflow"
 
+# Generate agent ID
+AGENT_ID="coder-autonomous-$(date +%s)"
+
 # Create the prompt for Claude Code
 PROMPT="You are operating as an autonomous Coder Agent. Follow the workflow defined in .claude/agents/coder_agent.md exactly.
+
+FIRST: Claim your personal name by running this Python code:
+\`\`\`python
+from src.core.agent_naming import claim_agent_name
+personal_name = claim_agent_name('$AGENT_ID', 'coder')
+print(f'I am {personal_name} ({AGENT_ID})')
+\`\`\`
+Use your personal name in all communications and documentation.
 
 Your task:
 1. Read plans/roadmap.md
 2. Find the next unclaimed work stream (Status: ⚪ Not Started or Status with 🔄 In Progress but Assigned To: -)
 3. Claim the work stream by:
    - Updating Status to: 🔄 In Progress
-   - Setting Assigned To: coder-autonomous-$(date +%s)
+   - Setting Assigned To: {personal_name} ($AGENT_ID)
 4. Follow ALL 6 phases of the Coder Agent workflow:
    - Phase 1: Claim Work Stream (DONE in step 3)
    - Phase 2: Analysis & Planning
    - Phase 3: Test-Driven Development (write tests FIRST, then implementation)
    - Phase 4: Integration & Validation (run tests, linters, type checking)
-   - Phase 5: Documentation (update roadmap, write devlog entry)
+   - Phase 5: Documentation (update roadmap, write devlog entry using your personal name)
    - Phase 6: Commit (stage specific files only, descriptive message)
 
 CRITICAL REQUIREMENTS:
