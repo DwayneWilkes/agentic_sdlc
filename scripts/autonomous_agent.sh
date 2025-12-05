@@ -116,7 +116,7 @@ log_to_file "=== PHASE 1: TDD Workflow Execution ==="
 log_to_file "Starting: $(date)"
 log_to_file ""
 
-claude --dangerously-skip-permissions-prompt "$PROMPT" 2>&1 | tee -a "$LOG_FILE"
+claude -p --dangerously-skip-permissions "$PROMPT" 2>&1 | tee -a "$LOG_FILE"
 
 CLAUDE_EXIT_CODE=${PIPESTATUS[0]}
 
@@ -161,7 +161,7 @@ if [[ -n $(git status --porcelain) ]]; then
 
 If changes are incomplete or tests are failing, DO NOT COMMIT. Instead, explain what's wrong."
 
-    claude --dangerously-skip-permissions-prompt "$COMMIT_PROMPT" 2>&1 | tee -a "$LOG_FILE"
+    claude -p --dangerously-skip-permissions "$COMMIT_PROMPT" 2>&1 | tee -a "$LOG_FILE"
 
     COMMIT_EXIT_CODE=${PIPESTATUS[0]}
 
@@ -213,7 +213,7 @@ If no work was completed in the recent devlog, respond with: \"No recent work to
 
 Begin now."
 
-claude --dangerously-skip-permissions-prompt "$PM_PROMPT" 2>&1 | tee -a "$LOG_FILE"
+claude -p --dangerously-skip-permissions "$PM_PROMPT" 2>&1 | tee -a "$LOG_FILE"
 
 PM_EXIT_CODE=${PIPESTATUS[0]}
 
