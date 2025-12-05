@@ -65,7 +65,6 @@ async function initNATS(): Promise<void> {
           name: streamName,
           subjects: [subject],
           storage: StorageType.Memory,
-          retention: "limits",
           max_age: 24 * 60 * 60 * 1e9, // 24 hours in nanoseconds
           max_msgs: 10000,
           max_bytes: 10 * 1024 * 1024, // 10MB
@@ -297,6 +296,10 @@ async function main() {
     try {
       const { name, arguments: args } = request.params;
 
+      if (!args) {
+        throw new Error("No arguments provided");
+      }
+
       switch (name) {
         case "set_handle": {
           const result = await setHandle(args.handle as string);
@@ -324,7 +327,7 @@ async function main() {
         case "read_messages": {
           const result = await readMessages(
             args.channel as string,
-            args.limit as number || 50
+            (args.limit as number) || 50
           );
           return { content: [{ type: "text", text: result }] };
         }

@@ -8,8 +8,8 @@
     "nats-chat-mcp": "./dist/index.js"
   },
   "scripts": {
-    "build": "npx --package=typescript tsc",
-    "dev": "npx --package=typescript tsc --watch",
+    "build": "./node_modules/.bin/tsc",
+    "dev": "./node_modules/.bin/tsc --watch",
     "start": "node dist/index.js"
   },
   "keywords": [
