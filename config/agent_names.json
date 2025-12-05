@@ -1,0 +1,41 @@
+{
+  "name_pools": {
+    "coder": [
+      "Ada", "Alan", "Grace", "Dennis", "Linus", "Ken", "Brian", "Donald",
+      "Bjarne", "Guido", "James", "Brendan", "Anders", "Rob", "Yukihiro",
+      "Larry", "Rasmus", "John", "Margaret", "Jean", "Kathleen", "Frances",
+      "Betty", "Ruth", "Evelyn", "Hedy", "Sophie", "Mary", "Dorothy"
+    ],
+    "architect": [
+      "Apollo", "Athena", "Minerva", "Vitruvius", "Imhotep", "Fibonacci",
+      "Euclid", "Archimedes", "Pythagoras", "Hypatia", "Eratosthenes"
+    ],
+    "parser": [
+      "Syntax", "Lexer", "Token", "AST", "Chomsky", "Backus", "Naur"
+    ],
+    "decomposer": [
+      "Divide", "Conquer", "Fragment", "Partition", "Split", "Factor"
+    ],
+    "tester": [
+      "Verify", "Assert", "Prove", "Check", "Validate", "Inspect"
+    ],
+    "reviewer": [
+      "Critique", "Audit", "Scrutiny", "Examine", "Assess", "Evaluate"
+    ],
+    "orchestrator": [
+      "Conductor", "Maestro", "Director", "Coordinator", "Synergy"
+    ],
+    "default": [
+      "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta",
+      "Iota", "Kappa", "Lambda", "Mu", "Nu", "Xi", "Omicron", "Pi", "Rho",
+      "Sigma", "Tau", "Upsilon", "Phi", "Chi", "Psi", "Omega"
+    ]
+  },
+  "assigned_names": {},
+  "naming_config": {
+    "format": "{name}-{role_suffix}",
+    "allow_duplicates": false,
+    "add_numeric_suffix_on_conflict": true,
+    "persistent": true
+  }
+}
