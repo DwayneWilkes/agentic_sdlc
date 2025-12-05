@@ -8,7 +8,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ROADMAP="$PROJECT_ROOT/plans/roadmap.md"
-CODER_AGENT="$PROJECT_ROOT/personas/coder_agent.md"
+CODER_AGENT="$PROJECT_ROOT/.claude/agents/coder_agent.md"
 
 # Colors for output
 RED='\033[0;31m'
@@ -62,7 +62,7 @@ log_info "Launching Claude Code in headless mode..."
 log_info "Task: Execute next work stream from roadmap using TDD workflow"
 
 # Create the prompt for Claude Code
-PROMPT="You are operating as an autonomous Coder Agent. Follow the workflow defined in personas/coder_agent.md exactly.
+PROMPT="You are operating as an autonomous Coder Agent. Follow the workflow defined in .claude/agents/coder_agent.md exactly.
 
 Your task:
 1. Read plans/roadmap.md
@@ -86,7 +86,7 @@ CRITICAL REQUIREMENTS:
   * No linting errors (ruff check src/ tests/)
   * No type errors (mypy src/)
 - Only stage files you worked on (src/*, tests/*, plans/roadmap.md, docs/devlog.md)
-- Write a descriptive commit message following the format in personas/coder_agent.md
+- Write a descriptive commit message following the format in .claude/agents/coder_agent.md
 
 If there are no unclaimed work streams, respond with: \"No work streams available to claim.\"
 
@@ -125,7 +125,7 @@ if [[ -n $(git status --porcelain) ]]; then
    - What work was completed
    - Why these specific files changed
    - Any important notes
-6. Commit using the format from personas/coder_agent.md Phase 6
+6. Commit using the format from .claude/agents/coder_agent.md Phase 6
 
 If changes are incomplete or tests are failing, DO NOT COMMIT. Instead, explain what's wrong."
 

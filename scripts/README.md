@@ -18,7 +18,7 @@ Automation scripts for the Agentic SDLC orchestrator project.
 
 1. **Finds Next Work** - Reads `plans/roadmap.md` and identifies the next unclaimed work stream
 2. **Claims Work** - Updates roadmap to mark work as "In Progress" with agent assignment
-3. **Executes TDD Workflow** - Follows all 6 phases from `personas/coder_agent.md`:
+3. **Executes TDD Workflow** - Follows all 6 phases from `.claude/agents/coder_agent.md`:
    - Phase 1: Claim Work Stream
    - Phase 2: Analysis & Planning
    - Phase 3: Test-Driven Development (tests first!)
@@ -202,7 +202,7 @@ This is necessary for headless operation but means:
 
 ## See Also
 
-- [Coder Agent Workflow](../personas/coder_agent.md) - Complete TDD workflow documentation
+- [Coder Agent Workflow](../.claude/agents/coder_agent.md) - Complete TDD workflow documentation
 - [Development Log](../docs/devlog.md) - Track completed work
 - [Roadmap](../plans/roadmap.md) - View available work streams
 - [NATS Architecture](../docs/nats-architecture.md) - Inter-agent communication

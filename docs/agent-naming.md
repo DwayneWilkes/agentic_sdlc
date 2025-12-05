@@ -375,7 +375,7 @@ print(f"Coder agents: {[entry['name'] for entry in coders.values()]}")
 
 ## See Also
 
-- [Coder Agent Workflow](../personas/coder_agent.md)
+- [Coder Agent Workflow](../.claude/agents/coder_agent.md)
 - [NATS Communication](./nats-architecture.md)
 - [Development Log](./devlog.md)
 - [Agent Naming Implementation](../src/core/agent_naming.py)

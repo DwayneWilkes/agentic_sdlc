@@ -471,5 +471,5 @@ asyncapi validate asyncapi.yaml
 ## See Also
 
 - [NATS Setup Guide](./NATS_SETUP.md)
-- [Coder Agent Workflow](../personas/coder_agent.md)
+- [Coder Agent Workflow](../.claude/agents/coder_agent.md)
 - [Development Strategy](../plans/subagent-development-strategy.md)
