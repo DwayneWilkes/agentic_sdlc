@@ -1,0 +1,16 @@
+{
+    "mcpServers": {
+        "orchestrator": {
+            "command": "$PWD/.venv/bin/python",
+            "args": ["$PWD/scripts/orchestrator-mcp-server.py"]
+        },
+        "agent-memory": {
+            "command": "$PWD/.venv/bin/python",
+            "args": ["$PWD/scripts/agent-memory-server.py"]
+        },
+        "pdf-rag": {
+            "command": "$PWD/.venv/bin/python",
+            "args": ["$PWD/scripts/pdf-rag-server.py"]
+        }
+    }
+}
