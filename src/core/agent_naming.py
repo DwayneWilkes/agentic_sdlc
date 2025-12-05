@@ -1,8 +1,8 @@
 """
-Agent naming system - Assigns human-readable personal names to agents.
+Agent naming system - Enables agents to choose their own personal names.
 
-Agents can claim unique personal names from predefined pools based on their role.
-Names persist across sessions and make logs/communication more readable.
+Agents freely choose names that feel meaningful to them.
+The system ensures uniqueness and persists mappings for lookup.
 """
 
 import json
@@ -45,24 +45,99 @@ class AgentNaming:
         with open(self.config_path, "w") as f:
             json.dump(self.config, f, indent=2)
 
-    def claim_name(
-        self, agent_id: str, role: str = "default", preferred_name: Optional[str] = None
-    ) -> str:
+    def is_name_available(self, name: str) -> bool:
         """
-        Claim a personal name for an agent.
+        Check if a name is available.
 
         Args:
-            agent_id: Unique technical ID of the agent (e.g., "coder-autonomous-123")
-            role: Agent role type (e.g., "coder", "architect", "tester")
-            preferred_name: Optional preferred name (if available)
+            name: The name to check
 
         Returns:
-            Personal name for the agent (e.g., "Ada", "Grace-2")
+            True if available, False if already taken
+        """
+        assigned = {
+            entry["name"]
+            for entry in self.config["assigned_names"].values()
+        }
+        return name not in assigned
+
+    def get_taken_names(self) -> list[str]:
+        """
+        Get list of all currently taken names.
+
+        Returns:
+            List of names that are already claimed
+        """
+        return [
+            entry["name"]
+            for entry in self.config["assigned_names"].values()
+        ]
+
+    def claim_name(
+        self, agent_id: str, chosen_name: str, role: str = "default"
+    ) -> tuple[bool, str]:
+        """
+        Claim a name chosen by the agent.
+
+        The agent freely chooses their own name. If taken, returns False
+        so the agent can choose a different name.
+
+        Args:
+            agent_id: Unique technical ID of the agent
+            chosen_name: The name the agent has chosen for themselves
+            role: Agent role type (for reference)
+
+        Returns:
+            Tuple of (success, message)
+            - (True, name) if claimed successfully
+            - (False, "Name 'X' is already taken. Taken names: [...]") if collision
 
         Example:
             >>> naming = AgentNaming()
-            >>> name = naming.claim_name("coder-autonomous-123", "coder")
-            >>> print(name)  # "Ada" or "Grace" or "Linus"
+            >>> success, result = naming.claim_name("coder-123", "Aurora")
+            >>> if success:
+            ...     print(f"I am {result}")
+            ... else:
+            ...     print(result)  # "Name 'Aurora' is already taken..."
+        """
+        # Check if agent already has a name
+        if agent_id in self.config["assigned_names"]:
+            existing = self.config["assigned_names"][agent_id]["name"]
+            return True, existing
+
+        # Check if chosen name is available
+        if not self.is_name_available(chosen_name):
+            taken = self.get_taken_names()
+            return False, f"Name '{chosen_name}' is already taken. Currently taken names: {taken}"
+
+        # Claim the name
+        self.config["assigned_names"][agent_id] = {
+            "name": chosen_name,
+            "role": role,
+            "claimed_at": datetime.now().isoformat(),
+        }
+
+        # Persist to disk
+        if self.config["naming_config"]["persistent"]:
+            self._save_config()
+
+        return True, chosen_name
+
+    def claim_name_from_pool(
+        self, agent_id: str, role: str = "default", preferred_name: Optional[str] = None
+    ) -> str:
+        """
+        Legacy function: Claim a name from the predefined pool.
+
+        Prefer using claim_name() which lets agents choose freely.
+
+        Args:
+            agent_id: Unique technical ID of the agent
+            role: Agent role type
+            preferred_name: Optional preferred name from the pool
+
+        Returns:
+            Personal name for the agent
         """
         # Check if agent already has a name
         if agent_id in self.config["assigned_names"]:
@@ -81,15 +156,13 @@ class AgentNaming:
 
         # Try to use preferred name if available
         if preferred_name:
-            if preferred_name in name_pool and preferred_name not in assigned:
+            if preferred_name not in assigned:
                 name = preferred_name
             elif self.config["naming_config"]["add_numeric_suffix_on_conflict"]:
                 name = self._make_unique(preferred_name, assigned)
             else:
-                # Preferred name not available, pick random
                 name = self._pick_available_name(name_pool, assigned)
         else:
-            # Pick a random available name
             name = self._pick_available_name(name_pool, assigned)
 
         # Record the assignment
@@ -218,19 +291,31 @@ def get_naming() -> AgentNaming:
     return _naming_instance
 
 
-def claim_agent_name(
-    agent_id: str, role: str = "default", preferred_name: Optional[str] = None
-) -> str:
+def claim_agent_name(agent_id: str, chosen_name: str, role: str = "default") -> tuple[bool, str]:
     """
-    Convenience function to claim an agent name.
+    Convenience function to claim a name chosen by the agent.
 
     Args:
         agent_id: Unique technical ID
+        chosen_name: The name the agent has chosen
         role: Agent role
-        preferred_name: Optional preferred name
 
     Returns:
-        Personal name for the agent
+        Tuple of (success, result)
+        - (True, name) if claimed
+        - (False, error_message) if name taken
     """
     naming = get_naming()
-    return naming.claim_name(agent_id, role, preferred_name)
+    return naming.claim_name(agent_id, chosen_name, role)
+
+
+def is_name_available(name: str) -> bool:
+    """Check if a name is available."""
+    naming = get_naming()
+    return naming.is_name_available(name)
+
+
+def get_taken_names() -> list[str]:
+    """Get list of currently taken names."""
+    naming = get_naming()
+    return naming.get_taken_names()

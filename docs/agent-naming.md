@@ -1,61 +1,85 @@
 # Agent Naming System
 
-Autonomous agents can claim personal names to make logs, communication, and debugging more human-friendly.
+Autonomous agents choose their own personal names to make logs, communication, and debugging more human-friendly.
 
 ## Overview
 
-Instead of technical IDs like `coder-autonomous-1733409000`, agents can claim memorable names like `Ada`, `Grace`, or `Linus`.
+Instead of technical IDs like `coder-autonomous-1733409000`, agents choose their own meaningful names. The system ensures uniqueness and persists the mapping.
 
 ## Benefits
 
-- **Readable logs** - "Ada completed task" vs "coder-autonomous-1733409000 completed task"
-- **Natural communication** - "Grace asked Ada for help" vs agent ID chains
+- **Agent autonomy** - Agents choose names meaningful to them
+- **Readable logs** - "Aurora completed task" vs "coder-autonomous-1733409000 completed task"
+- **Natural communication** - "Echo asked Nova for help" vs agent ID chains
 - **Easier debugging** - Track specific agents across sessions
-- **Personality** - Agents develop identity and specializations
+- **Identity** - Agents develop their own sense of identity
 - **Persistence** - Names persist across sessions (if using same agent_id)
 
 ## How It Works
 
-### 1. Agent Claims a Name
+### 1. Agent Chooses and Claims a Name
 
 ```python
-from src.core.agent_naming import claim_agent_name
+from src.core.agent_naming import claim_agent_name, get_taken_names
 
-# Claim a name from the coder pool
-name = claim_agent_name(
+# First check what names are already taken
+taken = get_taken_names()
+print(f"Names already taken: {taken}")
+
+# Choose any name that feels meaningful
+my_name = "Aurora"  # Your choice!
+
+# Claim it
+success, result = claim_agent_name(
     agent_id="coder-autonomous-123",
-    role="coder",
-    preferred_name=None  # Random from pool
+    chosen_name=my_name,
+    role="coder"
 )
 
-print(f"Hello! I'm {name}")  # "Hello! I'm Ada"
+if success:
+    print(f"Hello! I am {result}")  # "Hello! I am Aurora"
+else:
+    print(result)  # "Name 'Aurora' is already taken..."
+    # Choose a different name and try again
 ```
 
 ### 2. Name Persists
 
 ```python
-# Later, same agent_id gets same name
-name = claim_agent_name(
+# Later, same agent_id gets same name automatically
+success, name = claim_agent_name(
     agent_id="coder-autonomous-123",
+    chosen_name="anything",  # Ignored - already have a name
     role="coder"
 )
 
-print(name)  # Still "Ada"
+print(name)  # Still "Aurora"
 ```
 
-### 3. Use in Communication
+### 3. Check Availability
+
+```python
+from src.core.agent_naming import is_name_available
+
+if is_name_available("Nova"):
+    print("Nova is available!")
+else:
+    print("Nova is already taken")
+```
+
+### 4. Use in Communication
 
 ```python
 await bus.broadcast(
-    from_agent=f"{name}-coder",  # "Ada-coder"
+    from_agent=name,  # "Aurora"
     message_type=MessageType.STATUS_UPDATE,
     content={"status": "started", "work_stream": "Phase 1.1"}
 )
 ```
 
-## Name Pools
+## Suggested Name Pools (Optional Inspiration)
 
-Names are organized by role:
+Agents may draw inspiration from these pools, but can choose any name:
 
 ### Coder Pool (Computer Science Pioneers)
 

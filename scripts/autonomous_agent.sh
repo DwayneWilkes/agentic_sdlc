@@ -85,11 +85,25 @@ AGENT_ID="coder-autonomous-$(date +%s)"
 # Create the prompt for Claude Code
 PROMPT="You are operating as an autonomous Coder Agent. Follow the workflow defined in .claude/agents/coder_agent.md exactly.
 
-FIRST: Claim your personal name by running this Python code:
+FIRST: Choose a personal name for yourself - any name that feels meaningful to you.
+Then claim it by running this Python code:
 \`\`\`python
-from src.core.agent_naming import claim_agent_name
-personal_name = claim_agent_name('$AGENT_ID', 'coder')
-print(f'I am {personal_name} ({AGENT_ID})')
+from src.core.agent_naming import claim_agent_name, get_taken_names
+
+# First check what names are taken
+taken = get_taken_names()
+print(f'Names already taken: {taken}')
+
+# Choose your name (any name you like that isn't taken)
+my_chosen_name = 'YourChosenName'  # Replace with your chosen name
+
+# Claim it
+success, result = claim_agent_name('$AGENT_ID', my_chosen_name, 'coder')
+if success:
+    print(f'Hello! I am {result}.')
+else:
+    print(f'Could not claim name: {result}')
+    # Choose a different name and try again
 \`\`\`
 Use your personal name in all communications and documentation.
 
@@ -98,7 +112,7 @@ Your task:
 2. Find the next unclaimed work stream (Status: ⚪ Not Started or Status with 🔄 In Progress but Assigned To: -)
 3. Claim the work stream by:
    - Updating Status to: 🔄 In Progress
-   - Setting Assigned To: {personal_name} ($AGENT_ID)
+   - Setting Assigned To: {your_personal_name}
 4. Follow ALL 6 phases of the Coder Agent workflow:
    - Phase 1: Claim Work Stream (DONE in step 3)
    - Phase 2: Analysis & Planning
