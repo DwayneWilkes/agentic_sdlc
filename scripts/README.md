@@ -16,16 +16,29 @@ Automation scripts for the Agentic SDLC orchestrator project.
 
 **What it does**:
 
-1. **Finds Next Work** - Reads `plans/roadmap.md` and identifies the next unclaimed work stream
-2. **Claims Work** - Updates roadmap to mark work as "In Progress" with agent assignment
-3. **Executes TDD Workflow** - Follows all 6 phases from `.claude/agents/coder_agent.md`:
-   - Phase 1: Claim Work Stream
-   - Phase 2: Analysis & Planning
-   - Phase 3: Test-Driven Development (tests first!)
-   - Phase 4: Integration & Validation (quality gates)
-   - Phase 5: Documentation (devlog, roadmap)
-   - Phase 6: Commit (atomic, descriptive)
-4. **Auto-Commit** - If working tree is dirty after execution, spawns another Claude Code instance to review and commit changes
+The script runs **three phases** autonomously:
+
+1. **Phase 1: TDD Workflow Execution**
+   - Reads `plans/roadmap.md` and identifies next unclaimed work stream
+   - Claims work and marks as "In Progress" with agent assignment
+   - Follows all 6 phases from `.claude/agents/coder_agent.md`:
+     - Phase 1: Claim Work Stream
+     - Phase 2: Analysis & Planning
+     - Phase 3: Test-Driven Development (tests first!)
+     - Phase 4: Integration & Validation (quality gates)
+     - Phase 5: Documentation (devlog, roadmap)
+     - Phase 6: Commit (atomic, descriptive)
+
+2. **Phase 2: Auto-Commit** (if needed)
+   - Checks if working tree is dirty after Phase 1
+   - Spawns another Claude Code instance to review and commit remaining changes
+   - Creates descriptive commit message based on devlog and roadmap
+
+3. **Phase 3: Roadmap Verification**
+   - Verifies roadmap status is accurately updated
+   - Checks if work stream is marked as "✅ Complete"
+   - Updates roadmap if synchronization is needed
+   - Uses Project Manager agent from `.claude/agents/project_manager.md`
 
 **Requirements**:
 
@@ -42,8 +55,9 @@ Automation scripts for the Agentic SDLC orchestrator project.
 
 **Output**:
 
-- Colored terminal output showing progress
-- Updated `plans/roadmap.md` with completed work
+- Colored terminal output showing progress for each phase
+- Timestamped log file in `agent-logs/autonomous-agent-YYYYMMDD-HHMMSS.log`
+- Updated `plans/roadmap.md` with completed work (verified in Phase 3)
 - New entry in `docs/devlog.md`
 - Git commit with implemented feature
 
@@ -53,14 +67,16 @@ Automation scripts for the Agentic SDLC orchestrator project.
 [INFO] Starting Autonomous Agent...
 [INFO] Project Root: /home/user/agentic_sdlc
 [INFO] Roadmap: /home/user/agentic_sdlc/plans/roadmap.md
-[INFO] Launching Claude Code in headless mode...
-[INFO] Task: Execute next work stream from roadmap using TDD workflow
+[INFO] Log File: /home/user/agentic_sdlc/agent-logs/autonomous-agent-20251205-143000.log
 [INFO] Executing TDD workflow...
 [SUCCESS] Claude Code execution completed
 [INFO] Checking git working tree status...
 [SUCCESS] Working tree is clean. No uncommitted changes.
+[INFO] Verifying roadmap synchronization...
+[SUCCESS] Roadmap verification completed
 [SUCCESS] Autonomous agent completed successfully!
 [INFO] Check docs/devlog.md for details on what was implemented.
+[INFO] Full execution log: /home/user/agentic_sdlc/agent-logs/autonomous-agent-20251205-143000.log
 ```
 
 **Exit Codes**:

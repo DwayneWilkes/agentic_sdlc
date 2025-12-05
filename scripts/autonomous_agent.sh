@@ -9,6 +9,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ROADMAP="$PROJECT_ROOT/plans/roadmap.md"
 CODER_AGENT="$PROJECT_ROOT/.claude/agents/coder_agent.md"
+PM_AGENT="$PROJECT_ROOT/.claude/agents/project_manager.md"
+LOG_DIR="$PROJECT_ROOT/agent-logs"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+LOG_FILE="$LOG_DIR/autonomous-agent-$TIMESTAMP.log"
 
 # Colors for output
 RED='\033[0;31m'
@@ -33,11 +37,19 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Logging function that writes to both terminal and log file
+log_to_file() {
+    echo "$1" | tee -a "$LOG_FILE"
+}
+
 # Check if Claude Code CLI is available
 if ! command -v claude &> /dev/null; then
     log_error "Claude Code CLI not found. Please install it first."
     exit 1
 fi
+
+# Create log directory
+mkdir -p "$LOG_DIR"
 
 # Change to project root
 cd "$PROJECT_ROOT"
@@ -45,6 +57,12 @@ cd "$PROJECT_ROOT"
 log_info "Starting Autonomous Agent..."
 log_info "Project Root: $PROJECT_ROOT"
 log_info "Roadmap: $ROADMAP"
+log_info "Log File: $LOG_FILE"
+
+log_to_file "=== Autonomous Agent Execution - $TIMESTAMP ==="
+log_to_file "Project Root: $PROJECT_ROOT"
+log_to_file "Roadmap: $ROADMAP"
+log_to_file ""
 
 # Check if roadmap exists
 if [[ ! -f "$ROADMAP" ]]; then
@@ -94,12 +112,22 @@ Begin now."
 
 # Launch Claude Code in headless mode with dangerously skipped permissions
 log_info "Executing TDD workflow..."
-claude --dangerously-skip-permissions-prompt "$PROMPT"
+log_to_file "=== PHASE 1: TDD Workflow Execution ==="
+log_to_file "Starting: $(date)"
+log_to_file ""
 
-CLAUDE_EXIT_CODE=$?
+claude --dangerously-skip-permissions-prompt "$PROMPT" 2>&1 | tee -a "$LOG_FILE"
+
+CLAUDE_EXIT_CODE=${PIPESTATUS[0]}
+
+log_to_file ""
+log_to_file "Phase 1 completed: $(date)"
+log_to_file "Exit code: $CLAUDE_EXIT_CODE"
+log_to_file ""
 
 if [[ $CLAUDE_EXIT_CODE -ne 0 ]]; then
     log_error "Claude Code execution failed with exit code $CLAUDE_EXIT_CODE"
+    log_to_file "ERROR: TDD workflow failed with exit code $CLAUDE_EXIT_CODE"
     exit $CLAUDE_EXIT_CODE
 fi
 
@@ -111,6 +139,10 @@ log_info "Checking git working tree status..."
 if [[ -n $(git status --porcelain) ]]; then
     log_warning "Working tree is dirty. Uncommitted changes detected."
     log_info "Launching Claude Code to commit remaining changes..."
+
+    log_to_file "=== PHASE 2: Auto-Commit Remaining Changes ==="
+    log_to_file "Starting: $(date)"
+    log_to_file ""
 
     # Create prompt for commit agent
     COMMIT_PROMPT="The working tree has uncommitted changes. Please:
@@ -129,9 +161,14 @@ if [[ -n $(git status --porcelain) ]]; then
 
 If changes are incomplete or tests are failing, DO NOT COMMIT. Instead, explain what's wrong."
 
-    claude --dangerously-skip-permissions-prompt "$COMMIT_PROMPT"
+    claude --dangerously-skip-permissions-prompt "$COMMIT_PROMPT" 2>&1 | tee -a "$LOG_FILE"
 
-    COMMIT_EXIT_CODE=$?
+    COMMIT_EXIT_CODE=${PIPESTATUS[0]}
+
+    log_to_file ""
+    log_to_file "Phase 2 completed: $(date)"
+    log_to_file "Exit code: $COMMIT_EXIT_CODE"
+    log_to_file ""
 
     if [[ $COMMIT_EXIT_CODE -ne 0 ]]; then
         log_error "Commit agent failed with exit code $COMMIT_EXIT_CODE"
@@ -151,7 +188,53 @@ else
     log_success "Working tree is clean. No uncommitted changes."
 fi
 
+# PHASE 3: Verify roadmap synchronization
+log_info "Verifying roadmap synchronization..."
+log_to_file "=== PHASE 3: Roadmap Verification ==="
+log_to_file "Starting: $(date)"
+log_to_file ""
+
+PM_PROMPT="You are operating as a Project Manager Agent. Follow the workflow defined in .claude/agents/project_manager.md exactly.
+
+Your task:
+1. Read docs/devlog.md and identify the most recent work stream completed
+2. Read plans/roadmap.md and find that work stream
+3. Verify the roadmap status is correctly updated:
+   - Status should be: ✅ Complete (if work is done)
+   - All subtasks should be marked [✅]
+   - \"Assigned To\" should show the agent that completed it
+4. If roadmap is NOT synchronized:
+   - Update Status to: ✅ Complete
+   - Mark all subtasks as [✅]
+   - Update \"Assigned To\" with completion info
+5. Generate a verification report showing what was checked and updated
+
+If no work was completed in the recent devlog, respond with: \"No recent work to verify.\"
+
+Begin now."
+
+claude --dangerously-skip-permissions-prompt "$PM_PROMPT" 2>&1 | tee -a "$LOG_FILE"
+
+PM_EXIT_CODE=${PIPESTATUS[0]}
+
+log_to_file ""
+log_to_file "Phase 3 completed: $(date)"
+log_to_file "Exit code: $PM_EXIT_CODE"
+log_to_file ""
+
+if [[ $PM_EXIT_CODE -ne 0 ]]; then
+    log_warning "Roadmap verification had issues (exit code $PM_EXIT_CODE)"
+    log_to_file "WARNING: Roadmap verification failed with exit code $PM_EXIT_CODE"
+else
+    log_success "Roadmap verification completed"
+fi
+
+log_to_file "=== Autonomous Agent Execution Complete ==="
+log_to_file "Finished: $(date)"
+log_to_file ""
+
 log_success "Autonomous agent completed successfully!"
 log_info "Check docs/devlog.md for details on what was implemented."
+log_info "Full execution log: $LOG_FILE"
 
 exit 0

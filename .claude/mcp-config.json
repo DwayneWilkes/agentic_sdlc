@@ -11,6 +11,13 @@
         "pdf-rag": {
             "command": "$PWD/.venv/bin/python",
             "args": ["$PWD/scripts/pdf-rag-server.py"]
+        },
+        "nats-chat": {
+            "command": "node",
+            "args": ["$PWD/nats-chat/dist/index.js"],
+            "env": {
+                "NATS_URL": "nats://localhost:4222"
+            }
         }
     }
 }
