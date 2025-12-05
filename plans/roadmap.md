@@ -4,12 +4,13 @@
 
 ### Phase 1.1: Core Data Models and Project Scaffolding
 
-- **Status:** ⚪ Not Started
+- **Status:** 🔄 In Progress
+- **Assigned To:** -
 - **Tasks:**
-  - [ ] Create project structure (src/, tests/, config/)
+  - [✅] Create project structure (src/, tests/, config/)
   - [ ] Define core data models: Task, Subtask, Agent, Team
   - [ ] Define enums: TaskStatus, AgentStatus, TaskType
-  - [ ] Set up dependency management (pyproject.toml or requirements.txt)
+  - [✅] Set up dependency management (pyproject.toml or requirements.txt)
 - **Effort:** S
 - **Done When:** Data models exist with proper type hints; project runs `python -c "from src.models import Task, Agent"` without error
 
