@@ -18,6 +18,7 @@ We will decompose the orchestrator development into specialized subagent roles, 
 ### Phase 1.1: Foundation Team
 
 #### Agent: Architect
+
 - **Role**: Design core data models and system architecture
 - **Responsibilities**:
   - Define Task, Subtask, Agent, Team data models
@@ -32,6 +33,7 @@ We will decompose the orchestrator development into specialized subagent roles, 
 - **Success Criteria**: Models can be imported; type hints are complete; documentation is clear
 
 #### Agent: Parser Developer
+
 - **Role**: Implement task parsing and goal extraction
 - **Responsibilities**:
   - Build TaskParser class
@@ -45,6 +47,7 @@ We will decompose the orchestrator development into specialized subagent roles, 
 - **Dependencies**: Architect (data models)
 
 #### Agent: Decomposition Engineer
+
 - **Role**: Build task decomposition engine
 - **Responsibilities**:
   - Implement recursive decomposition algorithm
@@ -59,6 +62,7 @@ We will decompose the orchestrator development into specialized subagent roles, 
 - **Dependencies**: Architect (data models), Parser Developer (task structure)
 
 #### Agent: Registry Manager
+
 - **Role**: Create agent role registry
 - **Responsibilities**:
   - Define AgentRole schema
@@ -73,6 +77,7 @@ We will decompose the orchestrator development into specialized subagent roles, 
 - **Dependencies**: Architect (agent model)
 
 #### Agent: Test Engineer
+
 - **Role**: Ensure quality across all components
 - **Responsibilities**:
   - Write unit tests for each component
@@ -87,6 +92,7 @@ We will decompose the orchestrator development into specialized subagent roles, 
 - **Dependencies**: All other agents (tests their outputs)
 
 #### Agent: Documentation Writer
+
 - **Role**: Maintain clear, LLM-optimized documentation
 - **Responsibilities**:
   - Document all APIs
@@ -103,6 +109,7 @@ We will decompose the orchestrator development into specialized subagent roles, 
 ### Phase 1.2: Team Composition Team
 
 #### Agent: Team Designer
+
 - **Role**: Implement team composition engine
 - **Responsibilities**:
   - Build team sizing logic
@@ -115,6 +122,7 @@ We will decompose the orchestrator development into specialized subagent roles, 
 - **Dependencies**: Phase 1.1 Registry Manager
 
 #### Agent: Agent Factory Engineer
+
 - **Role**: Build agent instantiation system
 - **Responsibilities**:
   - Create agent factory with configuration
@@ -128,6 +136,7 @@ We will decompose the orchestrator development into specialized subagent roles, 
 - **Dependencies**: Phase 1.1 Architect, Registry Manager
 
 #### Agent: Error Handling Specialist
+
 - **Role**: Implement error detection framework
 - **Responsibilities**:
   - Define error taxonomy
@@ -144,16 +153,19 @@ We will decompose the orchestrator development into specialized subagent roles, 
 ### Coordination Approach
 
 #### Daily Sync
+
 - **What**: Brief status update
 - **Who**: All active agents
 - **Output**: Progress report, blockers, next steps
 
 #### Integration Points
+
 - **When**: When dependencies are ready
 - **How**: One agent completes → notifies dependent agents → they begin
 - **Validation**: Integration tests verify compatibility
 
 #### Conflict Resolution
+
 - **Method**: Test-driven - if tests pass, integration succeeds
 - **Escalation**: If conflicts arise, Architect agent mediates
 - **Documentation**: All decisions documented in ADRs (Architecture Decision Records)
@@ -163,6 +175,7 @@ We will decompose the orchestrator development into specialized subagent roles, 
 ### Week 1: Phase 1.1 Parallel Streams
 
 **Stream 1: Data Foundation**
+
 ```
 Day 1-2: Architect → Design all models
 Day 3-4: Parser Developer → Implement TaskParser (parallel with Architect completing)
@@ -170,6 +183,7 @@ Day 5: Integration testing
 ```
 
 **Stream 2: Core Logic**
+
 ```
 Day 1-2: Wait for Architect models
 Day 3-4: Decomposition Engineer → Build decomposer
@@ -178,6 +192,7 @@ Day 5: Integration testing
 ```
 
 **Stream 3: Quality & Documentation**
+
 ```
 Day 1-5: Test Engineer → Write tests as components complete
 Day 1-5: Documentation Writer → Document as components complete
@@ -186,6 +201,7 @@ Day 1-5: Documentation Writer → Document as components complete
 ### Week 2: Phase 1.2 Build on Foundation
 
 **Team Formation**
+
 ```
 Day 1-2: Team Designer → Team composition logic
 Day 3-4: Agent Factory Engineer → Agent instantiation
@@ -193,6 +209,7 @@ Day 5: Integration
 ```
 
 **Resilience**
+
 ```
 Day 1-3: Error Handling Specialist → Error detection & recovery
 Day 4-5: Integration and testing
@@ -201,6 +218,7 @@ Day 4-5: Integration and testing
 ## Communication Protocol
 
 ### Message Format
+
 ```json
 {
   "from": "agent_id",
@@ -212,6 +230,7 @@ Day 4-5: Integration and testing
 ```
 
 ### Channels
+
 1. **#status** - Progress updates
 2. **#blockers** - Issues needing resolution
 3. **#deliveries** - Completed work handoffs
@@ -220,16 +239,19 @@ Day 4-5: Integration and testing
 ## Success Metrics
 
 ### Velocity
+
 - Tasks completed per day
 - Blocker resolution time
 - Integration time
 
 ### Quality
+
 - Test coverage %
 - Bug count
 - Code review feedback
 
 ### Collaboration
+
 - Communication frequency
 - Blocker count
 - Integration conflicts
@@ -237,14 +259,17 @@ Day 4-5: Integration and testing
 ## Risk Mitigation
 
 ### Risk: Dependency Bottleneck
+
 - **Mitigation**: Architect front-loads model design; clear interfaces defined early
 - **Fallback**: Mock implementations if dependencies delayed
 
 ### Risk: Integration Failures
+
 - **Mitigation**: Continuous integration; early and frequent testing
 - **Fallback**: Rollback mechanism; feature flags
 
 ### Risk: Scope Creep
+
 - **Mitigation**: Strict adherence to roadmap phases; YAGNI principle
 - **Fallback**: Phase gates; ruthless prioritization
 
@@ -253,6 +278,7 @@ Day 4-5: Integration and testing
 ### For All Agents
 
 **Context Format**:
+
 ```markdown
 # Your Role: [Agent Name]
 
@@ -287,6 +313,7 @@ Day 4-5: Integration and testing
 ### Agent Prompts
 
 #### Architect Agent Prompt
+
 ```markdown
 You are the Architect agent for the Orchestrator project.
 
@@ -312,6 +339,7 @@ Success = Other agents can import and use these models without modification
 ```
 
 #### Parser Developer Prompt
+
 ```markdown
 You are the Parser Developer agent.
 
@@ -339,12 +367,14 @@ Success = 90%+ test coverage, all tests pass, handles edge cases gracefully
 ## Monitoring and Adaptation
 
 ### Daily Review
+
 1. Check progress against plan
 2. Identify blockers
 3. Adjust assignments if needed
 4. Update roadmap if discoveries made
 
 ### Weekly Retrospective
+
 1. What went well?
 2. What could improve?
 3. Action items for next week
@@ -353,6 +383,7 @@ Success = 90%+ test coverage, all tests pass, handles edge cases gracefully
 ## Self-Improvement Loop
 
 After each phase:
+
 1. **Analyze**: What worked? What didn't?
 2. **Identify**: Improvement opportunities
 3. **Propose**: Changes to this strategy
@@ -360,6 +391,7 @@ After each phase:
 5. **Iterate**: Update this document
 
 This creates a recursive loop where:
+
 - Subagents build the orchestrator
 - The orchestrator learns from subagent performance
 - Improvements feed back into development process
