@@ -1,0 +1,375 @@
+asyncapi: 2.6.0
+info:
+  title: Orchestrator Agent Communication API
+  version: 1.0.0
+  description: |
+    Event-driven communication API for autonomous agents in the Agentic SDLC orchestrator.
+    Uses NATS as the message broker for high-performance, scalable inter-agent communication.
+  contact:
+    name: Agentic SDLC Project
+  license:
+    name: TBD
+
+servers:
+  development:
+    url: nats://localhost:4222
+    protocol: nats
+    description: Local NATS server for development
+  production:
+    url: nats://nats-cluster:4222
+    protocol: nats
+    description: Production NATS cluster
+
+defaultContentType: application/json
+
+channels:
+  orchestrator.broadcast.{messageType}:
+    description: Broadcast messages to all subscribed agents
+    parameters:
+      messageType:
+        $ref: '#/components/parameters/MessageType'
+    publish:
+      summary: Broadcast a message to all agents
+      operationId: broadcastMessage
+      message:
+        $ref: '#/components/messages/AgentMessage'
+    subscribe:
+      summary: Receive broadcast messages
+      operationId: receiveBroadcast
+      message:
+        $ref: '#/components/messages/AgentMessage'
+
+  orchestrator.agent.{agentId}.{messageType}:
+    description: Direct communication with a specific agent
+    parameters:
+      agentId:
+        description: Unique identifier of the target agent
+        schema:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          examples:
+            - 'architect-001'
+            - 'parser-dev-001'
+            - 'coder-autonomous-1733409000'
+      messageType:
+        $ref: '#/components/parameters/MessageType'
+    publish:
+      summary: Send a message to a specific agent
+      operationId: sendToAgent
+      message:
+        $ref: '#/components/messages/AgentMessage'
+    subscribe:
+      summary: Receive messages addressed to this agent
+      operationId: receiveAgentMessage
+      message:
+        $ref: '#/components/messages/AgentMessage'
+
+  orchestrator.team.{teamId}.{messageType}:
+    description: Team-specific communication channel
+    parameters:
+      teamId:
+        description: Unique identifier of the team
+        schema:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          examples:
+            - 'phase-1-1-team'
+            - 'backend-team'
+      messageType:
+        $ref: '#/components/parameters/MessageType'
+    publish:
+      summary: Send a message to all team members
+      operationId: sendToTeam
+      message:
+        $ref: '#/components/messages/AgentMessage'
+    subscribe:
+      summary: Receive team messages
+      operationId: receiveTeamMessage
+      message:
+        $ref: '#/components/messages/AgentMessage'
+
+  orchestrator.queue.{queueName}:
+    description: Work queue for load-balanced task distribution
+    parameters:
+      queueName:
+        description: Name of the work queue
+        schema:
+          type: string
+          pattern: '^[a-z0-9-_]+$'
+          examples:
+            - 'test_execution'
+            - 'build_tasks'
+    publish:
+      summary: Publish work to a queue
+      operationId: publishToQueue
+      message:
+        $ref: '#/components/messages/AgentMessage'
+    subscribe:
+      summary: Subscribe to work queue (load balanced)
+      operationId: subscribeToQueue
+      message:
+        $ref: '#/components/messages/AgentMessage'
+
+components:
+  messages:
+    AgentMessage:
+      name: AgentMessage
+      title: Agent Message
+      summary: Standard message format for all inter-agent communication
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/AgentMessagePayload'
+
+  schemas:
+    AgentMessagePayload:
+      type: object
+      required:
+        - from_agent
+        - message_type
+        - content
+        - timestamp
+      properties:
+        from_agent:
+          type: string
+          description: Unique identifier of the sending agent
+          pattern: '^[a-z0-9-]+$'
+          examples:
+            - 'architect-001'
+            - 'coder-autonomous-1733409000'
+        to_agent:
+          type: string
+          nullable: true
+          description: Target agent ID (null for broadcast messages)
+          pattern: '^[a-z0-9-]+$'
+          examples:
+            - 'parser-dev-001'
+            - null
+        message_type:
+          $ref: '#/components/schemas/MessageType'
+        content:
+          type: object
+          description: Message-specific payload (structure depends on message_type)
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of when the message was created
+          examples:
+            - '2025-12-05T14:30:00.000Z'
+        correlation_id:
+          type: string
+          nullable: true
+          description: For request/reply pattern - links requests to responses
+          pattern: '^[a-z0-9-]+$'
+          examples:
+            - 'arch-001-1733409000.123'
+
+    MessageType:
+      type: string
+      description: Type of message being sent
+      enum:
+        - status_update
+        - task_assignment
+        - task_complete
+        - task_failed
+        - question
+        - answer
+        - blocker
+        - resource_request
+        - resource_response
+        - coordination_request
+        - heartbeat
+
+    StatusUpdateContent:
+      type: object
+      description: Content for STATUS_UPDATE messages
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: ['starting', 'in_progress', 'completed', 'failed', 'blocked']
+        work_stream:
+          type: string
+        component:
+          type: string
+        progress:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    TaskAssignmentContent:
+      type: object
+      description: Content for TASK_ASSIGNMENT messages
+      required:
+        - task
+      properties:
+        task:
+          type: string
+          description: Name or ID of the task
+        description:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        priority:
+          type: string
+          enum: ['low', 'medium', 'high', 'critical']
+        dependencies:
+          type: array
+          items:
+            type: string
+
+    TaskCompleteContent:
+      type: object
+      description: Content for TASK_COMPLETE messages
+      required:
+        - task
+        - status
+      properties:
+        task:
+          type: string
+        status:
+          type: string
+          enum: ['success', 'partial']
+        output:
+          type: string
+          description: Path to output or result summary
+        files:
+          type: array
+          items:
+            type: string
+        tests_passed:
+          type: integer
+          minimum: 0
+        coverage:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    TaskFailedContent:
+      type: object
+      description: Content for TASK_FAILED messages
+      required:
+        - task
+        - reason
+      properties:
+        task:
+          type: string
+        reason:
+          type: string
+        error_message:
+          type: string
+        tests_failed:
+          type: integer
+          minimum: 0
+        retry_count:
+          type: integer
+          minimum: 0
+
+    QuestionContent:
+      type: object
+      description: Content for QUESTION messages
+      required:
+        - question
+      properties:
+        question:
+          type: string
+        context:
+          type: object
+          additionalProperties: true
+        urgency:
+          type: string
+          enum: ['low', 'medium', 'high']
+
+    AnswerContent:
+      type: object
+      description: Content for ANSWER messages
+      required:
+        - answer
+        - question_id
+      properties:
+        question_id:
+          type: string
+        answer:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    BlockerContent:
+      type: object
+      description: Content for BLOCKER messages
+      required:
+        - blocker
+        - work_stream
+      properties:
+        blocker:
+          type: string
+          description: Description of what is blocking progress
+        work_stream:
+          type: string
+        impact:
+          type: string
+          enum: ['low', 'medium', 'high', 'critical']
+        suggested_resolution:
+          type: string
+
+    ResourceRequestContent:
+      type: object
+      description: Content for RESOURCE_REQUEST messages
+      required:
+        - resource
+      properties:
+        resource:
+          type: string
+          description: Name or ID of requested resource
+        reason:
+          type: string
+        timeout:
+          type: number
+          description: Request timeout in seconds
+
+    ResourceResponseContent:
+      type: object
+      description: Content for RESOURCE_RESPONSE messages
+      required:
+        - resource
+        - status
+      properties:
+        resource:
+          type: string
+        status:
+          type: string
+          enum: ['ready', 'not_found', 'busy', 'error']
+        location:
+          type: string
+        api:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+
+    HeartbeatContent:
+      type: object
+      description: Content for HEARTBEAT messages
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: ['alive', 'healthy', 'degraded']
+        uptime:
+          type: number
+          description: Agent uptime in seconds
+        metrics:
+          type: object
+          additionalProperties: true
+
+  parameters:
+    MessageType:
+      description: Type of message for subject filtering
+      schema:
+        $ref: '#/components/schemas/MessageType'
