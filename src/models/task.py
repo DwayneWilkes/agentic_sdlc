@@ -17,9 +17,10 @@ class Subtask:
 
     id: str
     description: str
-    dependencies: list[str]
+    dependencies: list[str] = field(default_factory=list)
     status: TaskStatus = TaskStatus.PENDING
     assigned_agent: str | None = None
+    requirements: dict[str, Any] | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

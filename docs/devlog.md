@@ -325,3 +325,58 @@ This log tracks all completed work streams, implementations, and agent activity.
 - **Integration Ready**: Can be integrated with TaskParser for improved task analysis before decomposition
 
 ---
+## 2025-12-05 - Team Composition Engine (Phase 2.1)
+
+**Agent**: Cipher
+**Work Stream**: Phase 2.1 - Team Composition Engine
+**Status**: Complete
+
+### What Was Implemented
+
+- **TeamComposer Class**: Main engine for composing balanced agent teams
+  - `compose_team()` - Orchestrates team composition from subtasks to balanced team
+  - `_calculate_team_size()` - Determines optimal team size with diversity detection
+  - `_analyze_role_requirements()` - Analyzes subtasks and scores roles by priority
+  - `_select_agents()` - Selects complementary roles, handles specialist/generalist trade-offs
+  - `_assign_tasks()` - Balances workload distribution across team members
+  - `_find_best_agent()` - Matches tasks to agents based on role fit and workload
+
+- **Enhanced Subtask Model**: Added `requirements` field to support team composition
+
+### Files Changed
+
+- `src/core/team_composer.py` - Created TeamComposer class (124 statements)
+- `src/models/task.py` - Added optional `requirements` field to Subtask model
+- `tests/test_team_composer.py` - Comprehensive test suite (16 tests covering all composition scenarios)
+
+### Test Results
+
+- Tests passed: 16/16 (100%)
+- Coverage: 96% for src/core/team_composer.py (119/124 statements covered)
+- Linting: All ruff checks passed (auto-fixed import ordering)
+- Type checking: All mypy checks passed
+
+### Notes
+
+- **TDD Approach**: Wrote all 16 tests before implementation, achieving 96% coverage
+- **Team Sizing Logic**: 
+  - Base calculation: tasks / tasks_per_agent (default 2.5)
+  - Diversity detection: If 3+ unique capabilities, ensure ≥2 agents for specialization
+  - Prevents over-staffing: max 1 agent per task
+  - Respects max team size constraint
+- **Role Selection Strategy**:
+  - High-priority roles selected first (based on match scores)
+  - High-complexity tasks (match score > 0.7) prefer specialists
+  - Multiple agents of same role created when needed (e.g., 4 developers for 10 coding tasks)
+  - Complementary roles selected to ensure skill coverage
+- **Workload Balancing**: Tasks assigned to best-matching agent with lowest current workload (70% match score, 30% balance)
+- **Edge Cases Handled**: 
+  - Empty subtasks (returns empty team)
+  - No matching roles (uses best available or developers)
+  - Partial role matches (selects best partial fit)
+  - Diverse task sets (increases team size for specialization)
+- **Quality Gates**: Exceeded 80% coverage requirement (96%), all quality checks green
+- **Next Steps**: Unblocks Phase 2.2 (Agent Instantiation and Configuration)
+
+---
+
