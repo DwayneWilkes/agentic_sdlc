@@ -378,6 +378,56 @@ def cmd_dashboard(args) -> int:
         return 0
 
 
+def cmd_qa(args) -> int:
+    """Launch QA agent to audit quality gates."""
+    import subprocess
+
+    print_header("QA Agent - Quality Audit")
+
+    qa_script = PROJECT_ROOT / "scripts" / "qa_agent.sh"
+    if not qa_script.exists():
+        print(colored("Error: qa_agent.sh not found", Colors.RED))
+        return 1
+
+    print(f"Launching QA agent...")
+    print(f"Log: agent-logs/qa-agent-*.log\n")
+
+    try:
+        result = subprocess.run(
+            [str(qa_script)],
+            cwd=str(PROJECT_ROOT),
+        )
+        return result.returncode
+    except KeyboardInterrupt:
+        print(colored("\nQA agent interrupted", Colors.YELLOW))
+        return 130
+
+
+def cmd_pm(args) -> int:
+    """Launch PM agent for project management."""
+    import subprocess
+
+    print_header("PM Agent - Project Management")
+
+    pm_script = PROJECT_ROOT / "scripts" / "pm_agent.sh"
+    if not pm_script.exists():
+        print(colored("Error: pm_agent.sh not found", Colors.RED))
+        return 1
+
+    print(f"Launching PM agent...")
+    print(f"Log: agent-logs/pm-agent-*.log\n")
+
+    try:
+        result = subprocess.run(
+            [str(pm_script)],
+            cwd=str(PROJECT_ROOT),
+        )
+        return result.returncode
+    except KeyboardInterrupt:
+        print(colored("\nPM agent interrupted", Colors.YELLOW))
+        return 130
+
+
 def cmd_report(args) -> int:
     """Show detailed report."""
     print_header("Orchestrator Report")
@@ -789,6 +839,18 @@ def main():
         help="One-time status report",
     )
 
+    # qa command
+    qa_parser = subparsers.add_parser(
+        "qa",
+        help="Launch QA agent to audit quality gates",
+    )
+
+    # pm command
+    pm_parser = subparsers.add_parser(
+        "pm",
+        help="Launch PM agent for project management",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -807,6 +869,8 @@ def main():
         "garden": cmd_garden,
         "agents": cmd_agents,
         "dashboard": cmd_dashboard,
+        "qa": cmd_qa,
+        "pm": cmd_pm,
     }
 
     return commands[args.command](args)
