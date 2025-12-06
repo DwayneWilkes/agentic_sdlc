@@ -88,6 +88,24 @@
 
 ---
 
+### Phase 1.5: Live Agent Dashboard
+
+- **Completed by:** Claude Code
+- **Tasks:** 4/4 complete
+  - [x] Real-time agent status display (running, completed, failed)
+  - [x] Interactive controls (stop agent, query status, update goal)
+  - [x] NATS integration for live updates
+  - [x] Graceful vs immediate stop command support (SIGTERM/SIGKILL)
+- **Quality Gates:** Dashboard functional, signal handling tested
+- **Notes:**
+  - scripts/dashboard.py - Standalone Rich UI dashboard
+  - src/orchestrator/dashboard.py - Dashboard module with NATS subscription
+  - Signal handling: SIGTERM→graceful (30s grace), SIGKILL→immediate
+  - Interactive commands: stop, query, update goal, clear completed
+  - Commands: `python scripts/orchestrator.py dashboard [-w|-s]`
+
+---
+
 ## Summary
 
 | Phase | Agent | Tests | Coverage | Status |
@@ -96,8 +114,9 @@
 | 1.2 Task Parser | Aria | 24/24 | 97% | ✅ |
 | 1.3 Task Decomposition | Atlas | 22/22 | 74% | ✅ |
 | 1.4 Agent Role Registry | Nexus | 27/27 | 100% | ✅ |
+| 1.5 Live Agent Dashboard | Claude Code | - | - | ✅ |
 | 5.1 Inter-Agent Communication | Claude Code | 21/21 | 54% | ✅ |
 | 5.2 Shared State Manager | Claude Code | 21/21 | 44% | ✅ |
 
-**Batch 1 (Foundation) Complete:** 4/4 phases
+**Batch 1 (Foundation) Complete:** 5/5 phases
 **Batch 5 (Coordination) Progress:** 2/3 phases complete

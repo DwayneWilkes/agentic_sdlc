@@ -57,6 +57,24 @@
 - **Completed:** 2025-12-05
 - **Quality Gates:** All tests pass (27/27), 100% coverage for role_registry.py, no linting errors, no type errors
 
+### Phase 1.5: Live Agent Dashboard
+
+- **Status:** ✅ Complete
+- **Assigned To:** Claude Code
+- **Tasks:**
+  - [✅] Real-time agent status display (running, completed, failed)
+  - [✅] Interactive controls (stop agent, query status, update goal)
+  - [✅] NATS integration for live updates
+  - [✅] Graceful vs immediate stop command support (SIGTERM/SIGKILL)
+- **Effort:** S
+- **Done When:** Dashboard shows live agent status; stop/control commands work
+- **Completed:** 2025-12-05
+- **Implementation Notes:**
+  - scripts/dashboard.py - Standalone Rich UI dashboard
+  - src/orchestrator/dashboard.py - Dashboard module with NATS subscription
+  - Signal handling in autonomous_agent.sh (SIGTERM→graceful, SIGKILL→immediate)
+  - Commands: `python scripts/orchestrator.py dashboard [-w|-s]`
+
 ---
 
 ## Batch 2 (Foundation)
@@ -106,6 +124,37 @@
   - [ ] Add circuit breakers to prevent resource exhaustion
 - **Effort:** M
 - **Done When:** Failed tasks retry appropriately; cascading failures prevented; system remains operational
+
+### Phase 2.5: Orchestrator as Claude Code Wrapper ⭐ PRIORITY
+
+- **Status:** ⚪ Not Started
+- **Depends On:** Phase 1.2 ✅, Phase 1.3 ✅, Phase 1.4 ✅
+- **Tasks:**
+  - [ ] Create orchestrator wrapper that accepts ANY natural language request
+  - [ ] Integrate TaskParser for goal extraction, constraint detection, ambiguity handling
+  - [ ] Add complexity assessment (simple task → single agent, complex → decompose)
+  - [ ] Integrate TaskDecomposer for breaking complex tasks into subtask DAG
+  - [ ] Integrate RoleMatcher to assign agent roles per subtask
+  - [ ] Spawn Claude Code agents for parallel execution where dependencies allow
+  - [ ] Coordinate via NATS, integrate outputs, return unified result to user
+- **Effort:** L
+- **Done When:** User can give any NL request to orchestrator; simple tasks run directly, complex tasks decompose and parallelize automatically
+- **Design Notes:**
+
+  ```text
+  User Request → Orchestrator Wrapper
+    │
+    ├─► TaskParser.parse() → goal, constraints, context, task_type
+    │
+    ├─► Is simple? → YES: Single Claude Code agent
+    │              → NO:  TaskDecomposer.decompose()
+    │
+    ├─► RoleMatcher.match(subtasks) → agent roles
+    │
+    ├─► Spawn agents (parallel where possible)
+    │
+    └─► Coordinate via NATS → Integrate outputs → Return to user
+  ```
 
 ---
 
