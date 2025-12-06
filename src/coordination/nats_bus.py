@@ -5,12 +5,12 @@ This module provides a high-level interface for agent communication using NATS,
 supporting pub/sub, request/reply, and queue groups for workload distribution.
 """
 
-import asyncio
 import json
-from typing import Any, Callable, Optional
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 import nats
 from nats.aio.client import Client as NATSClient
@@ -45,11 +45,11 @@ class AgentMessage:
     """Standard message format for agent communication."""
 
     from_agent: str
-    to_agent: Optional[str]  # None for broadcast
+    to_agent: str | None  # None for broadcast
     message_type: MessageType
     content: dict[str, Any]
     timestamp: str
-    correlation_id: Optional[str] = None  # For request/reply tracking
+    correlation_id: str | None = None  # For request/reply tracking
 
     def to_json(self) -> str:
         """Serialize message to JSON."""
@@ -101,7 +101,7 @@ class NATSMessageBus:
             nats_url: NATS server URL
         """
         self.nats_url = nats_url
-        self.nc: Optional[NATSClient] = None
+        self.nc: NATSClient | None = None
         self.subscriptions: dict[str, int] = {}
 
     async def connect(self) -> None:
@@ -233,7 +233,7 @@ class NATSMessageBus:
                 timeout=timeout
             )
             return AgentMessage.from_json(response.data.decode())
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise TimeoutError(
                 f"No reply from {to_agent} within {timeout}s"
             )
@@ -242,7 +242,7 @@ class NATSMessageBus:
         self,
         subject: str,
         callback: Callable[[AgentMessage], None],
-        queue: Optional[str] = None
+        queue: str | None = None
     ) -> int:
         """
         Subscribe to a subject.
@@ -281,7 +281,7 @@ class NATSMessageBus:
     async def subscribe_to_agent_messages(
         self,
         agent_id: str,
-        callback: Callable[[AgentMessage], Optional[AgentMessage]]
+        callback: Callable[[AgentMessage], AgentMessage | None]
     ) -> list[int]:
         """
         Subscribe to all messages for a specific agent.
@@ -382,7 +382,7 @@ class NATSMessageBus:
 
 
 # Singleton instance for convenience
-_bus_instance: Optional[NATSMessageBus] = None
+_bus_instance: NATSMessageBus | None = None
 
 
 async def get_message_bus(nats_url: str = "nats://localhost:4222") -> NATSMessageBus:

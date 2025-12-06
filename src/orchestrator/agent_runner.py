@@ -9,21 +9,20 @@ Handles:
 - NATS-based coordination for race condition prevention
 """
 
+import asyncio
+import os
 import subprocess
 import threading
-import asyncio
 import time
-from pathlib import Path
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Callable
-import os
-import signal
+from pathlib import Path
 
-from src.core.agent_naming import AgentNaming, get_naming
-from src.core.agent_memory import get_memory, AgentMemory
-from src.coordination.nats_bus import NATSMessageBus, MessageType, get_message_bus
+from src.coordination.nats_bus import MessageType, NATSMessageBus, get_message_bus
+from src.core.agent_memory import get_memory
+from src.core.agent_naming import get_naming
 
 
 class AgentState(str, Enum):
@@ -43,18 +42,18 @@ class AgentProcess:
     agent_id: str
     work_stream_id: str
     state: AgentState = AgentState.PENDING
-    process: Optional[subprocess.Popen] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    exit_code: Optional[int] = None
+    process: subprocess.Popen | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    exit_code: int | None = None
     # Output storage: head (first lines), tail (recent lines), important (errors/warnings)
     _output_head: list[str] = field(default_factory=list)  # First 100 lines
     _output_tail: list[str] = field(default_factory=list)  # Rolling last 200 lines
     _output_important: list[str] = field(default_factory=list)  # Errors/warnings
     _total_lines: int = 0
     error_lines: list[str] = field(default_factory=list)
-    log_file: Optional[Path] = None
-    personal_name: Optional[str] = None
+    log_file: Path | None = None
+    personal_name: str | None = None
 
     # Limits for output storage
     HEAD_LIMIT = 100
@@ -68,11 +67,11 @@ class AgentProcess:
             return self._output_head + self._output_tail
         else:
             gap = self._total_lines - self.HEAD_LIMIT - len(self._output_tail)
-            return (
-                self._output_head +
-                [f"... [{gap} lines omitted, {len(self._output_important)} important lines captured] ..."] +
-                self._output_tail
+            omitted_msg = (
+                f"... [{gap} lines omitted, "
+                f"{len(self._output_important)} important lines captured] ..."
             )
+            return self._output_head + [omitted_msg] + self._output_tail
 
     def add_output_line(self, line: str) -> None:
         """Add an output line with smart storage."""
@@ -89,7 +88,8 @@ class AgentProcess:
 
         # Check for important lines (errors, warnings, failures)
         line_lower = line.lower()
-        if any(marker in line_lower for marker in ["error", "failed", "exception", "traceback", "warning"]):
+        error_markers = ["error", "failed", "exception", "traceback", "warning"]
+        if any(marker in line_lower for marker in error_markers):
             if len(self._output_important) < self.IMPORTANT_LIMIT:
                 self._output_important.append(f"[L{self._total_lines}] {line}")
 
@@ -99,7 +99,7 @@ class AgentProcess:
         return self._output_important.copy()
 
     @property
-    def duration_seconds(self) -> Optional[float]:
+    def duration_seconds(self) -> float | None:
         """Get duration of agent run in seconds."""
         if not self.started_at:
             return None
@@ -133,8 +133,8 @@ class WorkStreamCoordinator:
     def __init__(self):
         self._claimed: dict[str, str] = {}  # work_stream_id -> agent_id
         self._lock = threading.Lock()
-        self._nats_bus: Optional[NATSMessageBus] = None
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._nats_bus: NATSMessageBus | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     async def _get_bus(self) -> NATSMessageBus:
         """Get or create NATS connection."""
@@ -255,7 +255,13 @@ class WorkStreamCoordinator:
             }
         )
 
-    def broadcast_status(self, agent_id: str, work_stream_id: str, status: str, details: dict = None) -> None:
+    def broadcast_status(
+        self,
+        agent_id: str,
+        work_stream_id: str,
+        status: str,
+        details: dict | None = None,
+    ) -> None:
         """
         Broadcast agent status update via NATS.
 
@@ -266,11 +272,21 @@ class WorkStreamCoordinator:
             details: Additional details
         """
         try:
-            self._run_async(self._do_broadcast_status(agent_id, work_stream_id, status, details or {}))
+            self._run_async(
+                self._do_broadcast_status(
+                    agent_id, work_stream_id, status, details or {}
+                )
+            )
         except Exception as e:
             print(f"NATS status broadcast failed: {e}")
 
-    async def _do_broadcast_status(self, agent_id: str, work_stream_id: str, status: str, details: dict) -> None:
+    async def _do_broadcast_status(
+        self,
+        agent_id: str,
+        work_stream_id: str,
+        status: str,
+        details: dict,
+    ) -> None:
         """Actually broadcast status via NATS."""
         bus = await self._get_bus()
         await bus.broadcast(
@@ -289,14 +305,14 @@ class WorkStreamCoordinator:
         with self._lock:
             return self._claimed.copy()
 
-    def is_claimed(self, work_stream_id: str) -> Optional[str]:
+    def is_claimed(self, work_stream_id: str) -> str | None:
         """Check if a work stream is claimed. Returns agent_id if claimed, None otherwise."""
         with self._lock:
             return self._claimed.get(work_stream_id)
 
 
 # Global coordinator instance
-_coordinator: Optional[WorkStreamCoordinator] = None
+_coordinator: WorkStreamCoordinator | None = None
 
 
 def get_coordinator() -> WorkStreamCoordinator:
@@ -319,7 +335,7 @@ class AgentRunner:
 
     def __init__(
         self,
-        project_root: Optional[Path] = None,
+        project_root: Path | None = None,
         max_concurrent: int = 3,
         timeout_seconds: int = 1800,  # 30 minutes default
     ):
@@ -379,7 +395,7 @@ class AgentRunner:
 
         return available
 
-    def find_agent_for_task(self, work_stream_id: str) -> Optional[str]:
+    def find_agent_for_task(self, work_stream_id: str) -> str | None:
         """
         Find an existing agent suitable for a work stream.
 
@@ -427,7 +443,7 @@ class AgentRunner:
         self,
         personal_name: str,
         work_stream_id: str,
-        on_output: Optional[Callable[[str], None]] = None,
+        on_output: Callable[[str], None] | None = None,
     ) -> AgentProcess:
         """
         Spawn an agent using their personal name (reusing existing context).
@@ -473,7 +489,7 @@ class AgentRunner:
         self,
         agent: AgentProcess,
         context: str,
-        on_output: Optional[Callable[[str], None]],
+        on_output: Callable[[str], None] | None,
     ) -> None:
         """Run agent process with memory context (called in background thread)."""
         # Claim work stream via coordinator
@@ -551,7 +567,7 @@ class AgentRunner:
         self,
         agent: AgentProcess,
         process: subprocess.Popen,
-        on_output: Optional[Callable[[str], None]],
+        on_output: Callable[[str], None] | None,
     ) -> None:
         """Monitor agent output and detect completion."""
         start_time = time.time()
@@ -601,7 +617,7 @@ class AgentRunner:
     def spawn_agent(
         self,
         work_stream_id: str,
-        on_output: Optional[Callable[[str], None]] = None,
+        on_output: Callable[[str], None] | None = None,
         reuse_agent: bool = True,
     ) -> AgentProcess:
         """
@@ -673,7 +689,7 @@ class AgentRunner:
     def _run_agent(
         self,
         agent: AgentProcess,
-        on_output: Optional[Callable[[str], None]],
+        on_output: Callable[[str], None] | None,
     ) -> None:
         """Run agent process (called in background thread)."""
         # Claim work stream via coordinator
@@ -793,7 +809,7 @@ class AgentRunner:
 
         return killed
 
-    def get_agent(self, agent_id: str) -> Optional[AgentProcess]:
+    def get_agent(self, agent_id: str) -> AgentProcess | None:
         """Get an agent by ID."""
         return self.agents.get(agent_id)
 
@@ -805,7 +821,7 @@ class AgentRunner:
         """Get all finished agents."""
         return [a for a in self.agents.values() if a.is_finished]
 
-    def wait_for_all(self, timeout: Optional[int] = None) -> bool:
+    def wait_for_all(self, timeout: int | None = None) -> bool:
         """
         Wait for all agents to complete.
 

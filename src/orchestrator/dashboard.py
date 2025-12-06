@@ -10,32 +10,30 @@ Features:
 
 import asyncio
 import threading
-import time
-from datetime import datetime, timedelta
-from typing import Optional, Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
 from rich.layout import Layout
 from rich.live import Live
+from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
+from rich.table import Table
 from rich.text import Text
-from rich.prompt import Prompt, Confirm
 
-from src.coordination.nats_bus import NATSMessageBus, MessageType, AgentMessage, get_message_bus
-from src.orchestrator.agent_runner import AgentRunner, AgentState, get_coordinator
+from src.coordination.nats_bus import AgentMessage, MessageType, NATSMessageBus, get_message_bus
+from src.orchestrator.agent_runner import AgentRunner, get_coordinator
 
 
 @dataclass
 class AgentInfo:
     """Tracked information about an agent."""
     agent_id: str
-    personal_name: Optional[str] = None
-    work_stream_id: Optional[str] = None
+    personal_name: str | None = None
+    work_stream_id: str | None = None
     status: str = "unknown"
-    started_at: Optional[datetime] = None
-    last_update: Optional[datetime] = None
+    started_at: datetime | None = None
+    last_update: datetime | None = None
     details: dict = field(default_factory=dict)
 
     @property
@@ -49,7 +47,9 @@ class AgentInfo:
         elif delta.total_seconds() < 3600:
             return f"{int(delta.total_seconds() / 60)}m"
         else:
-            return f"{int(delta.total_seconds() / 3600)}h {int((delta.total_seconds() % 3600) / 60)}m"
+            hours = int(delta.total_seconds() / 3600)
+            mins = int((delta.total_seconds() % 3600) / 60)
+            return f"{hours}h {mins}m"
 
     @property
     def status_emoji(self) -> str:
@@ -72,7 +72,7 @@ class AgentDashboard:
     interactive controls for agent management.
     """
 
-    def __init__(self, runner: Optional[AgentRunner] = None):
+    def __init__(self, runner: AgentRunner | None = None):
         """
         Initialize the dashboard.
 
@@ -85,7 +85,7 @@ class AgentDashboard:
         self.agents: dict[str, AgentInfo] = {}
         self._lock = threading.Lock()
         self._running = False
-        self._nats_bus: Optional[NATSMessageBus] = None
+        self._nats_bus: NATSMessageBus | None = None
         self._command_queue: asyncio.Queue = asyncio.Queue()
         self._last_refresh = datetime.now()
 
@@ -196,7 +196,12 @@ class AgentDashboard:
 
         # Add rows
         with self._lock:
-            for agent_id, agent in sorted(self.agents.items(), key=lambda x: x[1].started_at or datetime.min, reverse=True):
+            sorted_agents = sorted(
+                self.agents.items(),
+                key=lambda x: x[1].started_at or datetime.min,
+                reverse=True,
+            )
+            for agent_id, agent in sorted_agents:
                 last_update = ""
                 if agent.last_update:
                     delta = datetime.now() - agent.last_update
@@ -314,9 +319,9 @@ class AgentDashboard:
                     agent_id = running_agents[idx][0]
                     graceful = Confirm.ask("Graceful stop?", default=True)
                     if self.runner.send_stop_command(agent_id, graceful=graceful):
-                        self.console.print(f"[green]Stop command sent[/green]")
+                        self.console.print("[green]Stop command sent[/green]")
                     else:
-                        self.console.print(f"[red]Failed to send stop[/red]")
+                        self.console.print("[red]Failed to send stop[/red]")
         except (ValueError, KeyboardInterrupt):
             pass
 
@@ -378,9 +383,9 @@ class AgentDashboard:
                 reason = Prompt.ask("Reason", default="Priority change")
 
                 if self.runner.send_update_goal_command(agent_id, new_goal, reason):
-                    self.console.print(f"[green]Goal update sent[/green]")
+                    self.console.print("[green]Goal update sent[/green]")
                 else:
-                    self.console.print(f"[red]Failed to send update[/red]")
+                    self.console.print("[red]Failed to send update[/red]")
         except (ValueError, KeyboardInterrupt):
             pass
 
@@ -397,7 +402,7 @@ class AgentDashboard:
         self.console.print(f"[green]Cleared {len(to_remove)} agents[/green]")
 
 
-async def run_dashboard(runner: Optional[AgentRunner] = None) -> None:
+async def run_dashboard(runner: AgentRunner | None = None) -> None:
     """Run the live dashboard."""
     dashboard = AgentDashboard(runner)
     await dashboard.start()
@@ -409,7 +414,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="Live Agent Dashboard")
     parser.add_argument("--no-nats", action="store_true", help="Run without NATS")
-    args = parser.parse_args()
+    _args = parser.parse_args()  # Currently unused, reserved for future flags
 
     console = Console()
     console.print("[bold cyan]Starting Agent Dashboard...[/bold cyan]")

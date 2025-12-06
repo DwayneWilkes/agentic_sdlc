@@ -1,19 +1,15 @@
 """Tests for the agent memory system."""
 
 import json
-import pytest
-from pathlib import Path
-from datetime import datetime
 from unittest.mock import patch
+
+import pytest
 
 from src.core.agent_memory import (
     AgentMemory,
     MemoryEntry,
     MemoryType,
     get_memory,
-    remember,
-    recall,
-    get_context,
 )
 
 
@@ -106,7 +102,7 @@ class TestAgentMemory:
 
     def test_init_creates_storage(self, temp_storage):
         """Test that init creates storage directory."""
-        memory = AgentMemory("NewAgent", storage_path=temp_storage)
+        _memory = AgentMemory("NewAgent", storage_path=temp_storage)  # Side effect test
         assert temp_storage.exists()
 
     def test_remember_basic(self, memory):

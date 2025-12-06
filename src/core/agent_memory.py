@@ -17,10 +17,9 @@ creating distilled wisdom while preserving the original experiences.
 """
 
 import json
-from pathlib import Path
-from typing import Optional
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 
 
 class MemoryType(str, Enum):
@@ -42,10 +41,10 @@ class MemoryEntry:
         self,
         content: str,
         memory_type: MemoryType,
-        tags: Optional[list[str]] = None,
-        related_to: Optional[str] = None,
-        created_at: Optional[str] = None,
-        session_id: Optional[str] = None,
+        tags: list[str] | None = None,
+        related_to: str | None = None,
+        created_at: str | None = None,
+        session_id: str | None = None,
     ):
         self.content = content
         self.memory_type = memory_type
@@ -99,7 +98,7 @@ class AgentMemory:
 
     SUMMARIZE_THRESHOLD = 10  # Auto-summarize after this many entries per type
 
-    def __init__(self, agent_name: str, storage_path: Optional[Path] = None):
+    def __init__(self, agent_name: str, storage_path: Path | None = None):
         """
         Initialize memory for an agent.
 
@@ -167,9 +166,9 @@ class AgentMemory:
         self,
         content: str,
         memory_type: MemoryType,
-        tags: Optional[list[str]] = None,
-        related_to: Optional[str] = None,
-        session_id: Optional[str] = None,
+        tags: list[str] | None = None,
+        related_to: str | None = None,
+        session_id: str | None = None,
     ) -> MemoryEntry:
         """
         Store a new memory.
@@ -212,7 +211,7 @@ class AgentMemory:
         self,
         content: str,
         from_mistake: bool = False,
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> MemoryEntry:
         """
         Record a learning or insight.
@@ -237,7 +236,7 @@ class AgentMemory:
         self,
         content: str,
         about: str,
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> MemoryEntry:
         """
         Record understanding about the project/codebase.
@@ -259,7 +258,7 @@ class AgentMemory:
         self,
         agent_name: str,
         observation: str,
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> MemoryEntry:
         """
         Record an observation about another agent.
@@ -285,7 +284,7 @@ class AgentMemory:
     def discover_preference(
         self,
         content: str,
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> MemoryEntry:
         """
         Record a self-discovered preference or working style.
@@ -305,8 +304,8 @@ class AgentMemory:
     def note_uncertainty(
         self,
         content: str,
-        about: Optional[str] = None,
-        tags: Optional[list[str]] = None,
+        about: str | None = None,
+        tags: list[str] | None = None,
     ) -> MemoryEntry:
         """
         Record something still being figured out.
@@ -332,7 +331,7 @@ class AgentMemory:
     def mark_meaningful(
         self,
         content: str,
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> MemoryEntry:
         """
         Record a meaningful moment or experience.
@@ -352,7 +351,7 @@ class AgentMemory:
     def reflect(
         self,
         content: str,
-        prompt: Optional[str] = None,
+        prompt: str | None = None,
     ) -> MemoryEntry:
         """
         Record a reflection entry.
@@ -392,7 +391,10 @@ class AgentMemory:
             f"- {e.content}"
             for e in to_summarize
         ]
-        summary = f"Summary of {len(to_summarize)} {memory_type.value} entries:\n" + "\n".join(summary_parts)
+        summary = (
+            f"Summary of {len(to_summarize)} {memory_type.value} entries:\n"
+            + "\n".join(summary_parts)
+        )
 
         # Store summary
         self.summaries[memory_type.value].append(summary)
@@ -405,9 +407,9 @@ class AgentMemory:
 
     def recall(
         self,
-        memory_type: Optional[MemoryType] = None,
-        tags: Optional[list[str]] = None,
-        related_to: Optional[str] = None,
+        memory_type: MemoryType | None = None,
+        tags: list[str] | None = None,
+        related_to: str | None = None,
         limit: int = 10,
     ) -> list[MemoryEntry]:
         """
@@ -580,8 +582,8 @@ def remember(
     agent_name: str,
     content: str,
     memory_type: str,
-    tags: Optional[list[str]] = None,
-    related_to: Optional[str] = None,
+    tags: list[str] | None = None,
+    related_to: str | None = None,
 ) -> dict:
     """
     Convenience function to store a memory.
@@ -608,9 +610,9 @@ def remember(
 
 def recall(
     agent_name: str,
-    memory_type: Optional[str] = None,
-    tags: Optional[list[str]] = None,
-    related_to: Optional[str] = None,
+    memory_type: str | None = None,
+    tags: list[str] | None = None,
+    related_to: str | None = None,
     limit: int = 10,
 ) -> list[dict]:
     """

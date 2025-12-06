@@ -7,15 +7,14 @@ The system ensures uniqueness and persists mappings for lookup.
 
 import json
 import random
-from pathlib import Path
-from typing import Optional
 from datetime import datetime
+from pathlib import Path
 
 
 class AgentNaming:
     """Manages personal names for autonomous agents."""
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         """
         Initialize the agent naming system.
 
@@ -37,7 +36,7 @@ class AgentNaming:
                 f"Agent naming config not found: {self.config_path}"
             )
 
-        with open(self.config_path, "r") as f:
+        with open(self.config_path) as f:
             return json.load(f)
 
     def _save_config(self) -> None:
@@ -124,7 +123,7 @@ class AgentNaming:
         return True, chosen_name
 
     def claim_name_from_pool(
-        self, agent_id: str, role: str = "default", preferred_name: Optional[str] = None
+        self, agent_id: str, role: str = "default", preferred_name: str | None = None
     ) -> str:
         """
         Legacy function: Claim a name from the predefined pool.
@@ -200,7 +199,7 @@ class AgentNaming:
 
         return f"{base_name}-{counter}"
 
-    def get_name(self, agent_id: str) -> Optional[str]:
+    def get_name(self, agent_id: str) -> str | None:
         """
         Get the personal name for an agent.
 
@@ -213,7 +212,7 @@ class AgentNaming:
         entry = self.config["assigned_names"].get(agent_id)
         return entry["name"] if entry else None
 
-    def get_agent_id(self, personal_name: str) -> Optional[str]:
+    def get_agent_id(self, personal_name: str) -> str | None:
         """
         Reverse lookup: Get agent ID from personal name.
 
@@ -280,7 +279,7 @@ class AgentNaming:
 
 
 # Singleton instance
-_naming_instance: Optional[AgentNaming] = None
+_naming_instance: AgentNaming | None = None
 
 
 def get_naming() -> AgentNaming:

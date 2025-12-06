@@ -1,17 +1,17 @@
 """Tests for agent coordination and NATS integration."""
 
-import pytest
 import asyncio
 import threading
-import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from src.orchestrator.agent_runner import (
+    AgentProcess,
+    AgentRunner,
+    AgentState,
     WorkStreamCoordinator,
     get_coordinator,
-    AgentRunner,
-    AgentProcess,
-    AgentState,
 )
 
 
@@ -170,7 +170,10 @@ class TestWorkStreamCoordinatorNATS:
 
     def test_coordinator_graceful_nats_failure(self):
         """Test coordinator works even when NATS is unavailable."""
-        with patch('src.orchestrator.agent_runner.get_message_bus', side_effect=Exception("NATS down")):
+        with patch(
+            'src.orchestrator.agent_runner.get_message_bus',
+            side_effect=Exception("NATS down"),
+        ):
             # Should still be able to claim locally
             result = self.coordinator.claim_work_stream("1.1", "agent-1")
             assert result is True
@@ -277,7 +280,7 @@ class TestCoordinationIntegration:
     @pytest.mark.asyncio
     async def test_nats_broadcast_integration(self):
         """Test actual NATS broadcast if server is available."""
-        from src.coordination.nats_bus import get_message_bus, MessageType
+        from src.coordination.nats_bus import MessageType, get_message_bus
 
         try:
             bus = await get_message_bus()
@@ -313,13 +316,13 @@ class TestCoordinationIntegration:
             try:
                 if 'bus' in locals():
                     await bus.close()
-            except:
+            except Exception:
                 pass
 
     @pytest.mark.asyncio
     async def test_coordination_via_nats(self):
         """Test multi-agent coordination via NATS."""
-        from src.coordination.nats_bus import get_message_bus, MessageType
+        from src.coordination.nats_bus import get_message_bus
 
         try:
             bus = await get_message_bus()
@@ -363,5 +366,5 @@ class TestCoordinationIntegration:
             try:
                 if 'bus' in locals():
                     await bus.close()
-            except:
+            except Exception:
                 pass
