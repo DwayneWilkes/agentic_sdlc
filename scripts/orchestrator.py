@@ -13,6 +13,10 @@ Usage:
     python scripts/orchestrator.py report          # Show detailed report
     python scripts/orchestrator.py goal "..."      # Run based on natural language goal
     python scripts/orchestrator.py interactive     # Interactive mode with the orchestrator
+    python scripts/orchestrator.py dashboard       # Live dashboard with controls
+    python scripts/orchestrator.py dashboard -w    # Watch mode (auto-refresh)
+    python scripts/orchestrator.py garden          # Clear blockers on roadmap
+    python scripts/orchestrator.py agents          # List known agents
 """
 
 import argparse
@@ -350,6 +354,25 @@ def cmd_agents(args=None) -> int:
         print(colored(f"Error loading agents: {e}", Colors.RED))
 
     return 0
+
+
+def cmd_dashboard(args) -> int:
+    """Launch live agent dashboard."""
+    import asyncio
+    from scripts.dashboard import status_report, watch_mode, interactive_mode
+    from src.orchestrator.agent_runner import AgentRunner
+
+    runner = AgentRunner(PROJECT_ROOT)
+
+    if args.status:
+        status_report(runner)
+        return 0
+    elif args.watch:
+        asyncio.run(watch_mode(runner))
+        return 0
+    else:
+        asyncio.run(interactive_mode(runner))
+        return 0
 
 
 def cmd_report(args) -> int:
@@ -737,6 +760,22 @@ def main():
         help="List known agents",
     )
 
+    # dashboard command
+    dashboard_parser = subparsers.add_parser(
+        "dashboard",
+        help="Live agent dashboard with interactive controls",
+    )
+    dashboard_parser.add_argument(
+        "--watch", "-w",
+        action="store_true",
+        help="Watch mode (auto-refresh, no interaction)",
+    )
+    dashboard_parser.add_argument(
+        "--status", "-s",
+        action="store_true",
+        help="One-time status report",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -754,6 +793,7 @@ def main():
         "interactive": cmd_interactive,
         "garden": cmd_garden,
         "agents": cmd_agents,
+        "dashboard": cmd_dashboard,
     }
 
     return commands[args.command](args)

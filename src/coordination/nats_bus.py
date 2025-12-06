@@ -21,6 +21,7 @@ class MessageType(str, Enum):
     """Types of messages agents can exchange."""
     STATUS_UPDATE = "status_update"
     TASK_ASSIGNMENT = "task_assignment"
+    TASK_ASSIGNED = "task_assigned"  # Work stream claimed
     TASK_COMPLETE = "task_complete"
     TASK_FAILED = "task_failed"
     QUESTION = "question"
@@ -30,6 +31,13 @@ class MessageType(str, Enum):
     RESOURCE_RESPONSE = "resource_response"
     COORDINATION_REQUEST = "coordination_request"
     HEARTBEAT = "heartbeat"
+    # Control commands from orchestrator to agents
+    STOP_TASK = "stop_task"  # Stop current work (graceful or immediate)
+    UPDATE_GOAL = "update_goal"  # Update agent's goal/task
+    PAUSE_AGENT = "pause_agent"  # Pause agent activity
+    RESUME_AGENT = "resume_agent"  # Resume agent activity
+    PING = "ping"  # Check if agent is responsive
+    PONG = "pong"  # Response to ping
 
 
 @dataclass

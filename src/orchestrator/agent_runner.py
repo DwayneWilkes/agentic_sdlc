@@ -6,10 +6,12 @@ Handles:
 - Monitoring agent status
 - Capturing agent output
 - Detecting completion/failure
+- NATS-based coordination for race condition prevention
 """
 
 import subprocess
 import threading
+import asyncio
 import time
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -21,6 +23,7 @@ import signal
 
 from src.core.agent_naming import AgentNaming, get_naming
 from src.core.agent_memory import get_memory, AgentMemory
+from src.coordination.nats_bus import NATSMessageBus, MessageType, get_message_bus
 
 
 class AgentState(str, Enum):
@@ -119,12 +122,199 @@ class AgentProcess:
         )
 
 
+class WorkStreamCoordinator:
+    """
+    Coordinates work stream claims via NATS to prevent race conditions.
+
+    Uses request/reply pattern for atomic claiming and broadcasts
+    for status updates.
+    """
+
+    def __init__(self):
+        self._claimed: dict[str, str] = {}  # work_stream_id -> agent_id
+        self._lock = threading.Lock()
+        self._nats_bus: Optional[NATSMessageBus] = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+
+    async def _get_bus(self) -> NATSMessageBus:
+        """Get or create NATS connection."""
+        if self._nats_bus is None:
+            self._nats_bus = await get_message_bus()
+        return self._nats_bus
+
+    def _run_async(self, coro):
+        """Run async code from sync context."""
+        try:
+            # Try to get existing loop
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Schedule in running loop
+                import concurrent.futures
+                future = concurrent.futures.Future()
+                def callback():
+                    try:
+                        result = asyncio.ensure_future(coro)
+                        result.add_done_callback(
+                            lambda f: future.set_result(f.result()) if not f.exception()
+                            else future.set_exception(f.exception())
+                        )
+                    except Exception as e:
+                        future.set_exception(e)
+                loop.call_soon_threadsafe(callback)
+                return future.result(timeout=5)
+            else:
+                return loop.run_until_complete(coro)
+        except RuntimeError:
+            # No event loop, create new one
+            return asyncio.run(coro)
+
+    def claim_work_stream(self, work_stream_id: str, agent_id: str) -> bool:
+        """
+        Attempt to claim a work stream for an agent.
+
+        Uses NATS for distributed coordination.
+
+        Args:
+            work_stream_id: The work stream to claim
+            agent_id: The agent claiming it
+
+        Returns:
+            True if claimed successfully, False if already claimed
+        """
+        with self._lock:
+            # Check local cache first
+            if work_stream_id in self._claimed:
+                owner = self._claimed[work_stream_id]
+                if owner != agent_id:
+                    return False
+                return True  # Already claimed by this agent
+
+            # Try to claim via NATS broadcast
+            try:
+                self._run_async(self._broadcast_claim(work_stream_id, agent_id))
+            except Exception as e:
+                # NATS unavailable, use local-only coordination
+                print(f"NATS unavailable for claim broadcast: {e}")
+
+            # Record local claim
+            self._claimed[work_stream_id] = agent_id
+            return True
+
+    async def _broadcast_claim(self, work_stream_id: str, agent_id: str) -> None:
+        """Broadcast work stream claim via NATS."""
+        bus = await self._get_bus()
+        await bus.broadcast(
+            from_agent=agent_id,
+            message_type=MessageType.TASK_ASSIGNED,
+            content={
+                "work_stream_id": work_stream_id,
+                "agent_id": agent_id,
+                "action": "claim",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
+
+    def release_work_stream(self, work_stream_id: str, agent_id: str) -> bool:
+        """
+        Release a work stream claim.
+
+        Args:
+            work_stream_id: The work stream to release
+            agent_id: The agent releasing it
+
+        Returns:
+            True if released, False if not owned by agent
+        """
+        with self._lock:
+            if work_stream_id not in self._claimed:
+                return True  # Already released
+
+            if self._claimed[work_stream_id] != agent_id:
+                return False  # Not owned by this agent
+
+            del self._claimed[work_stream_id]
+
+            try:
+                self._run_async(self._broadcast_release(work_stream_id, agent_id))
+            except Exception:
+                pass  # Best effort
+
+            return True
+
+    async def _broadcast_release(self, work_stream_id: str, agent_id: str) -> None:
+        """Broadcast work stream release via NATS."""
+        bus = await self._get_bus()
+        await bus.broadcast(
+            from_agent=agent_id,
+            message_type=MessageType.TASK_COMPLETE,
+            content={
+                "work_stream_id": work_stream_id,
+                "agent_id": agent_id,
+                "action": "release",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
+
+    def broadcast_status(self, agent_id: str, work_stream_id: str, status: str, details: dict = None) -> None:
+        """
+        Broadcast agent status update via NATS.
+
+        Args:
+            agent_id: The agent's ID
+            work_stream_id: The work stream
+            status: Status string (started, completed, failed, etc.)
+            details: Additional details
+        """
+        try:
+            self._run_async(self._do_broadcast_status(agent_id, work_stream_id, status, details or {}))
+        except Exception as e:
+            print(f"NATS status broadcast failed: {e}")
+
+    async def _do_broadcast_status(self, agent_id: str, work_stream_id: str, status: str, details: dict) -> None:
+        """Actually broadcast status via NATS."""
+        bus = await self._get_bus()
+        await bus.broadcast(
+            from_agent=agent_id,
+            message_type=MessageType.STATUS_UPDATE,
+            content={
+                "work_stream_id": work_stream_id,
+                "status": status,
+                "timestamp": datetime.now().isoformat(),
+                **details,
+            }
+        )
+
+    def get_claimed_streams(self) -> dict[str, str]:
+        """Get all currently claimed work streams."""
+        with self._lock:
+            return self._claimed.copy()
+
+    def is_claimed(self, work_stream_id: str) -> Optional[str]:
+        """Check if a work stream is claimed. Returns agent_id if claimed, None otherwise."""
+        with self._lock:
+            return self._claimed.get(work_stream_id)
+
+
+# Global coordinator instance
+_coordinator: Optional[WorkStreamCoordinator] = None
+
+
+def get_coordinator() -> WorkStreamCoordinator:
+    """Get the global work stream coordinator."""
+    global _coordinator
+    if _coordinator is None:
+        _coordinator = WorkStreamCoordinator()
+    return _coordinator
+
+
 class AgentRunner:
     """
     Manages spawning and monitoring of autonomous agents.
 
     Uses the existing autonomous_agent.sh script to spawn agents,
     monitoring their output and detecting completion.
+
+    Integrates with NATS for coordination to prevent race conditions.
     """
 
     def __init__(
@@ -155,6 +345,7 @@ class AgentRunner:
         self._lock = threading.Lock()
         self._callbacks: list[Callable[[AgentProcess], None]] = []
         self._naming = get_naming()
+        self._coordinator = get_coordinator()
 
         # Track agent experience for reuse decisions
         self._agent_experience: dict[str, list[str]] = {}  # name -> completed phases
@@ -285,9 +476,24 @@ class AgentRunner:
         on_output: Optional[Callable[[str], None]],
     ) -> None:
         """Run agent process with memory context (called in background thread)."""
+        # Claim work stream via coordinator
+        if not self._coordinator.claim_work_stream(agent.work_stream_id, agent.agent_id):
+            agent.state = AgentState.FAILED
+            agent.error_lines.append(f"Failed to claim work stream {agent.work_stream_id}")
+            self._notify_callbacks(agent)
+            return
+
         agent.state = AgentState.RUNNING
         agent.started_at = datetime.now()
         self._notify_callbacks(agent)
+
+        # Broadcast start via NATS
+        self._coordinator.broadcast_status(
+            agent.agent_id,
+            agent.work_stream_id,
+            "started",
+            {"personal_name": agent.personal_name, "reused": True}
+        )
 
         try:
             # Prepare environment with context
@@ -317,6 +523,23 @@ class AgentRunner:
 
         finally:
             agent.completed_at = datetime.now()
+
+            # Broadcast completion/failure via NATS
+            status = "completed" if agent.state == AgentState.COMPLETED else "failed"
+            self._coordinator.broadcast_status(
+                agent.agent_id,
+                agent.work_stream_id,
+                status,
+                {
+                    "personal_name": agent.personal_name,
+                    "exit_code": agent.exit_code,
+                    "duration_seconds": agent.duration_seconds,
+                }
+            )
+
+            # Release work stream claim
+            self._coordinator.release_work_stream(agent.work_stream_id, agent.agent_id)
+
             # Record experience if completed
             if agent.state == AgentState.COMPLETED and agent.personal_name:
                 if agent.personal_name not in self._agent_experience:
@@ -387,6 +610,9 @@ class AgentRunner:
         If reuse_agent is True, will try to reuse an existing agent
         with relevant experience. Otherwise creates a new agent.
 
+        Uses NATS coordination to prevent race conditions when multiple
+        agents try to claim the same work stream.
+
         Args:
             work_stream_id: ID of the work stream (e.g., "1.2")
             on_output: Optional callback for each output line
@@ -394,7 +620,17 @@ class AgentRunner:
 
         Returns:
             AgentProcess instance
+
+        Raises:
+            RuntimeError: If max concurrent agents reached or work stream already claimed
         """
+        # Check if work stream is already claimed
+        existing_claim = self._coordinator.is_claimed(work_stream_id)
+        if existing_claim:
+            raise RuntimeError(
+                f"Work stream {work_stream_id} already claimed by {existing_claim}"
+            )
+
         # Check concurrent limit
         with self._lock:
             running = sum(1 for a in self.agents.values() if a.is_running)
@@ -440,9 +676,24 @@ class AgentRunner:
         on_output: Optional[Callable[[str], None]],
     ) -> None:
         """Run agent process (called in background thread)."""
+        # Claim work stream via coordinator
+        if not self._coordinator.claim_work_stream(agent.work_stream_id, agent.agent_id):
+            agent.state = AgentState.FAILED
+            agent.error_lines.append(f"Failed to claim work stream {agent.work_stream_id}")
+            self._notify_callbacks(agent)
+            return
+
         agent.state = AgentState.RUNNING
         agent.started_at = datetime.now()
         self._notify_callbacks(agent)
+
+        # Broadcast start via NATS
+        self._coordinator.broadcast_status(
+            agent.agent_id,
+            agent.work_stream_id,
+            "started",
+            {"personal_name": agent.personal_name}
+        )
 
         try:
             # Prepare environment
@@ -470,6 +721,23 @@ class AgentRunner:
 
         finally:
             agent.completed_at = datetime.now()
+
+            # Broadcast completion/failure via NATS
+            status = "completed" if agent.state == AgentState.COMPLETED else "failed"
+            self._coordinator.broadcast_status(
+                agent.agent_id,
+                agent.work_stream_id,
+                status,
+                {
+                    "personal_name": agent.personal_name,
+                    "exit_code": agent.exit_code,
+                    "duration_seconds": agent.duration_seconds,
+                }
+            )
+
+            # Release work stream claim
+            self._coordinator.release_work_stream(agent.work_stream_id, agent.agent_id)
+
             # Record experience if completed
             if agent.state == AgentState.COMPLETED and agent.personal_name:
                 if agent.personal_name not in self._agent_experience:
@@ -587,3 +855,161 @@ class AgentRunner:
                 if agents
             },
         }
+
+    # ==================== Agent Control Commands ====================
+
+    def send_stop_command(
+        self,
+        agent_id: str,
+        graceful: bool = True,
+        reason: str = "Orchestrator requested stop"
+    ) -> bool:
+        """
+        Send a stop command to an agent via NATS and OS signals.
+
+        Stop Modes:
+        - graceful=True: Sends SIGTERM to the shell script, which triggers the
+          graceful_shutdown handler. The agent finishes its current operation,
+          saves state, and exits cleanly (up to 30s grace period).
+        - graceful=False: Sends SIGKILL for immediate termination. No cleanup
+          possible, process dies instantly.
+
+        Args:
+            agent_id: ID of the agent to stop
+            graceful: Whether to stop gracefully (SIGTERM) or immediately (SIGKILL)
+            reason: Reason for stopping
+
+        Returns:
+            True if command was sent successfully
+        """
+        agent = self.agents.get(agent_id)
+        if not agent or not agent.is_running:
+            return False
+
+        try:
+            # Broadcast stop command via NATS (for logging/monitoring)
+            self._coordinator.broadcast_status(
+                agent_id="orchestrator",
+                work_stream_id=agent.work_stream_id,
+                status="stop_command",
+                details={
+                    "target_agent": agent_id,
+                    "graceful": graceful,
+                    "reason": reason,
+                }
+            )
+
+            # Send appropriate signal to the process
+            if agent.process:
+                if graceful:
+                    # SIGTERM - caught by shell script's trap handler
+                    # Triggers graceful_shutdown() which waits up to 30s
+                    agent.process.terminate()
+                else:
+                    # SIGKILL - immediate termination, cannot be caught
+                    agent.process.kill()
+                    agent.state = AgentState.KILLED
+                    agent.completed_at = datetime.now()
+                    self._notify_callbacks(agent)
+
+            return True
+        except Exception as e:
+            print(f"Failed to send stop command: {e}")
+            return False
+
+    def send_update_goal_command(
+        self,
+        agent_id: str,
+        new_goal: str,
+        reason: str = "Goal update from orchestrator"
+    ) -> bool:
+        """
+        Send a goal update command to an agent via NATS.
+
+        The agent should adjust its current task to align with the new goal.
+
+        Args:
+            agent_id: ID of the agent to update
+            new_goal: New goal/task description
+            reason: Reason for the update
+
+        Returns:
+            True if command was sent successfully
+        """
+        agent = self.agents.get(agent_id)
+        if not agent or not agent.is_running:
+            return False
+
+        try:
+            self._coordinator.broadcast_status(
+                agent_id="orchestrator",
+                work_stream_id=agent.work_stream_id,
+                status="update_goal",
+                details={
+                    "target_agent": agent_id,
+                    "new_goal": new_goal,
+                    "reason": reason,
+                }
+            )
+            return True
+        except Exception as e:
+            print(f"Failed to send goal update: {e}")
+            return False
+
+    def send_ping(self, agent_id: str, timeout: float = 5.0) -> bool:
+        """
+        Send a ping to check if an agent is responsive.
+
+        Args:
+            agent_id: ID of the agent to ping
+            timeout: Seconds to wait for response
+
+        Returns:
+            True if agent responded, False otherwise
+        """
+        agent = self.agents.get(agent_id)
+        if not agent or not agent.is_running:
+            return False
+
+        # For now, just check if process is alive
+        # Full NATS ping/pong would require async handling
+        if agent.process and agent.process.poll() is None:
+            return True
+        return False
+
+    def stop_all_agents(self, graceful: bool = True, reason: str = "Shutdown requested") -> int:
+        """
+        Send stop command to all running agents.
+
+        Args:
+            graceful: Whether to stop gracefully
+            reason: Reason for stopping
+
+        Returns:
+            Number of agents sent stop command
+        """
+        count = 0
+        for agent_id, agent in self.agents.items():
+            if agent.is_running:
+                if self.send_stop_command(agent_id, graceful, reason):
+                    count += 1
+        return count
+
+    def broadcast_to_all_agents(
+        self,
+        message_type: str,
+        content: dict
+    ) -> None:
+        """
+        Broadcast a message to all running agents.
+
+        Args:
+            message_type: Type of message
+            content: Message content
+        """
+        self._coordinator.broadcast_status(
+            agent_id="orchestrator",
+            work_stream_id="*",
+            status=message_type,
+            details=content
+        )

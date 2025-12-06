@@ -4,6 +4,11 @@ set -euo pipefail
 # Autonomous Agent - TDD Workflow Executor
 # This script launches Claude Code in headless mode to autonomously complete
 # the next task from the roadmap using the TDD agent workflow.
+#
+# Signal Handling:
+#   SIGTERM - Graceful stop: finish current operation, save state, exit
+#   SIGINT  - Graceful stop: same as SIGTERM
+#   SIGKILL - Immediate stop: cannot be caught, instant termination
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -13,6 +18,54 @@ PM_AGENT="$PROJECT_ROOT/.claude/agents/project_manager.md"
 LOG_DIR="$PROJECT_ROOT/agent-logs"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 LOG_FILE="$LOG_DIR/autonomous-agent-$TIMESTAMP.log"
+STOP_FILE="$LOG_DIR/.stop-$TIMESTAMP"
+
+# Graceful shutdown handler
+graceful_shutdown() {
+    log_warning "Received stop signal - initiating graceful shutdown..."
+    log_to_file "GRACEFUL SHUTDOWN REQUESTED at $(date)"
+
+    # Create stop file for agent to detect
+    echo "graceful" > "$STOP_FILE"
+
+    # Give the agent time to finish current operation
+    log_info "Waiting for agent to complete current operation (max 30s)..."
+
+    local wait_count=0
+    while [[ $wait_count -lt 30 ]] && kill -0 $CLAUDE_PID 2>/dev/null; do
+        sleep 1
+        ((wait_count++))
+    done
+
+    if kill -0 $CLAUDE_PID 2>/dev/null; then
+        log_warning "Agent still running after 30s, sending SIGTERM..."
+        kill -TERM $CLAUDE_PID 2>/dev/null || true
+        sleep 2
+    fi
+
+    # Cleanup
+    rm -f "$STOP_FILE"
+    log_info "Graceful shutdown complete"
+    exit 0
+}
+
+# Immediate shutdown handler (for SIGKILL-like behavior via USR1)
+immediate_shutdown() {
+    log_warning "Received IMMEDIATE stop signal!"
+    log_to_file "IMMEDIATE SHUTDOWN at $(date)"
+
+    echo "immediate" > "$STOP_FILE"
+
+    # Kill immediately
+    kill -KILL $CLAUDE_PID 2>/dev/null || true
+    rm -f "$STOP_FILE"
+    exit 1
+}
+
+# Register signal handlers
+CLAUDE_PID=""
+trap graceful_shutdown SIGTERM SIGINT
+trap immediate_shutdown SIGUSR1
 
 # Colors for output
 RED='\033[0;31m'
@@ -169,9 +222,13 @@ log_to_file "=== PHASE 1: TDD Workflow Execution ==="
 log_to_file "Starting: $(date)"
 log_to_file ""
 
-claude -p --dangerously-skip-permissions "$PROMPT" 2>&1 | tee -a "$LOG_FILE"
+# Launch claude in background to capture PID, then wait
+claude -p --dangerously-skip-permissions "$PROMPT" 2>&1 | tee -a "$LOG_FILE" &
+CLAUDE_PID=$!
 
-CLAUDE_EXIT_CODE=${PIPESTATUS[0]}
+# Wait for claude to complete (allowing signals to interrupt)
+wait $CLAUDE_PID
+CLAUDE_EXIT_CODE=$?
 
 log_to_file ""
 log_to_file "Phase 1 completed: $(date)"

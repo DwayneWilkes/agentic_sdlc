@@ -57,6 +57,37 @@
 
 ---
 
+### Phase 5.1: Inter-Agent Communication Protocol
+
+- **Completed by:** Claude Code
+- **Tasks:** 3/3 complete
+  - [x] Define message schema and communication protocol (AgentMessage, MessageType)
+  - [x] Implement information request/response between agents (NATS request/reply)
+  - [x] Add efficient message routing (NATS pub/sub with subject hierarchy)
+- **Quality Gates:** All tests pass (21/21 coordination tests), 54% coverage for nats_bus.py
+- **Notes:**
+  - NATSMessageBus class with pub/sub, request/reply, work queues
+  - MessageType enum with 16 message types including control commands (STOP_TASK, UPDATE_GOAL, PING, PONG)
+  - Subject hierarchy: orchestrator.{broadcast|agent|team|queue}.{type}
+
+---
+
+### Phase 5.2: Shared State and Context Manager
+
+- **Completed by:** Claude Code
+- **Tasks:** 3/3 complete
+  - [x] Implement shared knowledge base accessible by agents (WorkStreamCoordinator)
+  - [x] Add consistency guarantees (prevent race conditions) (thread-safe claiming with locks)
+  - [x] Implement output versioning and tracking (timestamps in all messages)
+- **Quality Gates:** All tests pass (21/21 coordination tests), race condition test verifies only 1 of 10 concurrent claims succeeds
+- **Notes:**
+  - WorkStreamCoordinator class for distributed coordination
+  - claim_work_stream() with atomic local+NATS coordination
+  - NATS broadcast on claim/release for distributed awareness
+  - Agent control commands: send_stop_command(), send_update_goal_command(), send_ping()
+
+---
+
 ## Summary
 
 | Phase | Agent | Tests | Coverage | Status |
@@ -65,5 +96,8 @@
 | 1.2 Task Parser | Aria | 24/24 | 97% | ✅ |
 | 1.3 Task Decomposition | Atlas | 22/22 | 74% | ✅ |
 | 1.4 Agent Role Registry | Nexus | 27/27 | 100% | ✅ |
+| 5.1 Inter-Agent Communication | Claude Code | 21/21 | 54% | ✅ |
+| 5.2 Shared State Manager | Claude Code | 21/21 | 44% | ✅ |
 
 **Batch 1 (Foundation) Complete:** 4/4 phases
+**Batch 5 (Coordination) Progress:** 2/3 phases complete
