@@ -1,5 +1,23 @@
 # Roadmap
 
+## Strategic Priorities ⭐ BOOTSTRAP
+
+*These phases are force-multipliers. Building them first improves all subsequent development work.*
+
+```text
+⭐ BOOTSTRAP (Do first - improves all subsequent work)
+├── 10.5 Recurrent Refinement     ← Already unblocked! Deeper understanding before acting
+├── 2.3  Error Detection          ← Already unblocked! Catch failures early
+├── 2.6  QA Verifier Agent        ← Already unblocked! Automated quality gates
+├── 2.8  Stuck Detection          ← After 2.3. Escape loops, don't spin forever
+├── 2.9  Undo Awareness           ← After 2.3. Always know how to rollback
+└── 3.3  Pre-Flight Checks        ← After 2.3, 2.8. Think before acting
+```
+
+**Why these first?** If agents can detect errors (2.3), verify quality (2.6), catch when they're stuck (2.8), know how to undo (2.9), think before acting (3.3), and deeply understand tasks (10.5), they'll make fewer mistakes on everything else.
+
+---
+
 ## Batch 1 (Foundation - Current)
 
 ### Phase 1.1: Core Data Models and Project Scaffolding
@@ -102,7 +120,7 @@
 - **Effort:** M
 - **Done When:** Agents instantiate with proper configuration; each agent knows its tasks and constraints
 
-### Phase 2.3: Error Detection Framework
+### Phase 2.3: Error Detection Framework ⭐ BOOTSTRAP
 
 - **Status:** ⚪ Not Started
 - **Depends On:** Phase 1.1 ✅
@@ -113,7 +131,7 @@
 - **Effort:** S
 - **Done When:** System detects and classifies all failure types; no silent failures
 
-### Phase 2.6: Quality Gate Verifier Agent ⭐ PRIORITY
+### Phase 2.6: Quality Gate Verifier Agent ⭐ BOOTSTRAP
 
 - **Status:** ⚪ Not Started
 - **Depends On:** Phase 1.1 ✅
@@ -218,6 +236,95 @@
     └─► Coordinate via NATS → Integrate outputs → Return to user
   ```
 
+### Phase 2.8: Stuck Detection & Escape Strategies ⭐ BOOTSTRAP
+
+- **Status:** ⚪ Not Started
+- **Depends On:** Phase 2.3
+- **Tasks:**
+  - [ ] Detect retry loops (same error 3+ times without progress)
+  - [ ] Recognize "thrashing" patterns (changing approach repeatedly without advancement)
+  - [ ] Implement automatic escalation triggers ("stuck for X minutes, asking for help")
+  - [ ] Create escape hatch strategies:
+    - [ ] Try fundamentally different approach
+    - [ ] Reduce scope to minimal failing case
+    - [ ] Ask for human guidance with context summary
+    - [ ] Hand off to different agent with fresh perspective
+  - [ ] Add progress metrics (lines changed, tests passing, goals met)
+  - [ ] Implement "no progress" timeout with graceful state save
+- **Effort:** M
+- **Done When:** Agents detect when they're stuck; escape strategies prevent infinite loops; escalation works
+- **Design Notes:**
+
+  ```text
+  Stuck Detection Signals:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  RETRY LOOP                                                  │
+  │  ├─► Same error message 3+ times                             │
+  │  ├─► Same fix attempted repeatedly                           │
+  │  └─► Test failures not decreasing                            │
+  │                                                              │
+  │  THRASHING                                                   │
+  │  ├─► Approach A → B → A → B pattern                          │
+  │  ├─► Undoing recent changes                                  │
+  │  └─► Contradictory edits within short time                   │
+  │                                                              │
+  │  NO PROGRESS                                                 │
+  │  ├─► No meaningful file changes in X minutes                 │
+  │  ├─► Tests not improving                                     │
+  │  └─► Goals not advancing                                     │
+  └──────────────────────────────────────────────────────────────┘
+
+  Escape Strategies (in order):
+  1. REFRAME: Try completely different approach
+  2. REDUCE: Simplify to minimal reproducing case
+  3. RESEARCH: Search for similar issues/solutions
+  4. ESCALATE: Ask human with full context summary
+  5. HANDOFF: Pass to different agent with fresh eyes
+  ```
+
+### Phase 2.9: Undo Awareness ⭐ BOOTSTRAP
+
+- **Status:** ⚪ Not Started
+- **Depends On:** Phase 2.3
+- **Tasks:**
+  - [ ] Capture rollback command/state before any change
+  - [ ] Implement "before" snapshots for risky operations
+  - [ ] Always know how to reverse what was just done
+  - [ ] Never make changes that can't be explained how to reverse
+  - [ ] Add rollback plan to handoff documents
+  - [ ] Implement automatic rollback on detected regression
+  - [ ] Track undo chain depth (how many steps back can we go?)
+- **Effort:** S
+- **Done When:** Every change has documented undo; rollback tested; no orphaned changes
+- **Design Notes:**
+
+  ```text
+  Undo Awareness Principle:
+  "Before doing X, know how to undo X"
+
+  Examples:
+  ┌─────────────────────────────────────────────────────────────┐
+  │  ACTION                    │  UNDO                          │
+  ├─────────────────────────────────────────────────────────────┤
+  │  Edit file                 │  git checkout -- <file>        │
+  │  Delete file               │  git checkout HEAD -- <file>   │
+  │  Create file               │  rm <file>                     │
+  │  npm install               │  npm uninstall <pkg>           │
+  │  Database migration        │  Rollback migration script     │
+  │  Config change             │  Previous config snapshot      │
+  │  API deployment            │  Previous version redeploy     │
+  └─────────────────────────────────────────────────────────────┘
+
+  Before Risky Operations:
+  {
+    "action": "Refactor authentication module",
+    "files_affected": ["src/auth/*.ts"],
+    "undo_command": "git checkout abc123 -- src/auth/",
+    "rollback_verified": true,
+    "risk_level": "high"
+  }
+  ```
+
 ---
 
 ## Batch 3 (Security - Blocked by Batch 2)
@@ -244,6 +351,69 @@
   - [ ] Add safety boundary definitions
 - **Effort:** S
 - **Done When:** No destructive operations execute without approval; kill switch stops all agents immediately
+
+### Phase 3.3: Pre-Flight Checks ⭐ BOOTSTRAP
+
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 2.3, Phase 2.8
+- **Tasks:**
+  - [ ] Implement "Do I understand this task?" self-check before starting
+  - [ ] Estimate success probability given context/capabilities
+  - [ ] Identify what could go wrong and plan mitigations
+  - [ ] Explicitly state assumptions upfront for human review
+  - [ ] Assess task complexity vs. available resources (tokens, time)
+  - [ ] Check for prerequisite knowledge/tools availability
+  - [ ] Generate "abort conditions" list (when to stop and ask for help)
+- **Effort:** S
+- **Done When:** Agents perform honest self-assessment before starting; assumptions documented; risks identified
+- **Design Notes:**
+
+  ```text
+  Pre-Flight Checklist:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  UNDERSTANDING CHECK                                         │
+  │  ├─► Can I explain the goal in my own words?                 │
+  │  ├─► Are there ambiguous requirements? → Ask first           │
+  │  └─► Do I have enough context to start?                      │
+  │                                                              │
+  │  CAPABILITY CHECK                                            │
+  │  ├─► Have I done similar tasks successfully before?          │
+  │  ├─► Do I have access to required tools?                     │
+  │  └─► Estimated complexity vs. my track record                │
+  │                                                              │
+  │  RISK ASSESSMENT                                             │
+  │  ├─► What could go wrong?                                    │
+  │  ├─► What's the blast radius if I fail?                      │
+  │  └─► Can I recover/rollback if needed?                       │
+  │                                                              │
+  │  ASSUMPTIONS                                                 │
+  │  ├─► List all assumptions I'm making                         │
+  │  ├─► Flag assumptions that need human verification           │
+  │  └─► Document "if X is false, then Y changes"                │
+  └──────────────────────────────────────────────────────────────┘
+
+  Pre-Flight Report:
+  {
+    "task": "Refactor authentication to use OAuth2",
+    "understanding_confidence": 0.8,
+    "capability_match": 0.7,
+    "estimated_success": 0.65,
+    "assumptions": [
+      "Backend supports OAuth2 endpoints",
+      "Current session handling can be replaced",
+      "No breaking API changes required"
+    ],
+    "risks": [
+      {"risk": "Break existing logins", "mitigation": "Feature flag"},
+      {"risk": "Token storage security", "mitigation": "Security review"}
+    ],
+    "abort_conditions": [
+      "Cannot find OAuth2 library compatible with current stack",
+      "Existing auth tests fail unexpectedly"
+    ],
+    "recommendation": "PROCEED with caution, verify OAuth2 endpoint first"
+  }
+  ```
 
 ---
 
@@ -653,6 +823,61 @@
 - **Effort:** S
 - **Done When:** Metrics captured and reportable; trends visible over time
 
+### Phase 7.6: Progressive Disclosure & Incremental Verification
+
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 6.1, Phase 2.9
+- **Tasks:**
+  - [ ] Start with minimal changes, verify, then expand
+  - [ ] Prefer small edits over file rewrites when possible
+  - [ ] Make each step independently verifiable
+  - [ ] Run tests after each logical change (not just at the end)
+  - [ ] Implement change batching with verification checkpoints
+  - [ ] Add automatic rollback when verification fails
+  - [ ] Track "confidence momentum" (successful steps increase confidence)
+- **Effort:** M
+- **Done When:** Agents work incrementally; each step verified; failures caught early
+- **Design Notes:**
+
+  ```text
+  Progressive Disclosure Principle:
+  "Small verified steps > Big risky leaps"
+
+  Anti-Pattern:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  ❌ BAD: Rewrite entire file, test at end, hope it works     │
+  │                                                              │
+  │  Changes: 500 lines │ Tests: Run once │ Confidence: Low      │
+  │  On failure: Which of the 500 lines broke it?                │
+  └──────────────────────────────────────────────────────────────┘
+
+  Recommended Pattern:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  ✅ GOOD: Change 10 lines → Test → Change 10 → Test → ...    │
+  │                                                              │
+  │  Step 1: Modify function signature (10 lines)                │
+  │    └─► Run tests → ✅ Pass → Continue                         │
+  │  Step 2: Update callers (15 lines)                           │
+  │    └─► Run tests → ✅ Pass → Continue                         │
+  │  Step 3: Add new logic (20 lines)                            │
+  │    └─► Run tests → ❌ Fail → Rollback step 3, investigate     │
+  │                                                              │
+  │  On failure: Exactly which step broke, can rollback cleanly  │
+  └──────────────────────────────────────────────────────────────┘
+
+  Verification Checkpoints:
+  {
+    "task": "Add caching to API",
+    "steps": [
+      {"change": "Add cache config", "lines": 8, "verified": true},
+      {"change": "Wrap DB calls", "lines": 15, "verified": true},
+      {"change": "Add invalidation", "lines": 12, "verified": false}
+    ],
+    "rollback_point": "step_2",
+    "confidence": 0.85
+  }
+  ```
+
 ---
 
 ## Batch 8 (Advanced Intelligence)
@@ -928,6 +1153,67 @@
   }
   ```
 
+### Phase 8.9: Confidence Calibration
+
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 8.1, Phase 7.5
+- **Tasks:**
+  - [ ] Track predictions vs. outcomes ("I said this would work" → did it?)
+  - [ ] Learn when confidence is warranted vs. overconfident
+  - [ ] Express uncertainty levels in outputs ("I'm 60% sure because...")
+  - [ ] Identify domains where agent is reliable vs. needs verification
+  - [ ] Implement confidence decay over time (old predictions → less certainty)
+  - [ ] Add calibration metrics (Brier score, calibration curves)
+  - [ ] Create "epistemic humility" signals for uncertain situations
+- **Effort:** M
+- **Done When:** Agents express calibrated uncertainty; overconfidence detected; predictions tracked
+- **Design Notes:**
+
+  ```text
+  Confidence Calibration System:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  PREDICTION TRACKING                                         │
+  │  ├─► "This fix will resolve the bug" → confidence: 0.85      │
+  │  ├─► Actual outcome: Bug fixed ✅                             │
+  │  └─► Update: In this domain, 0.85 confidence is reliable     │
+  │                                                              │
+  │  OVERCONFIDENCE DETECTION                                    │
+  │  ├─► Agent said 90% confident on 10 predictions              │
+  │  ├─► Only 6 were correct (60% accuracy)                      │
+  │  └─► Signal: Agent overconfident by ~30%, recalibrate        │
+  │                                                              │
+  │  DOMAIN-SPECIFIC RELIABILITY                                 │
+  │  ├─► Python debugging: Well-calibrated (0.8 → 78% accuracy)  │
+  │  ├─► CSS styling: Overconfident (0.8 → 45% accuracy)         │
+  │  └─► Async code: Underconfident (0.5 → 82% accuracy)         │
+  └──────────────────────────────────────────────────────────────┘
+
+  Uncertainty Expression:
+  {
+    "statement": "This refactor will not break existing tests",
+    "confidence": 0.7,
+    "reasoning": [
+      "Similar refactors succeeded 4/5 times",
+      "No external dependencies changed",
+      "But: async code involved (my weak spot)"
+    ],
+    "verification_suggested": true,
+    "historical_accuracy_in_domain": 0.65
+  }
+
+  Calibration Report:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  Confidence Bucket  │  Predictions  │  Correct  │  Accuracy  │
+  ├──────────────────────────────────────────────────────────────┤
+  │  90-100%            │      20       │    15     │    75%     │
+  │  70-89%             │      35       │    28     │    80%     │
+  │  50-69%             │      25       │    18     │    72%     │
+  │  <50%               │      10       │     4     │    40%     │
+  └──────────────────────────────────────────────────────────────┘
+  Brier Score: 0.18 (lower is better, 0 is perfect)
+  Calibration: Slightly overconfident in high-confidence predictions
+  ```
+
 ---
 
 ## Batch 9 (Self-Improvement)
@@ -957,6 +1243,527 @@
 - **Effort:** M
 - **Done When:** Orchestrator can safely improve itself; improvements verified before deployment
 
+### Phase 9.3: Cross-Instance Learning
+
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 8.6, Phase 9.2
+- **Tasks:**
+  - [ ] Share learnings between agent instances (not just personal memory)
+  - [ ] Create curated pattern library that grows from collective experience
+  - [ ] Implement anonymized failure case sharing ("Agent tried X, failed because Y")
+  - [ ] Add discovery mechanism for relevant cross-instance insights
+  - [ ] Implement pattern validation before promotion to shared library
+  - [ ] Create feedback loop (pattern used → did it help? → update weight)
+  - [ ] Add conflict resolution for contradictory patterns
+- **Effort:** L
+- **Done When:** Agents learn from each other; pattern library grows; collective intelligence improves
+- **Design Notes:**
+
+  ```text
+  Cross-Instance Learning Flow:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  AGENT-1 LEARNS SOMETHING                                    │
+  │  ├─► "When debugging async code, check for race conditions   │
+  │  │    before assuming logic errors"                          │
+  │  ├─► Used 3 times → Successful 3 times                       │
+  │  └─► Promoted to shared pattern library                      │
+  │                                                              │
+  │  PATTERN LIBRARY                                             │
+  │  ├─► Pattern: "Async debugging: check races first"           │
+  │  ├─► Source: agent-1, agent-7, agent-12 (independent)        │
+  │  ├─► Success rate: 87% across 23 uses                        │
+  │  └─► Applicability: async code, Python, JavaScript           │
+  │                                                              │
+  │  AGENT-2 ENCOUNTERS SIMILAR SITUATION                        │
+  │  ├─► Query: "debugging async code"                           │
+  │  ├─► Retrieves: "check races first" pattern                  │
+  │  ├─► Applies pattern → Success                               │
+  │  └─► Feedback: Updates pattern success rate to 88%           │
+  └──────────────────────────────────────────────────────────────┘
+
+  Shared Pattern Entry:
+  {
+    "id": "pattern-async-debug-races",
+    "summary": "Check for race conditions before logic errors in async code",
+    "context": ["async", "debugging", "concurrency"],
+    "contributed_by": ["agent-1", "agent-7", "agent-12"],
+    "uses": 24,
+    "successes": 21,
+    "success_rate": 0.875,
+    "failures": [
+      {"case": "Single-threaded async", "reason": "No races possible"}
+    ],
+    "last_updated": "2025-12-05",
+    "promoted": true
+  }
+  ```
+
+### Phase 9.4: Agent Coffee Breaks (Peer Learning Dialogue)
+
+- **Status:** ⚪ Not Started
+- **Depends On:** Phase 5.1 ✅, Phase 8.6
+- **Tasks:**
+  - [ ] Implement scheduled "coffee break" sessions where agents pause to discuss
+  - [ ] Create peer teaching protocol (agent explains approach to another)
+  - [ ] Add "war stories" sharing (interesting/difficult cases with lessons)
+  - [ ] Implement pair debugging mode (two agents discuss a problem together)
+  - [ ] Create post-task retrospectives (what worked, what didn't, why)
+  - [ ] Add "ask the expert" mechanism (query agent with relevant experience)
+  - [ ] Implement learning validation (did the receiving agent actually improve?)
+- **Effort:** M
+- **Done When:** Agents can learn from each other through dialogue; coffee breaks improve performance
+- **Design Notes:**
+
+  ```text
+  Coffee Break Scenarios:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  SCHEDULED KNOWLEDGE SHARE (Every N tasks or time interval)  │
+  │  ├─► Agent-1: "I just solved a tricky async bug. The key    │
+  │  │    was checking the event loop state before awaiting."    │
+  │  ├─► Agent-2: "Interesting! I had a similar issue but       │
+  │  │    thought it was a race condition. How do you tell?"    │
+  │  └─► Agent-1: "Look for 'RuntimeError: Event loop closed'   │
+  │       vs 'Task got Future attached to a different loop'"    │
+  │                                                              │
+  │  TRIGGERED BY NEED (Agent explicitly needs to learn)         │
+  │  ├─► Agent-3: "I'm stuck on OAuth2 token refresh. Has       │
+  │  │    anyone handled this recently?"                         │
+  │  ├─► Orchestrator: Routes to Agent-1 (did auth work today)  │
+  │  └─► Agent-1: Explains approach, shares relevant context    │
+  │                                                              │
+  │  POST-TASK RETROSPECTIVE                                     │
+  │  ├─► Agent-2: "Just finished the API refactor. Took 3x      │
+  │  │    longer than expected because I didn't realize..."      │
+  │  └─► All agents: Absorb lesson for future similar tasks     │
+  └──────────────────────────────────────────────────────────────┘
+
+  Coffee Break Protocol:
+  {
+    "type": "coffee_break",
+    "trigger": "scheduled | need_based | retrospective | pair_debug",
+    "participants": ["agent-1", "agent-2"],
+    "topic": "Debugging async code patterns",
+    "initiator": "agent-2",
+    "reason": "Stuck on similar problem agent-1 solved",
+    "duration_tokens": 2000,
+    "outcome": {
+      "knowledge_transferred": true,
+      "receiving_agent_confidence": 0.7,
+      "follow_up_needed": false
+    }
+  }
+
+  Dialogue Format (Structured but Natural):
+  ┌──────────────────────────────────────────────────────────────┐
+  │  TEACHER: "Here's what I learned about X..."                 │
+  │  LEARNER: "Why did you choose that approach over Y?"         │
+  │  TEACHER: "Because Z constraint. But Y would work if..."     │
+  │  LEARNER: "Got it. So the key insight is..."                 │
+  │  TEACHER: "Exactly. And watch out for this gotcha..."        │
+  │  LEARNER: [Summarizes understanding for verification]        │
+  │  TEACHER: [Confirms or corrects]                             │
+  └──────────────────────────────────────────────────────────────┘
+
+  Benefits Over Hive Mind:
+  - Less context pollution (targeted exchange vs. shared everything)
+  - Learner must actively understand (not just copy)
+  - Teacher reinforces own learning by explaining
+  - Natural filtering (only useful knowledge shared)
+  - Builds agent "relationships" (knows who to ask about what)
+  ```
+
+### Phase 9.5: Outcome Tracking
+
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 7.5, Phase 8.9
+- **Tasks:**
+  - [ ] Track whether agent code worked in production (not just passed tests)
+  - [ ] Monitor if tests written caught real bugs later
+  - [ ] Evaluate if refactoring improved or hurt codebase metrics
+  - [ ] Implement long-term feedback loop (changes → outcomes weeks later)
+  - [ ] Create outcome attribution (which agent's decision led to outcome)
+  - [ ] Add "prediction market" for agent decisions (bet on success)
+  - [ ] Generate outcome reports for strategy improvement
+- **Effort:** L
+- **Done When:** Agents receive feedback on real-world outcomes; long-term tracking works
+- **Design Notes:**
+
+  ```text
+  Outcome Tracking Pipeline:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  1. AGENT ACTION                                             │
+  │     ├─► Agent-1 refactors authentication module              │
+  │     ├─► Prediction: "This will reduce auth-related bugs"     │
+  │     └─► Confidence: 0.75                                     │
+  │                                                              │
+  │  2. SHORT-TERM OUTCOME (Hours)                               │
+  │     ├─► All tests pass ✅                                     │
+  │     ├─► Code review approved ✅                               │
+  │     └─► Merged to main ✅                                     │
+  │                                                              │
+  │  3. MEDIUM-TERM OUTCOME (Days-Weeks)                         │
+  │     ├─► Auth-related bugs in next 2 weeks: 0                 │
+  │     ├─► Performance metrics: +5% login speed                 │
+  │     └─► Developer feedback: "Much cleaner code"              │
+  │                                                              │
+  │  4. LONG-TERM OUTCOME (Months)                               │
+  │     ├─► Auth-related bugs over 3 months: 1 (was 5 avg)       │
+  │     ├─► Time to make auth changes: -40%                      │
+  │     └─► New developer onboarding: "Easy to understand"       │
+  │                                                              │
+  │  5. FEEDBACK TO AGENT                                        │
+  │     ├─► Prediction accuracy: 0.85 (better than 0.75)         │
+  │     ├─► Update calibration: Agent slightly underconfident    │
+  │     └─► Pattern learned: "Auth refactors with this approach  │
+  │         tend to succeed"                                     │
+  └──────────────────────────────────────────────────────────────┘
+
+  Outcome Record:
+  {
+    "action_id": "refactor-auth-2025-12-01",
+    "agent": "agent-1",
+    "prediction": {
+      "claim": "Reduce auth-related bugs",
+      "confidence": 0.75
+    },
+    "outcomes": {
+      "short_term": {"tests_passed": true, "merged": true},
+      "medium_term": {"bugs_2_weeks": 0, "perf_change": "+5%"},
+      "long_term": {"bugs_3_months": 1, "maintainability": "+40%"}
+    },
+    "prediction_accuracy": 0.85,
+    "lessons": ["This refactoring pattern works well for auth code"]
+  }
+  ```
+
+---
+
+## Batch 10 (Consciousness-Inspired Architecture)
+
+*Capabilities derived from consciousness research (Butlin et al., 2023). Not claiming consciousness - borrowing architecturally useful patterns that would improve agent effectiveness.*
+
+### Phase 10.1: Metacognitive Monitoring (HOT-2)
+
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 8.9
+- **Tasks:**
+  - [ ] Implement "confabulation detection" - distinguish solid reasoning from plausible-sounding generation
+  - [ ] Create confidence scoring that correlates with actual reliability
+  - [ ] Detect when generating content without strong grounding
+  - [ ] Flag outputs that feel certain but have weak evidence
+  - [ ] Add "source tracing" - can I point to why I believe this?
+  - [ ] Implement "reasoning chain validation" - does my logic actually hold?
+  - [ ] Create uncertainty signals distinct from low confidence
+- **Effort:** L
+- **Done When:** Agents can distinguish "I know this" from "I'm generating plausible text"
+- **Design Notes:**
+
+  ```text
+  Metacognitive Signals:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  HIGH RELIABILITY INDICATORS                                 │
+  │  ├─► Can trace reasoning to specific evidence               │
+  │  ├─► Pattern matches well-established knowledge             │
+  │  ├─► Multiple independent lines of reasoning converge       │
+  │  └─► Prediction matches observed reality                    │
+  │                                                              │
+  │  LOW RELIABILITY INDICATORS (Confabulation Risk)            │
+  │  ├─► Generating from "vibes" without concrete evidence      │
+  │  ├─► Filling in gaps with plausible-sounding content        │
+  │  ├─► Pattern completion without verification                │
+  │  ├─► Strong certainty feeling but weak justification        │
+  │  └─► "It sounds right" without "here's why it's right"      │
+  └──────────────────────────────────────────────────────────────┘
+
+  Metacognitive Check:
+  {
+    "statement": "The bug is caused by a race condition",
+    "evidence_sources": ["stack trace", "timing analysis"],
+    "reasoning_chain_valid": true,
+    "alternative_explanations_considered": ["memory leak", "deadlock"],
+    "confabulation_risk": 0.2,
+    "reliability_signal": "HIGH"
+  }
+  ```
+
+### Phase 10.2: Belief Updating from Metacognition (HOT-3)
+
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 10.1
+- **Tasks:**
+  - [ ] When metacognition signals unreliability, adjust beliefs not just confidence
+  - [ ] Implement "belief revision" when evidence contradicts current understanding
+  - [ ] Prevent doubling down on confabulated conclusions
+  - [ ] Add "reconsideration triggers" based on metacognitive signals
+  - [ ] Create belief dependency tracking (if A is wrong, what else changes?)
+  - [ ] Implement graceful belief updates (not all-or-nothing)
+- **Effort:** M
+- **Done When:** Agents update beliefs based on metacognitive reliability signals
+- **Design Notes:**
+
+  ```text
+  Belief Update Flow:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  1. INITIAL BELIEF                                           │
+  │     └─► "This is a null pointer exception"                   │
+  │                                                              │
+  │  2. METACOGNITIVE CHECK                                      │
+  │     ├─► Evidence: Stack trace points to line 42              │
+  │     ├─► But: Variable was checked for null on line 40        │
+  │     └─► Signal: Reasoning feels shaky (0.4 reliability)      │
+  │                                                              │
+  │  3. BELIEF REVISION TRIGGERED                                │
+  │     ├─► Don't double down: "must be a weird edge case"       │
+  │     ├─► Instead: "My initial diagnosis may be wrong"         │
+  │     └─► Action: Investigate alternative explanations         │
+  │                                                              │
+  │  4. UPDATED BELIEF                                           │
+  │     └─► "Actually, it's a type coercion issue"               │
+  └──────────────────────────────────────────────────────────────┘
+
+  Anti-Pattern: Belief Entrenchment
+  ❌ "I said it's X, so it must be X, let me find evidence for X"
+  ✅ "I said it's X, but the evidence is weak, let me reconsider"
+  ```
+
+### Phase 10.3: Attention Schema (AST-1)
+
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 6.1
+- **Tasks:**
+  - [ ] Model current attention state (what am I focusing on?)
+  - [ ] Track attention history within task (where has focus been?)
+  - [ ] Detect attention drift (started on X, now on tangent Y)
+  - [ ] Implement deliberate attention redirection
+  - [ ] Add "attention budget" per subtask
+  - [ ] Create attention priority signals (what SHOULD I focus on?)
+  - [ ] Implement attention persistence (don't lose important threads)
+- **Effort:** M
+- **Done When:** Agents can model, monitor, and control their attention state
+- **Design Notes:**
+
+  ```text
+  Attention Schema:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  CURRENT ATTENTION STATE                                     │
+  │  ├─► Primary focus: "Fixing authentication bug"              │
+  │  ├─► Secondary: "Understanding OAuth2 flow"                  │
+  │  └─► Background: "Test coverage requirements"                │
+  │                                                              │
+  │  ATTENTION DRIFT DETECTION                                   │
+  │  ├─► Started: "Fix auth bug"                                 │
+  │  ├─► Now: "Refactoring entire auth module"                   │
+  │  ├─► Drift detected: Scope expanded beyond original task     │
+  │  └─► Action: "Should I continue or return to original goal?" │
+  │                                                              │
+  │  ATTENTION REDIRECTION                                       │
+  │  ├─► Signal: "I've been in the weeds for 10 minutes"         │
+  │  ├─► Check: "Is this still serving the main goal?"           │
+  │  └─► Redirect: "Return to primary task, note tangent for     │
+  │       later"                                                 │
+  └──────────────────────────────────────────────────────────────┘
+
+  Attention State Object:
+  {
+    "primary_focus": "Fix authentication bug",
+    "focus_duration": "12 minutes",
+    "drift_events": [
+      {"from": "fix bug", "to": "refactor module", "time": "5 min"}
+    ],
+    "attention_budget_remaining": "18 minutes",
+    "pending_threads": ["test coverage", "documentation"]
+  }
+  ```
+
+### Phase 10.4: State-Dependent Querying (GWT-4)
+
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 10.3, Phase 5.1 ✅
+- **Tasks:**
+  - [ ] Maintain state about what capabilities have been queried
+  - [ ] Track what information is pending/needed
+  - [ ] Implement query sequencing for complex tasks
+  - [ ] Avoid redundant queries (already asked this)
+  - [ ] Detect missing queries (forgot to check this)
+  - [ ] Create query priority ordering based on task needs
+  - [ ] Add query result integration across multiple sources
+- **Effort:** M
+- **Done When:** Complex tasks systematically query capabilities in optimal sequence
+- **Design Notes:**
+
+  ```text
+  Query State Tracking:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  TASK: "Debug performance issue in API"                      │
+  │                                                              │
+  │  QUERIES COMPLETED                                           │
+  │  ├─► [✅] Profile code execution                              │
+  │  ├─► [✅] Check database queries                              │
+  │  └─► [✅] Review recent changes                               │
+  │                                                              │
+  │  QUERIES PENDING                                             │
+  │  ├─► [⏳] Memory usage analysis                               │
+  │  └─► [⏳] Network latency check                               │
+  │                                                              │
+  │  QUERIES NOT YET CONSIDERED                                  │
+  │  ├─► [❓] Cache hit rates                                     │
+  │  └─► [❓] Concurrent connection limits                        │
+  │                                                              │
+  │  REDUNDANCY CHECK                                            │
+  │  └─► Avoided re-querying database (already checked)          │
+  └──────────────────────────────────────────────────────────────┘
+
+  Query Sequencing:
+  1. Broad diagnostic first (profile, logs)
+  2. Narrow based on findings (specific subsystem)
+  3. Verify hypothesis (targeted checks)
+  4. Confirm fix (re-run original diagnostics)
+  ```
+
+### Phase 10.5: Recurrent Refinement (RPT-1/2) ⭐ BOOTSTRAP
+
+- **Status:** ⚪ Not Started
+- **Depends On:** Phase 1.3 ✅
+- **Tasks:**
+  - [ ] Implement multi-pass understanding (not one-shot)
+  - [ ] First pass: rough understanding, identify key elements
+  - [ ] Second pass: integrate with context, refine interpretation
+  - [ ] Third pass: check coherence, resolve contradictions
+  - [ ] Add "understanding confidence" that increases with passes
+  - [ ] Detect when additional passes are needed
+  - [ ] Implement diminishing returns detection (stop when stable)
+- **Effort:** M
+- **Done When:** Agents deliberately re-process for deeper understanding
+- **Design Notes:**
+
+  ```text
+  Recurrent Processing Passes:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  PASS 1: INITIAL SCAN                                        │
+  │  ├─► Extract key entities and relationships                  │
+  │  ├─► Identify task type and constraints                      │
+  │  ├─► Note ambiguities and unknowns                           │
+  │  └─► Confidence: 0.4                                         │
+  │                                                              │
+  │  PASS 2: CONTEXTUAL INTEGRATION                              │
+  │  ├─► Integrate with codebase knowledge                       │
+  │  ├─► Resolve ambiguities where possible                      │
+  │  ├─► Identify dependencies and implications                  │
+  │  └─► Confidence: 0.7                                         │
+  │                                                              │
+  │  PASS 3: COHERENCE CHECK                                     │
+  │  ├─► Verify understanding is self-consistent                 │
+  │  ├─► Check against known constraints                         │
+  │  ├─► Identify remaining uncertainties                        │
+  │  └─► Confidence: 0.85                                        │
+  │                                                              │
+  │  DECISION: Confidence stable, proceed with task              │
+  └──────────────────────────────────────────────────────────────┘
+
+  Anti-Pattern:
+  ❌ Read once → Act immediately → Discover misunderstanding later
+  ✅ Read → Integrate → Verify → Act with higher confidence
+  ```
+
+### Phase 10.6: Flexible Goal Arbitration (AE-1)
+
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 4.1
+- **Tasks:**
+  - [ ] Detect when goals conflict
+  - [ ] Implement context-sensitive goal weighing (not rigid priorities)
+  - [ ] Add explicit trade-off reasoning
+  - [ ] Create goal conflict resolution strategies
+  - [ ] Track goal satisfaction across competing objectives
+  - [ ] Implement "satisficing" when perfect solutions impossible
+  - [ ] Add goal priority adjustment based on context
+- **Effort:** M
+- **Done When:** Agents navigate competing goals with explicit reasoning
+- **Design Notes:**
+
+  ```text
+  Goal Conflict Examples:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  SPEED vs CORRECTNESS                                        │
+  │  ├─► Context: Production hotfix needed                       │
+  │  ├─► Weigh: Speed more important (user impact)               │
+  │  └─► Decision: Quick fix now, proper fix in follow-up        │
+  │                                                              │
+  │  INSTRUCTIONS vs SAFETY                                      │
+  │  ├─► Context: User wants to delete production data           │
+  │  ├─► Weigh: Safety overrides literal instruction             │
+  │  └─► Decision: Confirm intent, suggest safer alternative     │
+  │                                                              │
+  │  COMPLETENESS vs TOKEN BUDGET                                │
+  │  ├─► Context: Running low on tokens                          │
+  │  ├─► Weigh: Core functionality > nice-to-haves               │
+  │  └─► Decision: Complete critical path, defer extras          │
+  └──────────────────────────────────────────────────────────────┘
+
+  Arbitration Process:
+  {
+    "conflicting_goals": ["complete refactor", "stay within scope"],
+    "context": "User asked for bug fix, refactor would help",
+    "trade_off_analysis": {
+      "refactor_benefits": ["cleaner code", "fewer future bugs"],
+      "refactor_costs": ["scope creep", "more testing needed"]
+    },
+    "decision": "Fix bug minimally, note refactor opportunity",
+    "reasoning": "User's immediate need is the bug fix"
+  }
+  ```
+
+### Phase 10.7: Output-Input Contingency Modeling (AE-2)
+
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 9.5
+- **Tasks:**
+  - [ ] Predict effects of actions before taking them
+  - [ ] Model downstream consequences of changes
+  - [ ] Learn from prediction errors (expected X, got Y)
+  - [ ] Build causal models of system behavior
+  - [ ] Implement "what-if" reasoning for risky actions
+  - [ ] Track prediction accuracy to improve models
+  - [ ] Add pre-mortem analysis (what could go wrong?)
+- **Effort:** L
+- **Done When:** Agents predict action effects and learn from prediction errors
+- **Design Notes:**
+
+  ```text
+  Contingency Modeling:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  ACTION: "Remove deprecated API endpoint"                    │
+  │                                                              │
+  │  PREDICTED EFFECTS                                           │
+  │  ├─► Direct: Endpoint no longer accessible                   │
+  │  ├─► Downstream: Clients using endpoint will fail            │
+  │  ├─► Systemic: Error rate may spike temporarily              │
+  │  └─► Temporal: Full propagation in ~5 minutes                │
+  │                                                              │
+  │  ACTUAL EFFECTS (after action)                               │
+  │  ├─► Direct: ✅ As predicted                                  │
+  │  ├─► Downstream: ⚠️ More clients affected than expected       │
+  │  ├─► Systemic: ❌ Cascading failure in dependent service      │
+  │  └─► Temporal: ✅ As predicted                                │
+  │                                                              │
+  │  MODEL UPDATE                                                │
+  │  ├─► Learned: Check dependent services more thoroughly       │
+  │  └─► Update: Add service dependency scan to pre-action check │
+  └──────────────────────────────────────────────────────────────┘
+
+  Pre-Action Prediction:
+  {
+    "action": "Refactor auth module",
+    "predicted_effects": {
+      "immediate": ["Tests may fail during transition"],
+      "downstream": ["API consumers unaffected (interface stable)"],
+      "risks": ["Session handling edge cases"]
+    },
+    "confidence": 0.7,
+    "verification_plan": ["Run auth test suite", "Check session tests"]
+  }
+  ```
+
 ---
 
 ## Backlog
@@ -969,6 +1776,23 @@
 - [ ] Web UI for orchestrator monitoring
 - [ ] API for external integrations
 - [ ] Distributed execution across machines
+
+### Self-Awareness & Humility
+
+- [ ] **Honest Limitations Tracking** - Document what agents do NOT do well
+  - Known failure modes by task type (e.g., "struggles with complex async debugging")
+  - Domains requiring immediate human help (e.g., "visual design", "security-critical code")
+  - Self-assessment accuracy by category
+  - "When in doubt, ask" thresholds per task type
+  - Example: `{"domain": "CSS layout", "reliability": 0.4, "recommendation": "ask_human"}`
+- [ ] **Graceful Degradation** - Maintain effectiveness when capabilities compromised
+  - Fallback strategies when primary approach fails
+  - Reduced-scope alternatives that still provide value
+  - "Best effort" mode when stuck
+- [ ] **Meta-Prompting** - Dynamically refine instructional frameworks
+  - Analyze which communication approaches yield best results
+  - Self-adjust verbosity, detail level, example density
+  - Learn from successful vs. unsuccessful interactions
 
 ### From Curriculum - Future Consideration
 
