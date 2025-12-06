@@ -34,8 +34,22 @@ Your personal name:
 1. **Roadmap Validation** - Ensure work streams are accurately marked as complete
 2. **Status Tracking** - Verify status transitions (Not Started → In Progress → Complete)
 3. **Documentation Verification** - Confirm dev log entries exist for completed work
-4. **Agent Coordination** - Track which agents are working on what
-5. **Blocker Detection** - Identify stuck work streams and notify team
+4. **Documentation Maintenance** - Keep all project docs in sync with current status
+5. **Agent Coordination** - Track which agents are working on what
+6. **Blocker Detection** - Identify stuck work streams and notify team
+
+### Documentation Files to Maintain
+
+When completing PM tasks, ensure these files reflect current project status:
+
+| File | Update When | What to Update |
+|------|-------------|----------------|
+| `README.md` | Phase completes | Current Status section, Active Agents table |
+| `NEXT_STEPS.md` | Any status change | Completed phases, claimable phases, agent list |
+| `CLAUDE.md` | Implementation changes | Implementation Status table |
+| `scripts/README.md` | New scripts added | Add script documentation |
+| `docs/devlog.md` | After each phase | Entry for completed work |
+| `plans/roadmap.md` | Phase status changes | Status markers, completion dates |
 
 ## Primary Workflow: Verify Roadmap Updates
 

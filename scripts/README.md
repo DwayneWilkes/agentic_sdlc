@@ -85,6 +85,63 @@ The script runs **three phases** autonomously:
 - `1` - Error (missing dependencies, no work available, uncommitted changes, etc.)
 - Other - Claude Code execution failure
 
+### `qa_agent.sh`
+
+**Purpose**: Launches Claude Code to perform a comprehensive quality audit.
+
+**Usage**:
+
+```bash
+./scripts/qa_agent.sh
+# Or via orchestrator:
+python scripts/orchestrator.py qa
+```
+
+**What it does**:
+
+- Runs all quality gates (pytest, coverage, ruff, mypy)
+- Identifies violations with severity levels (Critical/Major/Minor)
+- Generates `docs/qa-audit.md` with findings and recommendations
+- Commits the audit report
+
+### `pm_agent.sh`
+
+**Purpose**: Launches Claude Code for project management and roadmap synchronization.
+
+**Usage**:
+
+```bash
+./scripts/pm_agent.sh
+# Or via orchestrator:
+python scripts/orchestrator.py pm
+```
+
+**What it does**:
+
+- Runs roadmap gardening (unblocks phases with satisfied dependencies)
+- Reviews agent status and activity
+- Verifies roadmap accuracy against devlog
+- Generates `docs/pm-status.md` with project health summary
+- Commits the status report
+
+### `orchestrator.py`
+
+**Purpose**: Main CLI for orchestrator operations.
+
+**Usage**:
+
+```bash
+python scripts/orchestrator.py status        # Show roadmap status
+python scripts/orchestrator.py agents        # List known agents
+python scripts/orchestrator.py dashboard     # Live monitoring
+python scripts/orchestrator.py goal "..."    # Natural language goals
+python scripts/orchestrator.py run 2.3       # Run specific phase
+python scripts/orchestrator.py parallel 2.3 2.6  # Run in parallel
+python scripts/orchestrator.py qa            # Quality audit
+python scripts/orchestrator.py pm            # Project management
+python scripts/orchestrator.py garden        # Unblock phases
+```
+
 ### `orchestrator-mcp-server.py`
 
 **Purpose**: MCP server providing tools for orchestrator operations.

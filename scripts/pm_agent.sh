@@ -125,7 +125,13 @@ for agent_id, info in agents.items():
    - Blockers and recommendations
    - Next priority work
 
-6. Commit the status report.
+6. **Update All Documentation** - Ensure these files reflect current status:
+   - README.md - Update Current Status section with completed phases
+   - NEXT_STEPS.md - Update completed phases, active agents, claimable phases
+   - CLAUDE.md - Update Implementation Status table if needed
+   - scripts/README.md - Verify new scripts are documented
+
+7. Commit all changes (status report + documentation updates).
 
 Begin now."
 
