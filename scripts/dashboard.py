@@ -34,12 +34,54 @@ from src.orchestrator.agent_runner import AgentRunner, AgentState, get_coordinat
 console = Console()
 
 
+def get_roadmap_assignments(project_root: Path) -> dict[str, str]:
+    """
+    Read roadmap.md to find work streams assigned to agents.
+
+    Returns dict mapping personal_name -> work_stream_id
+    """
+    roadmap_path = project_root / "plans" / "roadmap.md"
+    assignments = {}
+
+    if not roadmap_path.exists():
+        return assignments
+
+    try:
+        content = roadmap_path.read_text()
+        # Split into sections by phase header, then find in-progress ones
+        section_pattern = re.compile(r"(### Phase \d+\.\d+:.*?)(?=### Phase|\Z)", re.DOTALL)
+
+        for section_match in section_pattern.finditer(content):
+            section = section_match.group(1)
+            # Check if this section is In Progress
+            if "🔄 In Progress" not in section:
+                continue
+
+            # Extract phase ID from header
+            phase_match = re.match(r"### Phase (\d+\.\d+):", section)
+            if not phase_match:
+                continue
+            phase_id = phase_match.group(1)
+
+            # Extract assigned agent
+            assigned_match = re.search(r"\*\*Assigned To:\*\*\s*(\w+)", section)
+            if assigned_match:
+                agent_name = assigned_match.group(1)
+                if agent_name and agent_name != "-":
+                    assignments[agent_name] = phase_id
+    except Exception:
+        pass
+
+    return assignments
+
+
 def detect_running_agents(project_root: Path | None = None) -> list[dict]:
     """
     Detect running agents by checking multiple sources:
     1. Recent log files with active writes
     2. Running claude processes
     3. Recently claimed agent names
+    4. Roadmap assignments
 
     Returns list of detected agent info dicts.
     """
@@ -47,7 +89,8 @@ def detect_running_agents(project_root: Path | None = None) -> list[dict]:
         project_root = Path(__file__).parent.parent
 
     detected = []
-    log_dir = project_root / "agent-logs"
+    project_name = project_root.name
+    log_dir = project_root / "agent-logs" / project_name  # Project-specific logs
     config_file = project_root / "config" / "agent_names.json"
 
     # Check for running claude processes
@@ -68,6 +111,9 @@ def detect_running_agents(project_root: Path | None = None) -> list[dict]:
             mtime = log_file.stat().st_mtime
             if now - mtime < 300:  # Modified in last 5 minutes
                 recent_logs.append(log_file)
+
+    # Get work stream assignments from roadmap
+    roadmap_assignments = get_roadmap_assignments(project_root)
 
     # Check agent_names.json for recent claims
     recent_claims = {}
@@ -90,12 +136,10 @@ def detect_running_agents(project_root: Path | None = None) -> list[dict]:
     for agent_id, info in recent_claims.items():
         # Try to find matching log
         log_file = None
-        work_stream = None
+        personal_name = info.get("name")
 
-        # Parse work stream from agent_id if present
-        match = re.match(r"coder-(\d+\.\d+)-", agent_id)
-        if match:
-            work_stream = match.group(1)
+        # Look up work stream from roadmap assignments
+        work_stream = roadmap_assignments.get(personal_name)
 
         # Check for active log by timestamp in agent_id
         for log in recent_logs:
@@ -103,12 +147,19 @@ def detect_running_agents(project_root: Path | None = None) -> list[dict]:
                 log_file = log
                 break
 
-        # Determine if likely running (process + recent claim OR active log)
-        is_running = len(running_pids) > 0 or (log_file is not None)
+        # Determine if likely running:
+        # - Process running + recent claim, OR
+        # - Active log file, OR
+        # - Assigned in roadmap (in progress)
+        is_running = (
+            len(running_pids) > 0 or
+            (log_file is not None) or
+            (work_stream is not None)  # Assigned in roadmap = likely running
+        )
 
         detected.append({
             "agent_id": agent_id,
-            "personal_name": info.get("name"),
+            "personal_name": personal_name,
             "role": info.get("role"),
             "claimed_at": info.get("claimed_at"),
             "work_stream": work_stream,
@@ -216,8 +267,15 @@ def get_agent_table(runner: AgentRunner, project_root: Path | None = None) -> Ta
     return table
 
 
-def get_claims_table() -> Table:
-    """Build a table of claimed work streams."""
+def get_claims_table(project_root: Path | None = None) -> Table:
+    """Build a table of claimed work streams from roadmap."""
+    if project_root is None:
+        project_root = Path(__file__).parent.parent
+
+    # Get assignments from roadmap (more reliable than in-memory coordinator)
+    assignments = get_roadmap_assignments(project_root)
+
+    # Also check coordinator for any additional claims
     coordinator = get_coordinator()
     claimed = coordinator.get_claimed_streams()
 
@@ -225,9 +283,17 @@ def get_claims_table() -> Table:
     table.add_column("Work Stream", style="green")
     table.add_column("Claimed By", style="cyan")
 
-    if claimed:
-        for ws, agent_id in sorted(claimed.items()):
-            table.add_row(ws, agent_id[:30])
+    # Combine roadmap and coordinator claims
+    all_claims = {}
+    for agent_name, phase_id in assignments.items():
+        all_claims[phase_id] = agent_name
+    for ws, agent_id in claimed.items():
+        if ws not in all_claims:
+            all_claims[ws] = agent_id[:30]
+
+    if all_claims:
+        for ws, agent in sorted(all_claims.items()):
+            table.add_row(ws, agent)
     else:
         table.add_row("-", "[dim]None[/dim]")
 
@@ -277,7 +343,7 @@ def build_layout(runner: AgentRunner, project_root: Path | None = None) -> Layou
         ),
         Layout(get_stats_panel(runner, project_root), size=3),
         Layout(get_agent_table(runner, project_root), name="agents"),
-        Layout(get_claims_table(), size=8),
+        Layout(get_claims_table(project_root), size=8),
         Layout(
             Panel(
                 Text.from_markup(
@@ -302,7 +368,7 @@ def status_report(runner: AgentRunner, project_root: Path | None = None) -> None
     """Print one-time status report."""
     console.print(get_stats_panel(runner, project_root))
     console.print(get_agent_table(runner, project_root))
-    console.print(get_claims_table())
+    console.print(get_claims_table(project_root))
 
 
 def stop_agent_prompt(runner: AgentRunner) -> None:

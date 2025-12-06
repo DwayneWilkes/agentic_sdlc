@@ -38,7 +38,7 @@ The Orchestrator Agent is a meta-agent system designed for general problem-solvi
 | Error Handling | 🔴 Not Started | Roadmap Phase 2.3-2.4 |
 | Integration & Synthesis | 🔴 Not Started | Roadmap Phase 6.3 |
 | Self-Improvement | 🔴 Not Started | Empty directory, Roadmap Phase 9 |
-| Agent Memory & Naming | ✅ Implemented | Persistent memory journal, personal names |
+| Agent Memory & Naming | ✅ Implemented | Persistent memory journal, personal names, work history |
 | Roadmap Gardening | ✅ Implemented | Auto-unblock phases when dependencies met |
 | Agent Reuse | ✅ Implemented | Agents can be reused with context |
 

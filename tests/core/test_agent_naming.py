@@ -1,10 +1,12 @@
 """Tests for agent naming system."""
 
 import json
+import warnings
 
 import pytest
 
 from src.core.agent_naming import AgentNaming
+from src.core import work_history
 
 
 class TestAgentNaming:
@@ -102,11 +104,20 @@ class TestAgentNaming:
 
 
 class TestAgentExperienceTracking:
-    """Tests for agent experience tracking (completed phases)."""
+    """Tests for agent experience tracking (completed phases).
+
+    NOTE: The completed_phases methods in AgentNaming are deprecated.
+    They now delegate to work_history module. These tests verify
+    backwards compatibility and proper deprecation warnings.
+    """
 
     @pytest.fixture
     def naming_with_agents(self, tmp_path):
-        """Create config with agents that have completed phases."""
+        """Create config with agents and work history."""
+        # Reset work_history singleton to use test path
+        work_history._history_instance = None
+
+        # Create agent_names.json (identity only - no completed_phases)
         config_file = tmp_path / "agent_names.json"
         config_file.write_text(json.dumps({
             "name_pools": {"default": ["Alpha", "Beta"]},
@@ -114,69 +125,119 @@ class TestAgentExperienceTracking:
                 "agent-1": {
                     "name": "Aria",
                     "role": "coder",
-                    "claimed_at": "2025-01-01T12:00:00",
-                    "completed_phases": {
-                        "test_project": ["1.1", "1.2"]
-                    }
+                    "claimed_at": "2025-01-01T12:00:00"
                 },
                 "agent-2": {
                     "name": "Atlas",
                     "role": "coder",
                     "claimed_at": "2025-01-01T13:00:00"
-                    # No completed_phases yet
                 }
             },
             "naming_config": {
                 "persistent": True
             }
         }))
+
+        # Create work_history.json for experience data
+        work_history_file = tmp_path / "work_history.json"
+        work_history_file.write_text(json.dumps({
+            "agents": {
+                "Aria": {
+                    "projects": {
+                        "test_project": {
+                            "completed": [
+                                {"phase_id": "1.1", "completed_at": "2025-01-01T12:00:00"},
+                                {"phase_id": "1.2", "completed_at": "2025-01-01T12:30:00"}
+                            ]
+                        }
+                    }
+                }
+            },
+            "last_updated": "2025-01-01T12:30:00"
+        }))
+
+        # Use the test work_history file
+        work_history._history_instance = work_history.WorkHistory(
+            config_path=work_history_file,
+            project_id="test_project"
+        )
+
         return AgentNaming(config_file, project_id="test_project")
 
     def test_get_completed_phases(self, naming_with_agents):
-        """Test getting completed phases for an agent."""
-        phases = naming_with_agents.get_completed_phases("Aria")
+        """Test getting completed phases for an agent (deprecated method)."""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            phases = naming_with_agents.get_completed_phases("Aria")
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "deprecated" in str(w[0].message).lower()
         assert phases == ["1.1", "1.2"]
 
     def test_get_completed_phases_none(self, naming_with_agents):
         """Test getting completed phases for agent with no completions."""
-        phases = naming_with_agents.get_completed_phases("Atlas")
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            phases = naming_with_agents.get_completed_phases("Atlas")
         assert phases == []
 
     def test_get_completed_phases_unknown_agent(self, naming_with_agents):
         """Test getting completed phases for unknown agent."""
-        phases = naming_with_agents.get_completed_phases("Unknown")
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            phases = naming_with_agents.get_completed_phases("Unknown")
         assert phases == []
 
     def test_record_completed_phase(self, naming_with_agents):
-        """Test recording a completed phase."""
-        result = naming_with_agents.record_completed_phase("Atlas", "2.1")
+        """Test recording a completed phase (deprecated method)."""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = naming_with_agents.record_completed_phase("Atlas", "2.1")
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
         assert result is True
 
-        phases = naming_with_agents.get_completed_phases("Atlas")
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            phases = naming_with_agents.get_completed_phases("Atlas")
         assert "2.1" in phases
 
     def test_record_completed_phase_no_duplicates(self, naming_with_agents):
         """Test that duplicate phases aren't recorded."""
         # 1.1 is already in Aria's completed phases
-        naming_with_agents.record_completed_phase("Aria", "1.1")
-        phases = naming_with_agents.get_completed_phases("Aria")
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            naming_with_agents.record_completed_phase("Aria", "1.1")
+            phases = naming_with_agents.get_completed_phases("Aria")
         assert phases.count("1.1") == 1
 
     def test_record_completed_phase_unknown_agent(self, naming_with_agents):
-        """Test recording for unknown agent returns False."""
-        result = naming_with_agents.record_completed_phase("Unknown", "2.1")
-        assert result is False
+        """Test recording for unknown agent creates new entry in work_history.
+
+        NOTE: Unlike the old behavior which returned False for unknown agents,
+        work_history creates new entries for any agent name (returns True).
+        """
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            result = naming_with_agents.record_completed_phase("NewAgent", "2.1")
+        # work_history creates entries for new agents
+        assert result is True
 
     def test_get_agent_experience(self, naming_with_agents):
-        """Test getting all agents' experience."""
-        experience = naming_with_agents.get_agent_experience()
+        """Test getting all agents' experience (deprecated method)."""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            experience = naming_with_agents.get_agent_experience()
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
         assert "Aria" in experience
-        assert "Atlas" in experience
         assert experience["Aria"] == ["1.1", "1.2"]
-        assert experience["Atlas"] == []
 
     def test_experience_persists(self, tmp_path):
         """Test that recorded experience persists to file."""
+        # Reset work_history singleton
+        work_history._history_instance = None
+
         config_file = tmp_path / "agent_names.json"
         config_file.write_text(json.dumps({
             "name_pools": {"default": ["Alpha"]},
@@ -190,17 +251,39 @@ class TestAgentExperienceTracking:
             "naming_config": {"persistent": True}
         }))
 
+        # Create empty work_history
+        work_history_file = tmp_path / "work_history.json"
+        work_history_file.write_text(json.dumps({
+            "agents": {},
+            "last_updated": None
+        }))
+        work_history._history_instance = work_history.WorkHistory(
+            config_path=work_history_file,
+            project_id="test_project"
+        )
+
         # Record a phase
         naming1 = AgentNaming(config_file, project_id="test_project")
-        naming1.record_completed_phase("Test", "3.1")
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            naming1.record_completed_phase("Test", "3.1")
 
-        # Load fresh instance and verify persistence
+        # Reset and reload to verify persistence
+        work_history._history_instance = work_history.WorkHistory(
+            config_path=work_history_file,
+            project_id="test_project"
+        )
         naming2 = AgentNaming(config_file, project_id="test_project")
-        phases = naming2.get_completed_phases("Test")
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            phases = naming2.get_completed_phases("Test")
         assert "3.1" in phases
 
     def test_experience_per_project(self, tmp_path):
         """Test that experience is tracked per project."""
+        # Reset work_history singleton
+        work_history._history_instance = None
+
         config_file = tmp_path / "agent_names.json"
         config_file.write_text(json.dumps({
             "name_pools": {"default": ["Alpha"]},
@@ -208,29 +291,75 @@ class TestAgentExperienceTracking:
                 "agent-1": {
                     "name": "Multi",
                     "role": "coder",
-                    "claimed_at": "2025-01-01T12:00:00",
-                    "completed_phases": {
-                        "project_a": ["1.1", "1.2"],
-                        "project_b": ["2.1"]
-                    }
+                    "claimed_at": "2025-01-01T12:00:00"
                 }
             },
             "naming_config": {"persistent": True}
         }))
 
-        naming_a = AgentNaming(config_file, project_id="project_a")
-        naming_b = AgentNaming(config_file, project_id="project_b")
+        # Create work_history with multi-project data
+        work_history_file = tmp_path / "work_history.json"
+        work_history_file.write_text(json.dumps({
+            "agents": {
+                "Multi": {
+                    "projects": {
+                        "project_a": {
+                            "completed": [
+                                {"phase_id": "1.1", "completed_at": "2025-01-01T12:00:00"},
+                                {"phase_id": "1.2", "completed_at": "2025-01-01T12:30:00"}
+                            ]
+                        },
+                        "project_b": {
+                            "completed": [
+                                {"phase_id": "2.1", "completed_at": "2025-01-01T13:00:00"}
+                            ]
+                        }
+                    }
+                }
+            },
+            "last_updated": "2025-01-01T13:00:00"
+        }))
 
-        assert naming_a.get_completed_phases("Multi") == ["1.1", "1.2"]
-        assert naming_b.get_completed_phases("Multi") == ["2.1"]
+        # Use project_a context
+        work_history._history_instance = work_history.WorkHistory(
+            config_path=work_history_file,
+            project_id="project_a"
+        )
+        naming_a = AgentNaming(config_file, project_id="project_a")
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            phases_a = naming_a.get_completed_phases("Multi")
+        assert phases_a == ["1.1", "1.2"]
+
+        # Use project_b context
+        work_history._history_instance = work_history.WorkHistory(
+            config_path=work_history_file,
+            project_id="project_b"
+        )
+        naming_b = AgentNaming(config_file, project_id="project_b")
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            phases_b = naming_b.get_completed_phases("Multi")
+        assert phases_b == ["2.1"]
 
         # Add a phase to project_b
-        naming_b.record_completed_phase("Multi", "2.2")
-        assert naming_b.get_completed_phases("Multi") == ["2.1", "2.2"]
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            naming_b.record_completed_phase("Multi", "2.2")
+            phases_b_updated = naming_b.get_completed_phases("Multi")
+        assert "2.1" in phases_b_updated
+        assert "2.2" in phases_b_updated
 
         # Project A should remain unchanged
+        work_history._history_instance = work_history.WorkHistory(
+            config_path=work_history_file,
+            project_id="project_a"
+        )
         naming_a_fresh = AgentNaming(config_file, project_id="project_a")
-        assert naming_a_fresh.get_completed_phases("Multi") == ["1.1", "1.2"]
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            phases_a_fresh = naming_a_fresh.get_completed_phases("Multi")
+        assert phases_a_fresh == ["1.1", "1.2"]
 
 
 class TestAgentReuseScoring:
@@ -239,6 +368,9 @@ class TestAgentReuseScoring:
     @pytest.fixture
     def experienced_agents(self, tmp_path):
         """Create agents with varied experience."""
+        # Reset work_history singleton
+        work_history._history_instance = None
+
         config_file = tmp_path / "agent_names.json"
         config_file.write_text(json.dumps({
             "name_pools": {"default": ["Alpha"]},
@@ -246,33 +378,66 @@ class TestAgentReuseScoring:
                 "agent-1": {
                     "name": "Aria",
                     "role": "coder",
-                    "claimed_at": "2025-01-01T12:00:00",
-                    "completed_phases": {
-                        "test_project": ["1.1", "1.2", "1.3"]
-                    }
+                    "claimed_at": "2025-01-01T12:00:00"
                 },
                 "agent-2": {
                     "name": "Atlas",
                     "role": "coder",
-                    "claimed_at": "2025-01-01T13:00:00",
-                    "completed_phases": {
-                        "test_project": ["2.1", "2.2"]
-                    }
+                    "claimed_at": "2025-01-01T13:00:00"
                 },
                 "agent-3": {
                     "name": "Nexus",
                     "role": "coder",
-                    "claimed_at": "2025-01-01T14:00:00",
-                    "completed_phases": {}
+                    "claimed_at": "2025-01-01T14:00:00"
                 }
             },
             "naming_config": {"persistent": True}
         }))
+
+        # Create work_history with experience data
+        work_history_file = tmp_path / "work_history.json"
+        work_history_file.write_text(json.dumps({
+            "agents": {
+                "Aria": {
+                    "projects": {
+                        "test_project": {
+                            "completed": [
+                                {"phase_id": "1.1", "completed_at": "2025-01-01T12:00:00"},
+                                {"phase_id": "1.2", "completed_at": "2025-01-01T12:30:00"},
+                                {"phase_id": "1.3", "completed_at": "2025-01-01T13:00:00"}
+                            ]
+                        }
+                    }
+                },
+                "Atlas": {
+                    "projects": {
+                        "test_project": {
+                            "completed": [
+                                {"phase_id": "2.1", "completed_at": "2025-01-01T13:00:00"},
+                                {"phase_id": "2.2", "completed_at": "2025-01-01T13:30:00"}
+                            ]
+                        }
+                    }
+                },
+                "Nexus": {
+                    "projects": {}
+                }
+            },
+            "last_updated": "2025-01-01T13:30:00"
+        }))
+
+        work_history._history_instance = work_history.WorkHistory(
+            config_path=work_history_file,
+            project_id="test_project"
+        )
+
         return AgentNaming(config_file, project_id="test_project")
 
     def test_experience_by_batch(self, experienced_agents):
         """Test filtering experience by batch number."""
-        experience = experienced_agents.get_agent_experience()
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            experience = experienced_agents.get_agent_experience()
 
         # Aria has 3 phases in batch 1
         aria_batch1 = [p for p in experience["Aria"] if p.startswith("1.")]
@@ -283,11 +448,13 @@ class TestAgentReuseScoring:
         assert len(atlas_batch2) == 2
 
         # Nexus has no experience
-        assert len(experience["Nexus"]) == 0
+        assert len(experience.get("Nexus", [])) == 0
 
     def test_find_most_experienced_for_batch(self, experienced_agents):
         """Test finding most experienced agent for a batch."""
-        experience = experienced_agents.get_agent_experience()
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            experience = experienced_agents.get_agent_experience()
 
         # For batch 1 work, Aria should be preferred (3 phases in batch 1)
         batch1_scores = {}

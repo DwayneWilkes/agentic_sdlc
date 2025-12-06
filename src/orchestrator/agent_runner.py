@@ -23,6 +23,7 @@ from pathlib import Path
 from src.coordination.nats_bus import MessageType, NATSMessageBus, get_message_bus
 from src.core.agent_memory import get_memory
 from src.core.agent_naming import get_naming
+from src.core.work_history import get_work_history
 
 
 class AgentState(str, Enum):
@@ -362,9 +363,10 @@ class AgentRunner:
         self._callbacks: list[Callable[[AgentProcess], None]] = []
         self._naming = get_naming()
         self._coordinator = get_coordinator()
+        self._work_history = get_work_history()
 
         # Load agent experience from persistent storage
-        self._agent_experience = self._naming.get_agent_experience()
+        self._agent_experience = self._work_history.get_agent_experience()
 
     def add_callback(self, callback: Callable[[AgentProcess], None]) -> None:
         """Add a callback to be called when agent state changes."""
@@ -561,8 +563,10 @@ class AgentRunner:
 
             # Record experience if completed (persistent)
             if agent.state == AgentState.COMPLETED and agent.personal_name:
-                self._naming.record_completed_phase(
-                    agent.personal_name, agent.work_stream_id
+                self._work_history.record_completion(
+                    agent.personal_name,
+                    agent.work_stream_id,
+                    details={"duration_seconds": agent.duration_seconds},
                 )
                 # Also update local cache
                 if agent.personal_name not in self._agent_experience:
@@ -764,8 +768,10 @@ class AgentRunner:
 
             # Record experience if completed (persistent)
             if agent.state == AgentState.COMPLETED and agent.personal_name:
-                self._naming.record_completed_phase(
-                    agent.personal_name, agent.work_stream_id
+                self._work_history.record_completion(
+                    agent.personal_name,
+                    agent.work_stream_id,
+                    details={"duration_seconds": agent.duration_seconds},
                 )
                 # Also update local cache
                 if agent.personal_name not in self._agent_experience:
@@ -834,6 +840,10 @@ class AgentRunner:
         """Get all finished agents."""
         return [a for a in self.agents.values() if a.is_finished]
 
+    def get_active_agents(self) -> list[AgentProcess]:
+        """Get all agents that are pending or running (not finished)."""
+        return [a for a in self.agents.values() if not a.is_finished]
+
     def wait_for_all(self, timeout: int | None = None) -> bool:
         """
         Wait for all agents to complete.
@@ -846,8 +856,9 @@ class AgentRunner:
         """
         start = time.time()
         while True:
-            running = self.get_running_agents()
-            if not running:
+            # Check for both PENDING and RUNNING agents
+            active = self.get_active_agents()
+            if not active:
                 return True
 
             if timeout and (time.time() - start) > timeout:

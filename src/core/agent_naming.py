@@ -7,6 +7,7 @@ The system ensures uniqueness and persists mappings for lookup.
 
 import json
 import random
+import warnings
 from datetime import datetime
 from pathlib import Path
 
@@ -265,6 +266,10 @@ class AgentNaming:
         """
         Record that an agent completed a phase.
 
+        .. deprecated::
+            Use :func:`src.core.work_history.record_phase_completion` instead.
+            Work history is now stored separately from agent identity.
+
         Args:
             personal_name: Agent's personal name (e.g., "Aria")
             phase_id: The phase ID completed (e.g., "2.3")
@@ -273,38 +278,25 @@ class AgentNaming:
         Returns:
             True if recorded, False if agent not found
         """
-        agent_id = self.get_agent_id(personal_name)
-        if not agent_id or agent_id not in self.config["assigned_names"]:
-            return False
+        warnings.warn(
+            "record_completed_phase is deprecated. Use work_history.record_completion() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # Delegate to work_history
+        from src.core.work_history import record_phase_completion
 
-        project = project_id or self.project_id
-        entry = self.config["assigned_names"][agent_id]
-
-        # Migrate from old list format to new dict format if needed
-        if "completed_phases" not in entry:
-            entry["completed_phases"] = {}
-        elif isinstance(entry["completed_phases"], list):
-            # Migrate legacy format: assume old phases were from current project
-            old_phases = entry["completed_phases"]
-            entry["completed_phases"] = {project: old_phases}
-
-        # Ensure project key exists
-        if project not in entry["completed_phases"]:
-            entry["completed_phases"][project] = []
-
-        if phase_id not in entry["completed_phases"][project]:
-            entry["completed_phases"][project].append(phase_id)
-
-            if self.config["naming_config"]["persistent"]:
-                self._save_config()
-
-        return True
+        return record_phase_completion(personal_name, phase_id, project_id)
 
     def get_completed_phases(
         self, personal_name: str, project_id: str | None = None
     ) -> list[str]:
         """
         Get list of phases completed by an agent for a specific project.
+
+        .. deprecated::
+            Use :func:`src.core.work_history.get_agent_completed_phases` instead.
+            Work history is now stored separately from agent identity.
 
         Args:
             personal_name: Agent's personal name
@@ -313,19 +305,15 @@ class AgentNaming:
         Returns:
             List of phase IDs completed by this agent for the project
         """
-        agent_id = self.get_agent_id(personal_name)
-        if not agent_id or agent_id not in self.config["assigned_names"]:
-            return []
+        warnings.warn(
+            "get_completed_phases is deprecated. Use work_history.get_completed_phases() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # Delegate to work_history
+        from src.core.work_history import get_agent_completed_phases
 
-        project = project_id or self.project_id
-        entry = self.config["assigned_names"][agent_id]
-        completed = entry.get("completed_phases", {})
-
-        # Handle legacy list format
-        if isinstance(completed, list):
-            return completed if project == self.project_id else []
-
-        return completed.get(project, [])
+        return get_agent_completed_phases(personal_name, project_id)
 
     def get_agent_experience(
         self, project_id: str | None = None
@@ -333,47 +321,46 @@ class AgentNaming:
         """
         Get all agents' completed phases for a specific project.
 
+        .. deprecated::
+            Use :func:`src.core.work_history.WorkHistory.get_agent_experience` instead.
+            Work history is now stored separately from agent identity.
+
         Args:
             project_id: Project identifier. Defaults to self.project_id.
 
         Returns:
             Dict mapping personal_name -> list of completed phase IDs
         """
-        project = project_id or self.project_id
-        experience = {}
-        for entry in self.config["assigned_names"].values():
-            name = entry.get("name")
-            completed = entry.get("completed_phases", {})
+        warnings.warn(
+            "get_agent_experience is deprecated. Use work_history.get_agent_experience() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # Delegate to work_history
+        from src.core.work_history import get_work_history
 
-            # Handle legacy list format
-            if isinstance(completed, list):
-                phases = completed if project == self.project_id else []
-            else:
-                phases = completed.get(project, [])
-
-            if name:
-                experience[name] = phases
-        return experience
+        return get_work_history().get_agent_experience(project_id)
 
     def get_all_experience(self) -> dict[str, dict[str, list[str]]]:
         """
         Get all agents' completed phases across all projects.
 
+        .. deprecated::
+            Use :func:`src.core.work_history.WorkHistory.get_all_experience` instead.
+            Work history is now stored separately from agent identity.
+
         Returns:
             Dict mapping personal_name -> {project_id -> list of phase IDs}
         """
-        experience = {}
-        for entry in self.config["assigned_names"].values():
-            name = entry.get("name")
-            completed = entry.get("completed_phases", {})
+        warnings.warn(
+            "get_all_experience is deprecated. Use work_history.get_all_experience() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # Delegate to work_history
+        from src.core.work_history import get_work_history
 
-            # Handle legacy list format
-            if isinstance(completed, list):
-                completed = {self.project_id: completed}
-
-            if name:
-                experience[name] = completed
-        return experience
+        return get_work_history().get_all_experience()
 
     def get_available_names(self, role: str = "default") -> list[str]:
         """
