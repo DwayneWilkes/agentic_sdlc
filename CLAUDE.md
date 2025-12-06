@@ -89,6 +89,26 @@ See [plans/roadmap.md](plans/roadmap.md) for detailed implementation phases.
 4. **Transparency** - All decisions are explainable and traceable
 5. **Resilience** - Graceful degradation when components fail
 6. **Self-Improvement** - System learns and evolves over time
+7. **Isolation for Dangerous Changes** - Use feature branches for self-improvement, refactoring, or any changes that could break the current implementation
+
+## Safety Guidelines for Self-Modification
+
+When agents perform self-improvement or other potentially dangerous modifications:
+
+1. **Always use feature branches** - Never modify `main` directly for experimental changes
+2. **Test in isolation** - Run full test suite on the branch before merging
+3. **Require human approval** - Self-modifications should not auto-merge to main
+4. **Maintain rollback capability** - Keep the previous working state accessible
+5. **Document the change rationale** - Explain why the self-improvement was proposed
+
+```bash
+# Example workflow for self-improvement
+git checkout -b self-improve/optimize-task-parser
+# ... make changes ...
+pytest tests/  # Must pass
+git commit -m "Self-improvement: Optimize task parser performance"
+# Human reviews and merges (or rejects)
+```
 
 ## MCP Integration
 

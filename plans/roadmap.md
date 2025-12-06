@@ -390,10 +390,12 @@
 - **Depends On:** Phase 3.2
 - **Tasks:**
   - [ ] Implement isolated testing environment for self-modifications
+  - [ ] **Require feature branches** for all self-improvement changes (never modify main directly)
   - [ ] Add version control and rollback for self-changes
   - [ ] Define recursive improvement depth limits
+  - [ ] Require human approval before merging self-modifications to main
 - **Effort:** M
-- **Done When:** Self-modifications tested safely; rollback works; depth limited
+- **Done When:** Self-modifications tested safely on feature branches; rollback works; depth limited; human approval gate enforced
 
 ### Phase 9.2: Recursive Self-Improvement Engine
 
