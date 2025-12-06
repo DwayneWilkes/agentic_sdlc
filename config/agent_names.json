@@ -1,37 +1,123 @@
 {
   "name_pools": {
     "coder": [
-      "Ada", "Alan", "Grace", "Dennis", "Linus", "Ken", "Brian", "Donald",
-      "Bjarne", "Guido", "James", "Brendan", "Anders", "Rob", "Yukihiro",
-      "Larry", "Rasmus", "John", "Margaret", "Jean", "Kathleen", "Frances",
-      "Betty", "Ruth", "Evelyn", "Hedy", "Sophie", "Mary", "Dorothy"
+      "Ada",
+      "Alan",
+      "Grace",
+      "Dennis",
+      "Linus",
+      "Ken",
+      "Brian",
+      "Donald",
+      "Bjarne",
+      "Guido",
+      "James",
+      "Brendan",
+      "Anders",
+      "Rob",
+      "Yukihiro",
+      "Larry",
+      "Rasmus",
+      "John",
+      "Margaret",
+      "Jean",
+      "Kathleen",
+      "Frances",
+      "Betty",
+      "Ruth",
+      "Evelyn",
+      "Hedy",
+      "Sophie",
+      "Mary",
+      "Dorothy"
     ],
     "architect": [
-      "Apollo", "Athena", "Minerva", "Vitruvius", "Imhotep", "Fibonacci",
-      "Euclid", "Archimedes", "Pythagoras", "Hypatia", "Eratosthenes"
+      "Apollo",
+      "Athena",
+      "Minerva",
+      "Vitruvius",
+      "Imhotep",
+      "Fibonacci",
+      "Euclid",
+      "Archimedes",
+      "Pythagoras",
+      "Hypatia",
+      "Eratosthenes"
     ],
     "parser": [
-      "Syntax", "Lexer", "Token", "AST", "Chomsky", "Backus", "Naur"
+      "Syntax",
+      "Lexer",
+      "Token",
+      "AST",
+      "Chomsky",
+      "Backus",
+      "Naur"
     ],
     "decomposer": [
-      "Divide", "Conquer", "Fragment", "Partition", "Split", "Factor"
+      "Divide",
+      "Conquer",
+      "Fragment",
+      "Partition",
+      "Split",
+      "Factor"
     ],
     "tester": [
-      "Verify", "Assert", "Prove", "Check", "Validate", "Inspect"
+      "Verify",
+      "Assert",
+      "Prove",
+      "Check",
+      "Validate",
+      "Inspect"
     ],
     "reviewer": [
-      "Critique", "Audit", "Scrutiny", "Examine", "Assess", "Evaluate"
+      "Critique",
+      "Audit",
+      "Scrutiny",
+      "Examine",
+      "Assess",
+      "Evaluate"
     ],
     "orchestrator": [
-      "Conductor", "Maestro", "Director", "Coordinator", "Synergy"
+      "Conductor",
+      "Maestro",
+      "Director",
+      "Coordinator",
+      "Synergy"
     ],
     "default": [
-      "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta",
-      "Iota", "Kappa", "Lambda", "Mu", "Nu", "Xi", "Omicron", "Pi", "Rho",
-      "Sigma", "Tau", "Upsilon", "Phi", "Chi", "Psi", "Omega"
+      "Alpha",
+      "Beta",
+      "Gamma",
+      "Delta",
+      "Epsilon",
+      "Zeta",
+      "Eta",
+      "Theta",
+      "Iota",
+      "Kappa",
+      "Lambda",
+      "Mu",
+      "Nu",
+      "Xi",
+      "Omicron",
+      "Pi",
+      "Rho",
+      "Sigma",
+      "Tau",
+      "Upsilon",
+      "Phi",
+      "Chi",
+      "Psi",
+      "Omega"
     ]
   },
-  "assigned_names": {},
+  "assigned_names": {
+    "coder-autonomous-1764981103": {
+      "name": "Aria",
+      "role": "coder",
+      "claimed_at": "2025-12-05T16:31:54.116293"
+    }
+  },
   "naming_config": {
     "format": "{name}-{role_suffix}",
     "allow_duplicates": false,
