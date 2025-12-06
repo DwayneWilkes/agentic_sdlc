@@ -7,6 +7,23 @@ from src.models.enums import AgentStatus
 
 
 @dataclass
+class AgentRole:
+    """
+    Represents an agent role definition with capabilities, tools, and domain knowledge.
+
+    AgentRole defines a template/blueprint for what kind of agent can be created.
+    It specifies the skills, tools, and domain expertise required for a particular role.
+    """
+
+    name: str
+    description: str
+    capabilities: list[str]
+    tools: list[str]
+    domain_knowledge: list[str]
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class AgentCapability:
     """
     Represents a specific capability or skill that an agent possesses.
