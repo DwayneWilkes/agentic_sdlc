@@ -85,3 +85,6 @@ data/
 outputs/
 checkpoints/
 experiments/
+
+# Claude Code local settings
+.claude/settings.local.json
