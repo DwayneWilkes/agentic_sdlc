@@ -6,13 +6,15 @@
 
 ```text
 ⭐ BOOTSTRAP (Do first - improves all subsequent work)
-├── 10.5 Recurrent Refinement     ← Already unblocked! Deeper understanding before acting
-├── 2.3  Error Detection          ← Already unblocked! Catch failures early
-├── 2.6  QA Verifier Agent        ← Already unblocked! Automated quality gates
-├── 2.8  Stuck Detection          ← After 2.3. Escape loops, don't spin forever
-├── 2.9  Undo Awareness           ← After 2.3. Always know how to rollback
-└── 3.3  Pre-Flight Checks        ← After 2.3, 2.8. Think before acting
+├── 10.5 Recurrent Refinement     ✅ Complete (Sage)
+├── 2.3  Error Detection          ⚪ Claimable (deps met)
+├── 2.6  QA Verifier Agent        ✅ Complete (infrastructure)
+├── 2.8  Stuck Detection          🔴 Blocked (needs 2.3)
+├── 2.9  Undo Awareness           🔴 Blocked (needs 2.3)
+└── 3.3  Pre-Flight Checks        🔴 Blocked (needs 2.3, 2.8)
 ```
+
+**Progress:** 2/6 BOOTSTRAP phases complete. Next: 2.3 Error Detection.
 
 **Why these first?** If agents can detect errors (2.3), verify quality (2.6), catch when they're stuck (2.8), know how to undo (2.9), think before acting (3.3), and deeply understand tasks (10.5), they'll make fewer mistakes on everything else.
 
@@ -133,20 +135,27 @@
 
 ### Phase 2.6: Quality Gate Verifier Agent ⭐ BOOTSTRAP
 
-- **Status:** ⚪ Not Started
+- **Status:** ✅ Complete
+- **Completed By:** Infrastructure (manual implementation)
+- **Completed Date:** 2025-12-05
 - **Depends On:** Phase 1.1 ✅
 - **Tasks:**
-  - [ ] Create QA/Verifier agent that audits completed phases
-  - [ ] Implement quality gate checks:
-    - [ ] All tests pass (pytest)
-    - [ ] Coverage ≥ 80% (pytest --cov)
-    - [ ] No linting errors (ruff check)
-    - [ ] No type errors (mypy)
-  - [ ] Report violations to orchestrator with specifics
-  - [ ] Trigger remediation workflow (spawn agent to fix gaps)
-  - [ ] Track technical debt for phases that were approved with exceptions
+  - [x] Create QA/Verifier agent that audits completed phases
+  - [x] Implement quality gate checks:
+    - [x] All tests pass (pytest)
+    - [x] Coverage ≥ 80% (pytest --cov)
+    - [x] No linting errors (ruff check)
+    - [x] No type errors (mypy)
+  - [x] Report violations to orchestrator with specifics
+  - [x] Trigger remediation workflow (spawn agent to fix gaps)
+  - [x] Track technical debt for phases that were approved with exceptions
 - **Effort:** M
 - **Done When:** All completed phases verified against quality gates; violations flagged and remediated automatically
+- **Implementation Notes:**
+  - QA Agent persona: `.claude/agents/qa_agent.md`
+  - Launch script: `scripts/qa_agent.sh`
+  - CLI command: `python scripts/orchestrator.py qa`
+  - Also includes deep code review (merged from Requirements Reviewer)
 - **Design Notes:**
 
   ```text

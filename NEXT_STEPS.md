@@ -20,8 +20,8 @@ The orchestrator is being built by its own subagent team.
 | Phase | Name | Agent | Status |
 |-------|------|-------|--------|
 | 10.5 | Recurrent Refinement | Sage | ✅ Complete |
+| 2.6 | QA Verifier Agent | Infrastructure | ✅ Complete |
 | 2.3 | Error Detection Framework | - | 🟡 Claimable |
-| 2.6 | QA Verifier Agent | - | 🟡 Claimable |
 
 ## Active Agents
 
@@ -78,7 +78,8 @@ python scripts/orchestrator.py goal "run bootstrap phases"
 Currently claimable BOOTSTRAP phases:
 
 - **2.3** - Error Detection Framework (depends on 1.1 ✅)
-- **2.6** - QA Verifier Agent (depends on 1.1 ✅)
+
+Already complete: 10.5 (Sage), 2.6 (Infrastructure)
 
 ## Available Commands
 
