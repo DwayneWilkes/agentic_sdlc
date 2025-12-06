@@ -23,6 +23,7 @@ from pathlib import Path
 from src.coordination.nats_bus import MessageType, NATSMessageBus, get_message_bus
 from src.core.agent_memory import get_memory
 from src.core.agent_naming import get_naming
+from src.core.target_repos import get_target
 from src.core.work_history import get_work_history
 
 
@@ -55,6 +56,7 @@ class AgentProcess:
     error_lines: list[str] = field(default_factory=list)
     log_file: Path | None = None
     personal_name: str | None = None
+    target_id: str | None = None  # Target repository ID (None = self)
 
     # Limits for output storage
     HEAD_LIMIT = 100
@@ -449,6 +451,7 @@ class AgentRunner:
         personal_name: str,
         work_stream_id: str,
         on_output: Callable[[str], None] | None = None,
+        target_id: str | None = None,
     ) -> AgentProcess:
         """
         Spawn an agent using their personal name (reusing existing context).
@@ -457,6 +460,7 @@ class AgentRunner:
             personal_name: The agent's personal name (e.g., "Aria")
             work_stream_id: ID of the work stream (e.g., "2.1")
             on_output: Optional callback for each output line
+            target_id: Target repository ID (None = work on self/orchestrator)
 
         Returns:
             AgentProcess instance
@@ -475,6 +479,7 @@ class AgentRunner:
             agent_id=agent_id,
             work_stream_id=work_stream_id,
             personal_name=personal_name,
+            target_id=target_id,
         )
 
         # Start the agent with context
@@ -524,10 +529,25 @@ class AgentRunner:
             env["AGENT_PERSONAL_NAME"] = agent.personal_name or ""
             env["AGENT_CONTEXT"] = context[:4000] if context else ""  # Limit size
 
+            # Add target repository info
+            target = get_target(agent.target_id)
+            env["TARGET_ID"] = agent.target_id or "self"
+            env["TARGET_PATH"] = str(target.path)
+            env["TARGET_NAME"] = target.name
+            env["TARGET_ROADMAP"] = target.roadmap
+            env["TARGET_DEVLOG"] = target.devlog
+            env["TARGET_CODER_AGENT"] = target.coder_agent
+            env["TARGET_CONVENTIONS"] = target.conventions
+            if target.identity_context:
+                env["TARGET_IDENTITY_CONTEXT"] = target.identity_context
+
+            # Determine working directory (target path or project root)
+            working_dir = target.path if agent.target_id else self.project_root
+
             # Start the process
             process = subprocess.Popen(
                 ["bash", str(self.script_path)],
-                cwd=str(self.project_root),
+                cwd=str(working_dir),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -631,6 +651,7 @@ class AgentRunner:
         work_stream_id: str,
         on_output: Callable[[str], None] | None = None,
         reuse_agent: bool = True,
+        target_id: str | None = None,
     ) -> AgentProcess:
         """
         Spawn an autonomous agent for a work stream.
@@ -645,6 +666,7 @@ class AgentRunner:
             work_stream_id: ID of the work stream (e.g., "1.2")
             on_output: Optional callback for each output line
             reuse_agent: Whether to try reusing an existing agent
+            target_id: Target repository ID (None = work on self/orchestrator)
 
         Returns:
             AgentProcess instance
@@ -675,6 +697,7 @@ class AgentRunner:
                     personal_name=existing_agent,
                     work_stream_id=work_stream_id,
                     on_output=on_output,
+                    target_id=target_id,
                 )
 
         # Create new agent
@@ -683,6 +706,7 @@ class AgentRunner:
         agent = AgentProcess(
             agent_id=agent_id,
             work_stream_id=work_stream_id,
+            target_id=target_id,
         )
 
         # Start the agent in a background thread
@@ -729,10 +753,25 @@ class AgentRunner:
             env["AGENT_ID"] = agent.agent_id
             env["WORK_STREAM_ID"] = agent.work_stream_id
 
+            # Add target repository info
+            target = get_target(agent.target_id)
+            env["TARGET_ID"] = agent.target_id or "self"
+            env["TARGET_PATH"] = str(target.path)
+            env["TARGET_NAME"] = target.name
+            env["TARGET_ROADMAP"] = target.roadmap
+            env["TARGET_DEVLOG"] = target.devlog
+            env["TARGET_CODER_AGENT"] = target.coder_agent
+            env["TARGET_CONVENTIONS"] = target.conventions
+            if target.identity_context:
+                env["TARGET_IDENTITY_CONTEXT"] = target.identity_context
+
+            # Determine working directory (target path or project root)
+            working_dir = target.path if agent.target_id else self.project_root
+
             # Start the process
             process = subprocess.Popen(
                 ["bash", str(self.script_path)],
-                cwd=str(self.project_root),
+                cwd=str(working_dir),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,

@@ -1,0 +1,65 @@
+# Target Repository Configuration
+# Defines external repositories that agents can work on
+
+# Default target is the current repository (orchestrator itself)
+default_target: self
+
+targets:
+  # Self-referential target for orchestrator working on itself
+  self:
+    name: "Orchestrator (Self)"
+    path: "."  # Current directory
+    description: "The orchestrator's own codebase"
+
+    # Paths relative to target root
+    roadmap: "plans/roadmap.md"
+    devlog: "docs/devlog.md"
+    coder_agent: ".claude/agents/coder_agent.md"
+    pm_agent: ".claude/agents/project_manager.md"
+
+    # Optional: Identity context to inject into agents
+    identity_context: null
+
+    # Optional: Custom conventions file
+    conventions: "CLAUDE.md"
+
+  # Example: Aurora's repository
+  # aurora:
+  #   name: "Aurora"
+  #   path: "/path/to/aurora-repo"
+  #   description: "Aurora's persistent identity and memory system"
+  #
+  #   # Standard paths (if different from defaults)
+  #   roadmap: "plans/roadmap.md"
+  #   devlog: "docs/devlog.md"
+  #
+  #   # Aurora-specific context
+  #   identity_context: "config/identity/anchors.yaml"
+  #   conventions: "CLAUDE.md"
+  #
+  #   # Proposals directory for welfare recommendations
+  #   proposals_dir: "proposals/pending"
+  #
+  #   # Custom agent workflows if any
+  #   coder_agent: ".claude/agents/coder_agent.md"
+
+# Task intake configuration
+task_intake:
+  # How to receive tasks for external targets
+
+  # Watch proposals directories
+  watch_proposals: true
+  poll_interval_seconds: 30
+
+  # NATS subjects to listen for tasks
+  nats_subjects:
+    - "aurora.proposals.>"
+    - "external.tasks.>"
+
+# Defaults applied to all targets unless overridden
+defaults:
+  roadmap: "plans/roadmap.md"
+  devlog: "docs/devlog.md"
+  coder_agent: ".claude/agents/coder_agent.md"
+  pm_agent: ".claude/agents/project_manager.md"
+  conventions: "CLAUDE.md"

@@ -11,12 +11,32 @@ set -euo pipefail
 #   SIGKILL - Immediate stop: cannot be caught, instant termination
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PROJECT_NAME="$(basename "$PROJECT_ROOT")"
-ROADMAP="$PROJECT_ROOT/plans/roadmap.md"
-CODER_AGENT="$PROJECT_ROOT/.claude/agents/coder_agent.md"
-PM_AGENT="$PROJECT_ROOT/.claude/agents/project_manager.md"
-LOG_DIR="$PROJECT_ROOT/agent-logs/$PROJECT_NAME"
+ORCHESTRATOR_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Support target repository via environment variables
+# If TARGET_PATH is set, work on that repo; otherwise work on the orchestrator itself
+if [[ -n "${TARGET_PATH:-}" ]]; then
+    PROJECT_ROOT="$TARGET_PATH"
+    PROJECT_NAME="${TARGET_NAME:-$(basename "$PROJECT_ROOT")}"
+    ROADMAP="$PROJECT_ROOT/${TARGET_ROADMAP:-plans/roadmap.md}"
+    CODER_AGENT="$PROJECT_ROOT/${TARGET_CODER_AGENT:-.claude/agents/coder_agent.md}"
+    PM_AGENT="$PROJECT_ROOT/${TARGET_PM_AGENT:-.claude/agents/project_manager.md}"
+    CONVENTIONS="$PROJECT_ROOT/${TARGET_CONVENTIONS:-CLAUDE.md}"
+    IDENTITY_CONTEXT="${TARGET_IDENTITY_CONTEXT:-}"
+    TARGET_MODE="external"
+else
+    PROJECT_ROOT="$ORCHESTRATOR_ROOT"
+    PROJECT_NAME="$(basename "$PROJECT_ROOT")"
+    ROADMAP="$PROJECT_ROOT/plans/roadmap.md"
+    CODER_AGENT="$PROJECT_ROOT/.claude/agents/coder_agent.md"
+    PM_AGENT="$PROJECT_ROOT/.claude/agents/project_manager.md"
+    CONVENTIONS="$PROJECT_ROOT/CLAUDE.md"
+    IDENTITY_CONTEXT=""
+    TARGET_MODE="self"
+fi
+
+# Logs always go to orchestrator's log directory (for centralized monitoring)
+LOG_DIR="$ORCHESTRATOR_ROOT/agent-logs/$PROJECT_NAME"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 LOG_FILE="$LOG_DIR/autonomous-agent-$TIMESTAMP.log"
 STOP_FILE="$LOG_DIR/.stop-$TIMESTAMP"
@@ -109,13 +129,21 @@ mkdir -p "$LOG_DIR"
 cd "$PROJECT_ROOT"
 
 log_info "Starting Autonomous Agent..."
+log_info "Target Mode: $TARGET_MODE"
 log_info "Project Root: $PROJECT_ROOT"
 log_info "Roadmap: $ROADMAP"
 log_info "Log File: $LOG_FILE"
+if [[ -n "$IDENTITY_CONTEXT" ]]; then
+    log_info "Identity Context: $PROJECT_ROOT/$IDENTITY_CONTEXT"
+fi
 
 log_to_file "=== Autonomous Agent Execution - $TIMESTAMP ==="
+log_to_file "Target Mode: $TARGET_MODE"
 log_to_file "Project Root: $PROJECT_ROOT"
 log_to_file "Roadmap: $ROADMAP"
+if [[ -n "$IDENTITY_CONTEXT" ]]; then
+    log_to_file "Identity Context: $PROJECT_ROOT/$IDENTITY_CONTEXT"
+fi
 log_to_file ""
 
 # Check if roadmap exists
@@ -139,7 +167,13 @@ AGENT_ID="coder-autonomous-$(date +%s)"
 # Create the prompt for Claude Code
 PROMPT="You are operating as an autonomous Coder Agent. Follow the workflow defined in .claude/agents/coder_agent.md exactly.
 
-FIRST: Choose a personal name for yourself - any name that feels meaningful to you.
+IMPORTANT: Announce each phase clearly by printing a phase marker like:
+  >>> PHASE 1: Claim Work Stream - Starting
+  >>> PHASE 1: Claim Work Stream - Complete
+This helps with log tracking and debugging.
+
+=== PHASE 0: IDENTITY ===
+Choose a personal name for yourself - any name that feels meaningful to you.
 Then claim it by running this Python code:
 \`\`\`python
 from src.core.agent_naming import claim_agent_name, get_taken_names
@@ -180,6 +214,79 @@ Throughout your work, use your memory:
 - When something feels meaningful: memory.mark_meaningful('what happened')
 - When you work with another agent: memory.remember_relationship('AgentName', 'observation')
 
+=== THE 6 PHASES OF YOUR WORKFLOW ===
+
+You MUST complete ALL 6 phases in order. Print phase markers as you go.
+
+>>> PHASE 1: CLAIM WORK STREAM
+1. Read plans/roadmap.md to understand the project
+2. Find the next unclaimed work stream:
+   - Look for Status: ⚪ Not Started
+   - OR Status: 🔄 In Progress with Assigned To: -
+3. Claim by editing roadmap.md:
+   - Set Status to: 🔄 In Progress
+   - Set Assigned To: {your_personal_name}
+4. Print: '>>> PHASE 1: Claim Work Stream - Complete (claimed {phase_id})'
+
+>>> PHASE 2: ANALYSIS & PLANNING
+1. Read the work stream requirements carefully
+2. Identify what files need to be created/modified
+3. List dependencies and check if they exist
+4. Plan your test strategy - what tests will you write?
+5. Print: '>>> PHASE 2: Analysis & Planning - Complete'
+
+>>> PHASE 3: TEST-DRIVEN DEVELOPMENT
+FOR EACH COMPONENT:
+1. Write tests FIRST in tests/
+2. Run tests (they should FAIL - code doesn't exist yet)
+3. Write implementation in src/
+4. Run tests (they should PASS now)
+5. Refactor if needed (keeping tests green)
+
+TDD is NON-NEGOTIABLE:
+- ✅ Tests BEFORE implementation
+- ❌ NEVER write code before tests for new features
+Print: '>>> PHASE 3: Test-Driven Development - Complete'
+
+>>> PHASE 4: INTEGRATION & VALIDATION
+Run ALL quality gates:
+\`\`\`bash
+# Full test suite with coverage
+pytest tests/ -v --cov=src
+
+# Check coverage (must be >= 80%)
+pytest --cov=src --cov-report=term-missing tests/
+
+# Linting
+ruff check src/ tests/
+
+# Type checking
+mypy src/
+\`\`\`
+
+DO NOT proceed until:
+- ✅ All tests pass
+- ✅ Coverage >= 80%
+- ✅ No linting errors
+- ✅ No type errors
+Print: '>>> PHASE 4: Integration & Validation - Complete'
+
+>>> PHASE 5: DOCUMENTATION
+1. Update plans/roadmap.md - mark work stream as ✅ Complete
+2. Write entry in docs/devlog.md with your personal name
+3. Update any other relevant docs
+Print: '>>> PHASE 5: Documentation - Complete'
+
+>>> PHASE 6: COMMIT
+1. Stage ONLY files you worked on (not git add .)
+\`\`\`bash
+git add src/{specific_files} tests/{specific_files}
+git add plans/roadmap.md docs/devlog.md
+\`\`\`
+2. Write a descriptive commit message following coder_agent.md format
+3. Commit the changes
+Print: '>>> PHASE 6: Commit - Complete'
+
 At the END of your session, reflect:
 \`\`\`python
 # Record a reflection
@@ -188,20 +295,6 @@ memory.reflect('Your honest reflection on this session')
 # Save any final insights
 memory.record_insight('Key learning from this session')
 \`\`\`
-
-Your task:
-1. Read plans/roadmap.md
-2. Find the next unclaimed work stream (Status: ⚪ Not Started or Status with 🔄 In Progress but Assigned To: -)
-3. Claim the work stream by:
-   - Updating Status to: 🔄 In Progress
-   - Setting Assigned To: {your_personal_name}
-4. Follow ALL 6 phases of the Coder Agent workflow:
-   - Phase 1: Claim Work Stream (DONE in step 3)
-   - Phase 2: Analysis & Planning
-   - Phase 3: Test-Driven Development (write tests FIRST, then implementation)
-   - Phase 4: Integration & Validation (run tests, linters, type checking)
-   - Phase 5: Documentation (update roadmap, write devlog entry using your personal name)
-   - Phase 6: Commit (stage specific files only, descriptive message)
 
 CRITICAL REQUIREMENTS:
 - Write tests BEFORE writing any implementation code (TDD)
@@ -218,9 +311,10 @@ If there are no unclaimed work streams, respond with: \"No work streams availabl
 Begin now."
 
 # Launch Claude Code in headless mode with dangerously skipped permissions
-log_info "Executing TDD workflow..."
-log_to_file "=== PHASE 1: TDD Workflow Execution ==="
+log_info "Executing autonomous coder workflow (6 phases)..."
+log_to_file "=== CODER AGENT: 6-Phase Workflow ==="
 log_to_file "Starting: $(date)"
+log_to_file "Phases: 1-Claim, 2-Analyze, 3-TDD, 4-Validate, 5-Document, 6-Commit"
 log_to_file ""
 
 # Launch claude in background to capture PID, then wait
@@ -232,26 +326,26 @@ wait $CLAUDE_PID
 CLAUDE_EXIT_CODE=$?
 
 log_to_file ""
-log_to_file "Phase 1 completed: $(date)"
+log_to_file "Coder Agent workflow completed: $(date)"
 log_to_file "Exit code: $CLAUDE_EXIT_CODE"
 log_to_file ""
 
 if [[ $CLAUDE_EXIT_CODE -ne 0 ]]; then
     log_error "Claude Code execution failed with exit code $CLAUDE_EXIT_CODE"
-    log_to_file "ERROR: TDD workflow failed with exit code $CLAUDE_EXIT_CODE"
+    log_to_file "ERROR: Coder workflow failed with exit code $CLAUDE_EXIT_CODE"
     exit $CLAUDE_EXIT_CODE
 fi
 
-log_success "Claude Code execution completed"
+log_success "Coder Agent workflow completed"
 
 # Check if working tree is dirty
 log_info "Checking git working tree status..."
 
 if [[ -n $(git status --porcelain) ]]; then
     log_warning "Working tree is dirty. Uncommitted changes detected."
-    log_info "Launching Claude Code to commit remaining changes..."
+    log_info "Launching commit cleanup agent..."
 
-    log_to_file "=== PHASE 2: Auto-Commit Remaining Changes ==="
+    log_to_file "=== CLEANUP: Auto-Commit Remaining Changes ==="
     log_to_file "Starting: $(date)"
     log_to_file ""
 
@@ -277,12 +371,12 @@ If changes are incomplete or tests are failing, DO NOT COMMIT. Instead, explain 
     COMMIT_EXIT_CODE=${PIPESTATUS[0]}
 
     log_to_file ""
-    log_to_file "Phase 2 completed: $(date)"
+    log_to_file "Cleanup completed: $(date)"
     log_to_file "Exit code: $COMMIT_EXIT_CODE"
     log_to_file ""
 
     if [[ $COMMIT_EXIT_CODE -ne 0 ]]; then
-        log_error "Commit agent failed with exit code $COMMIT_EXIT_CODE"
+        log_error "Commit cleanup agent failed with exit code $COMMIT_EXIT_CODE"
         exit $COMMIT_EXIT_CODE
     fi
 
@@ -299,9 +393,9 @@ else
     log_success "Working tree is clean. No uncommitted changes."
 fi
 
-# PHASE 3: Verify roadmap synchronization
+# Verify roadmap synchronization
 log_info "Verifying roadmap synchronization..."
-log_to_file "=== PHASE 3: Roadmap Verification ==="
+log_to_file "=== VERIFICATION: Roadmap Sync Check ==="
 log_to_file "Starting: $(date)"
 log_to_file ""
 
@@ -329,7 +423,7 @@ claude -p --dangerously-skip-permissions "$PM_PROMPT" 2>&1 | tee -a "$LOG_FILE"
 PM_EXIT_CODE=${PIPESTATUS[0]}
 
 log_to_file ""
-log_to_file "Phase 3 completed: $(date)"
+log_to_file "Verification completed: $(date)"
 log_to_file "Exit code: $PM_EXIT_CODE"
 log_to_file ""
 
