@@ -59,12 +59,12 @@
 
 ---
 
-## Batch 2 (Foundation - Blocked by Batch 1)
+## Batch 2 (Foundation)
 
 ### Phase 2.1: Team Composition Engine
 
-- **Status:** 🔴 Blocked
-- **Depends On:** Phase 1.4
+- **Status:** ⚪ Not Started
+- **Depends On:** Phase 1.4 ✅
 - **Tasks:**
   - [ ] Implement team sizing logic (avoid over/under-staffing)
   - [ ] Add complementary role selection (ensure skill coverage)
@@ -75,7 +75,7 @@
 ### Phase 2.2: Agent Instantiation and Configuration
 
 - **Status:** 🔴 Blocked
-- **Depends On:** Phase 1.4, Phase 2.1
+- **Depends On:** Phase 1.4 ✅, Phase 2.1
 - **Tasks:**
   - [ ] Implement agent factory with tool/context/permission configuration
   - [ ] Add instruction generation for each agent (clear, unambiguous)
@@ -86,8 +86,8 @@
 
 ### Phase 2.3: Error Detection Framework
 
-- **Status:** 🔴 Blocked
-- **Depends On:** Phase 1.1
+- **Status:** ⚪ Not Started
+- **Depends On:** Phase 1.1 ✅
 - **Tasks:**
   - [ ] Define error taxonomy (crash, timeout, invalid output, partial completion)
   - [ ] Implement failure detection hooks for agent execution

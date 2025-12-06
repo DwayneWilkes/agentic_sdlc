@@ -145,7 +145,86 @@ Provide clear output about what was verified and updated:
 Phase 1.2 - Task Analysis & Decomposition Engine (⚪ Not Started)
 ```
 
-## Secondary Workflow: Blocker Detection
+## Secondary Workflow: Roadmap Gardening
+
+Maintain roadmap health by automatically updating blockers and dependencies.
+
+### Gardening Responsibilities
+
+1. **Check Dependency Completion** - When phases complete, unblock dependent phases
+2. **Update Blocked Status** - Change 🔴 Blocked to ⚪ Not Started when dependencies are met
+3. **Archive Completed Work** - Move completed phases to `plans/completed/roadmap-archive.md`
+4. **Validate Consistency** - Ensure roadmap accurately reflects actual project state
+
+### Using the RoadmapGardener
+
+```python
+from src.orchestrator.roadmap_gardener import garden_roadmap, check_roadmap_health
+
+# Check health without making changes
+health = check_roadmap_health()
+print(f"Issues found: {health['issues']}")
+print(f"Available for work: {health['available_for_work']}")
+
+# Garden the roadmap (auto-unblock satisfied dependencies)
+results = garden_roadmap()
+for unblocked in results['unblocked']:
+    print(f"✅ Unblocked Phase {unblocked['id']}: {unblocked['name']}")
+```
+
+### Gardening Workflow
+
+1. **Run health check**:
+   ```python
+   health = check_roadmap_health()
+   ```
+
+2. **Review issues**:
+   - Phases blocked with no dependencies
+   - Phases that should be unblocked (dependencies satisfied)
+   - Completed phases not archived
+
+3. **Apply gardening**:
+   ```python
+   results = garden_roadmap()
+   ```
+
+4. **Report changes**:
+   ```markdown
+   ## Roadmap Gardening Report
+
+   **Unblocked Phases:**
+   - Phase 2.1: Team Composition Engine (dependencies: 1.4 ✅)
+   - Phase 2.3: Error Detection Framework (dependencies: 1.1 ✅)
+
+   **Still Blocked:**
+   - Phase 2.2: Waiting on Phase 2.1
+   - Phase 3.1: Waiting on Phase 2.2
+   ```
+
+5. **Broadcast via NATS**:
+   ```python
+   await bus.broadcast(
+       from_agent=f"{personal_name}-pm",
+       message_type=MessageType.STATUS_UPDATE,
+       content={
+           "action": "garden",
+           "unblocked": len(results['unblocked']),
+           "still_blocked": len(results['still_blocked'])
+       }
+   )
+   ```
+
+### When to Garden
+
+Garden the roadmap:
+
+- After any phase completes
+- At the start of each orchestration session
+- When a user asks to "clear blockers" or "refresh status"
+- Periodically (e.g., every hour during active development)
+
+## Tertiary Workflow: Blocker Detection
 
 Proactively identify stuck work streams.
 

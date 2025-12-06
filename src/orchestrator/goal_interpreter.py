@@ -12,13 +12,64 @@ Optimizations:
 from difflib import SequenceMatcher
 from functools import lru_cache
 from typing import Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import Enum
 
 from src.orchestrator.work_stream import (
     WorkStream,
     parse_roadmap,
     get_available_work_streams,
 )
+
+
+class CommandType(str, Enum):
+    """Types of interpreted commands."""
+    RUN_SINGLE = "run_single"
+    RUN_PARALLEL = "run_parallel"
+    RUN_BATCH = "run_batch"
+    SUGGEST = "suggest"
+    # Management commands
+    GARDEN = "garden"  # Clear blockers, update roadmap
+    STATUS = "status"
+    LIST_AGENTS = "list_agents"
+    STOP = "stop"
+    HELP = "help"
+
+
+# Management command patterns - these take priority over work stream matching
+MANAGEMENT_COMMANDS = {
+    # Garden / clear blockers
+    ("clear", "blockers"): CommandType.GARDEN,
+    ("unblock",): CommandType.GARDEN,
+    ("garden",): CommandType.GARDEN,
+    ("update", "roadmap"): CommandType.GARDEN,
+    ("fix", "blockers"): CommandType.GARDEN,
+    ("refresh",): CommandType.GARDEN,
+
+    # Status
+    ("status",): CommandType.STATUS,
+    ("show", "status"): CommandType.STATUS,
+    ("what's", "available"): CommandType.STATUS,
+    ("whats", "available"): CommandType.STATUS,
+
+    # Agents
+    ("list", "agents"): CommandType.LIST_AGENTS,
+    ("show", "agents"): CommandType.LIST_AGENTS,
+    ("agents",): CommandType.LIST_AGENTS,
+    ("who",): CommandType.LIST_AGENTS,
+
+    # Stop
+    ("stop",): CommandType.STOP,
+    ("kill",): CommandType.STOP,
+    ("cancel",): CommandType.STOP,
+    ("abort",): CommandType.STOP,
+
+    # Help
+    ("help",): CommandType.HELP,
+    ("?",): CommandType.HELP,
+    ("what", "can", "you", "do"): CommandType.HELP,
+    ("commands",): CommandType.HELP,
+}
 
 # Minimum similarity ratio for fuzzy matching
 FUZZY_THRESHOLD = 0.7
@@ -80,7 +131,9 @@ class InterpretedGoal:
     matched_work_streams: list[WorkStream]
     confidence: float  # 0.0 to 1.0
     explanation: str
-    suggested_action: str
+    suggested_action: str  # Deprecated, use command_type
+    command_type: CommandType = CommandType.SUGGEST
+    command_data: dict = field(default_factory=dict)
 
 
 # Keywords mapped to work stream phases
@@ -169,6 +222,27 @@ KEYWORD_MAPPINGS = {
 }
 
 
+def _check_management_command(goal: str) -> Optional[CommandType]:
+    """
+    Check if goal matches a management command.
+
+    Args:
+        goal: User's goal text
+
+    Returns:
+        CommandType if matched, None otherwise
+    """
+    goal_lower = goal.lower()
+    words = set(goal_lower.split())
+
+    # Check each command pattern
+    for pattern_words, command in MANAGEMENT_COMMANDS.items():
+        if all(word in goal_lower for word in pattern_words):
+            return command
+
+    return None
+
+
 def interpret_goal(goal: str, roadmap_path=None) -> InterpretedGoal:
     """
     Interpret a user's goal and match it to work streams.
@@ -181,6 +255,25 @@ def interpret_goal(goal: str, roadmap_path=None) -> InterpretedGoal:
         InterpretedGoal with matched work streams and explanation
     """
     goal_lower = goal.lower()
+
+    # First, check for management commands
+    management_cmd = _check_management_command(goal)
+    if management_cmd:
+        explanations = {
+            CommandType.GARDEN: "Gardening roadmap - clearing blockers and updating status",
+            CommandType.STATUS: "Showing roadmap status",
+            CommandType.LIST_AGENTS: "Listing available agents",
+            CommandType.STOP: "Stopping all running agents",
+            CommandType.HELP: "Showing help information",
+        }
+        return InterpretedGoal(
+            original_goal=goal,
+            matched_work_streams=[],
+            confidence=1.0,
+            explanation=explanations.get(management_cmd, str(management_cmd)),
+            suggested_action=management_cmd.value,
+            command_type=management_cmd,
+        )
     all_streams = parse_roadmap(roadmap_path)
     available = get_available_work_streams(roadmap_path)
 
@@ -192,6 +285,7 @@ def interpret_goal(goal: str, roadmap_path=None) -> InterpretedGoal:
             confidence=0.9,
             explanation=f"Running all {len(available)} available work streams",
             suggested_action="run_batch",
+            command_type=CommandType.RUN_BATCH,
         )
 
     # Check for "next" or just starting
@@ -203,6 +297,7 @@ def interpret_goal(goal: str, roadmap_path=None) -> InterpretedGoal:
                 confidence=0.9,
                 explanation=f"Running next available work stream: Phase {available[0].id}",
                 suggested_action="run_single",
+                command_type=CommandType.RUN_SINGLE,
             )
 
     # Match keywords to phases (with fuzzy matching)
@@ -244,15 +339,18 @@ def interpret_goal(goal: str, roadmap_path=None) -> InterpretedGoal:
         if len(matched_streams) == 1:
             explanation = f"Matched goal to Phase {matched_streams[0].id}: {matched_streams[0].name}"
             action = "run_single"
+            cmd_type = CommandType.RUN_SINGLE
         else:
             explanation = f"Matched goal to {len(matched_streams)} work streams"
             action = "run_parallel"
+            cmd_type = CommandType.RUN_PARALLEL
     else:
         # No specific match - offer available work
         confidence = 0.3
         explanation = "Couldn't match specific work streams. Showing available work."
         matched_streams = available[:3]  # Suggest top 3
         action = "suggest"
+        cmd_type = CommandType.SUGGEST
 
     return InterpretedGoal(
         original_goal=goal,
@@ -260,6 +358,7 @@ def interpret_goal(goal: str, roadmap_path=None) -> InterpretedGoal:
         confidence=confidence,
         explanation=explanation,
         suggested_action=action,
+        command_type=cmd_type,
     )
 
 

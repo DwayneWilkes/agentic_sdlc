@@ -19,6 +19,9 @@ from typing import Optional, Callable
 import os
 import signal
 
+from src.core.agent_naming import AgentNaming, get_naming
+from src.core.agent_memory import get_memory, AgentMemory
+
 
 class AgentState(str, Enum):
     """State of an agent process."""
@@ -151,10 +154,218 @@ class AgentRunner:
         self.agents: dict[str, AgentProcess] = {}
         self._lock = threading.Lock()
         self._callbacks: list[Callable[[AgentProcess], None]] = []
+        self._naming = get_naming()
+
+        # Track agent experience for reuse decisions
+        self._agent_experience: dict[str, list[str]] = {}  # name -> completed phases
 
     def add_callback(self, callback: Callable[[AgentProcess], None]) -> None:
         """Add a callback to be called when agent state changes."""
         self._callbacks.append(callback)
+
+    def get_available_agents(self) -> dict[str, dict]:
+        """
+        Get all known agents that could be reused.
+
+        Returns:
+            Dict mapping personal name to agent info
+        """
+        assigned = self._naming.list_assigned_names()
+        available = {}
+
+        for agent_id, info in assigned.items():
+            personal_name = info["name"]
+            memory = get_memory(personal_name)
+            summary = memory.get_journal_summary()
+
+            available[personal_name] = {
+                "agent_id": agent_id,
+                "role": info.get("role", "coder"),
+                "claimed_at": info.get("claimed_at"),
+                "memory_count": summary.get("total_memories", 0),
+                "completed_phases": self._agent_experience.get(personal_name, []),
+            }
+
+        return available
+
+    def find_agent_for_task(self, work_stream_id: str) -> Optional[str]:
+        """
+        Find an existing agent suitable for a work stream.
+
+        Considers:
+        - Agent's past experience with similar phases
+        - Agent's memory/context
+        - Agent availability
+
+        Args:
+            work_stream_id: The work stream ID (e.g., "2.1")
+
+        Returns:
+            Personal name of suitable agent, or None
+        """
+        available = self.get_available_agents()
+        if not available:
+            return None
+
+        # Extract batch number from work stream ID
+        batch = work_stream_id.split(".")[0]
+
+        best_agent = None
+        best_score = 0
+
+        for name, info in available.items():
+            score = 0
+
+            # Prefer agents who completed phases in same batch
+            for completed in info.get("completed_phases", []):
+                if completed.startswith(f"{batch}."):
+                    score += 10  # Same batch experience
+                else:
+                    score += 1  # Any experience
+
+            # Prefer agents with more memory (more context)
+            score += info.get("memory_count", 0) * 0.1
+
+            if score > best_score:
+                best_score = score
+                best_agent = name
+
+        return best_agent
+
+    def spawn_agent_by_name(
+        self,
+        personal_name: str,
+        work_stream_id: str,
+        on_output: Optional[Callable[[str], None]] = None,
+    ) -> AgentProcess:
+        """
+        Spawn an agent using their personal name (reusing existing context).
+
+        Args:
+            personal_name: The agent's personal name (e.g., "Aria")
+            work_stream_id: ID of the work stream (e.g., "2.1")
+            on_output: Optional callback for each output line
+
+        Returns:
+            AgentProcess instance
+        """
+        # Get agent's memory context
+        memory = get_memory(personal_name)
+        context = memory.format_for_context()
+
+        # Get agent's technical ID
+        agent_id = self._naming.get_agent_id(personal_name)
+        if not agent_id:
+            # Create new ID for this agent
+            agent_id = f"coder-{work_stream_id}-{int(time.time())}"
+
+        agent = AgentProcess(
+            agent_id=agent_id,
+            work_stream_id=work_stream_id,
+            personal_name=personal_name,
+        )
+
+        # Start the agent with context
+        thread = threading.Thread(
+            target=self._run_agent_with_context,
+            args=(agent, context, on_output),
+            daemon=True,
+        )
+        thread.start()
+
+        with self._lock:
+            self.agents[agent_id] = agent
+
+        return agent
+
+    def _run_agent_with_context(
+        self,
+        agent: AgentProcess,
+        context: str,
+        on_output: Optional[Callable[[str], None]],
+    ) -> None:
+        """Run agent process with memory context (called in background thread)."""
+        agent.state = AgentState.RUNNING
+        agent.started_at = datetime.now()
+        self._notify_callbacks(agent)
+
+        try:
+            # Prepare environment with context
+            env = os.environ.copy()
+            env["AGENT_ID"] = agent.agent_id
+            env["WORK_STREAM_ID"] = agent.work_stream_id
+            env["AGENT_PERSONAL_NAME"] = agent.personal_name or ""
+            env["AGENT_CONTEXT"] = context[:4000] if context else ""  # Limit size
+
+            # Start the process
+            process = subprocess.Popen(
+                ["bash", str(self.script_path)],
+                cwd=str(self.project_root),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                env=env,
+                bufsize=1,
+            )
+
+            agent.process = process
+            self._monitor_agent(agent, process, on_output)
+
+        except Exception as e:
+            agent.state = AgentState.FAILED
+            agent.error_lines.append(str(e))
+
+        finally:
+            agent.completed_at = datetime.now()
+            # Record experience if completed
+            if agent.state == AgentState.COMPLETED and agent.personal_name:
+                if agent.personal_name not in self._agent_experience:
+                    self._agent_experience[agent.personal_name] = []
+                self._agent_experience[agent.personal_name].append(agent.work_stream_id)
+            self._notify_callbacks(agent)
+
+    def _monitor_agent(
+        self,
+        agent: AgentProcess,
+        process: subprocess.Popen,
+        on_output: Optional[Callable[[str], None]],
+    ) -> None:
+        """Monitor agent output and detect completion."""
+        start_time = time.time()
+
+        while True:
+            # Check timeout
+            if time.time() - start_time > self.timeout_seconds:
+                agent.state = AgentState.TIMEOUT
+                process.kill()
+                break
+
+            # Read output
+            line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                break
+
+            if line:
+                line = line.rstrip()
+                agent.add_output_line(line)
+
+                # Extract personal name from output
+                if "Hello! I am " in line:
+                    name_match = line.split("Hello! I am ")[-1].rstrip(".")
+                    agent.personal_name = name_match
+
+                if on_output:
+                    on_output(line)
+
+        # Get exit code
+        agent.exit_code = process.returncode
+
+        # Determine final state
+        if agent.state != AgentState.TIMEOUT:
+            if agent.exit_code == 0:
+                agent.state = AgentState.COMPLETED
+            else:
+                agent.state = AgentState.FAILED
 
     def _notify_callbacks(self, agent: AgentProcess) -> None:
         """Notify all callbacks of agent state change."""
@@ -168,19 +379,22 @@ class AgentRunner:
         self,
         work_stream_id: str,
         on_output: Optional[Callable[[str], None]] = None,
+        reuse_agent: bool = True,
     ) -> AgentProcess:
         """
-        Spawn a new autonomous agent for a work stream.
+        Spawn an autonomous agent for a work stream.
+
+        If reuse_agent is True, will try to reuse an existing agent
+        with relevant experience. Otherwise creates a new agent.
 
         Args:
             work_stream_id: ID of the work stream (e.g., "1.2")
             on_output: Optional callback for each output line
+            reuse_agent: Whether to try reusing an existing agent
 
         Returns:
             AgentProcess instance
         """
-        agent_id = f"coder-{work_stream_id}-{int(time.time())}"
-
         # Check concurrent limit
         with self._lock:
             running = sum(1 for a in self.agents.values() if a.is_running)
@@ -188,6 +402,19 @@ class AgentRunner:
                 raise RuntimeError(
                     f"Max concurrent agents ({self.max_concurrent}) reached"
                 )
+
+        # Try to reuse an existing agent
+        if reuse_agent:
+            existing_agent = self.find_agent_for_task(work_stream_id)
+            if existing_agent:
+                return self.spawn_agent_by_name(
+                    personal_name=existing_agent,
+                    work_stream_id=work_stream_id,
+                    on_output=on_output,
+                )
+
+        # Create new agent
+        agent_id = f"coder-{work_stream_id}-{int(time.time())}"
 
         agent = AgentProcess(
             agent_id=agent_id,
@@ -235,44 +462,7 @@ class AgentRunner:
             )
 
             agent.process = process
-
-            # Read output with timeout
-            start_time = time.time()
-            while True:
-                # Check timeout
-                if time.time() - start_time > self.timeout_seconds:
-                    agent.state = AgentState.TIMEOUT
-                    process.kill()
-                    break
-
-                # Read output
-                line = process.stdout.readline()
-                if not line and process.poll() is not None:
-                    break
-
-                if line:
-                    line = line.rstrip()
-
-                    # Store output with smart head/tail/important preservation
-                    agent.add_output_line(line)
-
-                    # Try to extract personal name from output
-                    if "Hello! I am " in line:
-                        name_match = line.split("Hello! I am ")[-1].rstrip(".")
-                        agent.personal_name = name_match
-
-                    if on_output:
-                        on_output(line)
-
-            # Get exit code
-            agent.exit_code = process.returncode
-
-            # Determine final state
-            if agent.state != AgentState.TIMEOUT:
-                if agent.exit_code == 0:
-                    agent.state = AgentState.COMPLETED
-                else:
-                    agent.state = AgentState.FAILED
+            self._monitor_agent(agent, process, on_output)
 
         except Exception as e:
             agent.state = AgentState.FAILED
@@ -280,6 +470,11 @@ class AgentRunner:
 
         finally:
             agent.completed_at = datetime.now()
+            # Record experience if completed
+            if agent.state == AgentState.COMPLETED and agent.personal_name:
+                if agent.personal_name not in self._agent_experience:
+                    self._agent_experience[agent.personal_name] = []
+                self._agent_experience[agent.personal_name].append(agent.work_stream_id)
             self._notify_callbacks(agent)
 
     def kill_agent(self, agent_id: str) -> bool:

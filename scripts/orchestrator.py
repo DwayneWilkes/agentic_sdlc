@@ -33,7 +33,8 @@ from src.orchestrator import (
     parse_roadmap,
     WorkStreamStatus,
 )
-from src.orchestrator.goal_interpreter import interpret_goal, format_interpretation
+from src.orchestrator.goal_interpreter import interpret_goal, format_interpretation, CommandType
+from src.orchestrator.roadmap_gardener import garden_roadmap, check_roadmap_health
 
 # ANSI colors
 class Colors:
@@ -284,6 +285,73 @@ def cmd_stop(args) -> int:
     return 0
 
 
+def cmd_garden(args=None) -> int:
+    """Garden the roadmap - clear blockers and update status."""
+    print_header("Roadmap Gardening")
+
+    # Check health first
+    health = check_roadmap_health()
+    print(f"\n{colored('Current Health:', Colors.BOLD)}")
+    print(f"  Total phases: {health['total_phases']}")
+    print(f"  Available for work: {health['available_for_work']}")
+
+    if health['issues']:
+        print(f"\n{colored('Issues Found:', Colors.YELLOW)}")
+        for issue in health['issues']:
+            print(f"  ⚠️  {issue}")
+
+    # Apply gardening
+    print(f"\n{colored('Applying gardening...', Colors.BOLD)}")
+    results = garden_roadmap()
+
+    if results['unblocked']:
+        print(f"\n{colored('✅ Unblocked Phases:', Colors.GREEN)}")
+        for item in results['unblocked']:
+            print(f"  • Phase {item['id']}: {item['name']}")
+            print(f"    Reason: {item['reason']}")
+
+    if results['still_blocked']:
+        print(f"\n{colored('🔴 Still Blocked:', Colors.YELLOW)}")
+        for item in results['still_blocked'][:5]:  # Show first 5
+            deps = ", ".join(item.get('pending_deps', []))
+            print(f"  • Phase {item['id']}: {item['name']}")
+            print(f"    Waiting on: {deps}")
+        if len(results['still_blocked']) > 5:
+            print(f"  ... and {len(results['still_blocked']) - 5} more")
+
+    if not results['unblocked'] and not health['issues']:
+        print(colored("\n✓ Roadmap is healthy - no changes needed.", Colors.GREEN))
+
+    return 0
+
+
+def cmd_agents(args=None) -> int:
+    """List available agents."""
+    print_header("Available Agents")
+
+    try:
+        from src.orchestrator.agent_runner import AgentRunner
+        runner = AgentRunner(PROJECT_ROOT)
+        available = runner.get_available_agents()
+
+        if available:
+            print(f"\n{colored('Known Agents:', Colors.BOLD)}")
+            for name, info in available.items():
+                print(f"\n  {colored(name, Colors.CYAN)}")
+                print(f"    Role: {info.get('role', 'unknown')}")
+                print(f"    Memory entries: {info.get('memory_count', 0)}")
+                completed = info.get('completed_phases', [])
+                if completed:
+                    print(f"    Completed phases: {', '.join(completed)}")
+        else:
+            print("\nNo agents have claimed names yet.")
+            print("Agents will claim names when they start working.")
+    except Exception as e:
+        print(colored(f"Error loading agents: {e}", Colors.RED))
+
+    return 0
+
+
 def cmd_report(args) -> int:
     """Show detailed report."""
     print_header("Orchestrator Report")
@@ -478,6 +546,40 @@ Or just type your goal in natural language:
             print(f"\n{colored('Orchestrator:', Colors.GREEN)}")
             print(f"  {result.explanation}")
 
+            # Handle management commands
+            if result.command_type == CommandType.GARDEN:
+                cmd_garden()
+                continue
+            elif result.command_type == CommandType.STATUS:
+                cmd_status(argparse.Namespace())
+                continue
+            elif result.command_type == CommandType.LIST_AGENTS:
+                cmd_agents()
+                continue
+            elif result.command_type == CommandType.STOP:
+                killed = orchestrator.stop()
+                print(f"  Stopped {killed} agent(s)")
+                continue
+            elif result.command_type == CommandType.HELP:
+                print("""
+Commands:
+  status      - Show roadmap status
+  running     - Show running agents
+  agents      - List known agents
+  garden      - Clear blockers and update roadmap
+  stop        - Stop all agents
+  stop <id>   - Stop specific agent
+  report      - Show detailed report
+  quit/exit   - Exit interactive mode
+
+Or just type your goal in natural language:
+  "Start working on the task parser"
+  "Run all available work in parallel"
+  "Clear the blockers"
+  "Show me the agents"
+""")
+                continue
+
             if result.matched_work_streams:
                 print(f"\n  Matched work streams:")
                 for ws in result.matched_work_streams:
@@ -623,6 +725,18 @@ def main():
         help="Interactive mode - talk to the orchestrator",
     )
 
+    # garden command
+    garden_parser = subparsers.add_parser(
+        "garden",
+        help="Garden the roadmap - clear blockers and update status",
+    )
+
+    # agents command
+    agents_parser = subparsers.add_parser(
+        "agents",
+        help="List known agents",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -638,6 +752,8 @@ def main():
         "report": cmd_report,
         "goal": cmd_goal,
         "interactive": cmd_interactive,
+        "garden": cmd_garden,
+        "agents": cmd_agents,
     }
 
     return commands[args.command](args)
