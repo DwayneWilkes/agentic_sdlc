@@ -1,6 +1,6 @@
 # Agent Logs
 
-This directory contains execution logs from autonomous agent runs.
+This directory contains execution logs from autonomous agent runs, organized by project.
 
 ## Purpose
 
@@ -12,14 +12,20 @@ Logs provide a complete audit trail of autonomous agent operations, including:
 - Error messages and debugging information
 - Timestamps for each phase
 
-## Log Format
+## Directory Structure
 
-Logs are timestamped and named:
-```
-autonomous-agent-YYYYMMDD-HHMMSS.log
+Logs are organized by project name:
+
+```text
+agent-logs/
+├── {project_name}/
+│   ├── autonomous-agent-YYYYMMDD-HHMMSS.log
+│   ├── qa-agent-YYYYMMDD-HHMMSS.log
+│   └── pm-agent-YYYYMMDD-HHMMSS.log
+└── README.md
 ```
 
-Example: `autonomous-agent-20251205-143000.log`
+Example: `agent-logs/agentic_sdlc/autonomous-agent-20251205-143000.log`
 
 ## Log Structure
 
@@ -63,21 +69,27 @@ Finished: Thu Dec  5 14:47:00 UTC 2025
 ### View Latest Log
 
 ```bash
-# List logs by most recent
-ls -lt agent-logs/
+# List project log directories
+ls agent-logs/
 
-# View latest log
-tail -f agent-logs/autonomous-agent-*.log | head -n 1
+# List logs for a project by most recent
+ls -lt agent-logs/agentic_sdlc/
+
+# View latest log for a project
+tail -f agent-logs/agentic_sdlc/autonomous-agent-*.log | head -n 1
 ```
 
 ### Search Logs
 
 ```bash
-# Find errors
+# Find errors across all projects
 grep -r "ERROR" agent-logs/
 
+# Find errors in specific project
+grep -r "ERROR" agent-logs/agentic_sdlc/
+
 # Find specific work stream
-grep -r "Phase 1.1" agent-logs/
+grep -r "Phase 1.1" agent-logs/agentic_sdlc/
 
 # Check exit codes
 grep -r "Exit code:" agent-logs/
@@ -94,25 +106,33 @@ If an autonomous agent run fails:
 5. Examine git status and working tree state
 
 ```bash
-# Find failed runs
-grep -l "Exit code: [^0]" agent-logs/*.log
+# Find failed runs across all projects
+grep -rl "Exit code: [^0]" agent-logs/
+
+# Find failed runs in specific project
+grep -l "Exit code: [^0]" agent-logs/agentic_sdlc/*.log
 ```
 
 ## Log Retention
 
 Logs are:
+
 - **Ignored by git** (see [.gitignore](.gitignore))
+- **Organized by project** for easy cleanup
 - **Kept indefinitely** on local system
 - **Manually cleaned** when disk space is needed
 
 To clean old logs:
 
 ```bash
-# Remove logs older than 30 days
+# Remove logs older than 30 days (all projects)
 find agent-logs/ -name "*.log" -mtime +30 -delete
 
-# Remove all logs
-rm agent-logs/*.log
+# Remove all logs for a specific project
+rm -rf agent-logs/agentic_sdlc/
+
+# Remove all logs (all projects)
+find agent-logs/ -name "*.log" -delete
 ```
 
 ## Troubleshooting

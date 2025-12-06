@@ -6,8 +6,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_NAME="$(basename "$PROJECT_ROOT")"
 QA_AGENT="$PROJECT_ROOT/.claude/agents/qa_agent.md"
-LOG_DIR="$PROJECT_ROOT/agent-logs"
+LOG_DIR="$PROJECT_ROOT/agent-logs/$PROJECT_NAME"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 LOG_FILE="$LOG_DIR/qa-agent-$TIMESTAMP.log"
 
