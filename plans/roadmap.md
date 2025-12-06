@@ -113,6 +113,40 @@
 - **Effort:** S
 - **Done When:** System detects and classifies all failure types; no silent failures
 
+### Phase 2.6: Quality Gate Verifier Agent ⭐ PRIORITY
+
+- **Status:** ⚪ Not Started
+- **Depends On:** Phase 1.1 ✅
+- **Tasks:**
+  - [ ] Create QA/Verifier agent that audits completed phases
+  - [ ] Implement quality gate checks:
+    - [ ] All tests pass (pytest)
+    - [ ] Coverage ≥ 80% (pytest --cov)
+    - [ ] No linting errors (ruff check)
+    - [ ] No type errors (mypy)
+  - [ ] Report violations to orchestrator with specifics
+  - [ ] Trigger remediation workflow (spawn agent to fix gaps)
+  - [ ] Track technical debt for phases that were approved with exceptions
+- **Effort:** M
+- **Done When:** All completed phases verified against quality gates; violations flagged and remediated automatically
+- **Design Notes:**
+
+  ```text
+  Phase Marked Complete
+    │
+    ├─► QA Agent runs quality checks
+    │     ├─► pytest tests/
+    │     ├─► pytest --cov=src tests/
+    │     ├─► ruff check src/ tests/
+    │     └─► mypy src/
+    │
+    ├─► All pass? → ✅ Verified complete
+    │
+    └─► Failures? → Report to orchestrator
+                    → Spawn remediation agent
+                    → Track as technical debt if approved with exception
+  ```
+
 ### Phase 2.4: Recovery Strategy Engine
 
 - **Status:** 🔴 Blocked

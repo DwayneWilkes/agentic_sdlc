@@ -49,10 +49,12 @@ This workflow is typically triggered after a coder agent completes work.
    - Note the agent that completed it
 
 2. **Check git history**:
+
    ```bash
    git log -1 --oneline
    git show --stat HEAD
    ```
+
    - Verify recent commit exists
    - Confirm files match work stream scope
 
@@ -80,6 +82,7 @@ This workflow is typically triggered after a coder agent completes work.
 If roadmap is not synchronized with completion:
 
 1. **Update status**:
+
    ```markdown
    - **Status:** ✅ Complete
    - **Assigned To:** {agent-name} (completed YYYY-MM-DD)
@@ -90,6 +93,7 @@ If roadmap is not synchronized with completion:
    - Leave `[ ]` for any incomplete tasks
 
 3. **Add completion notes** (optional):
+
    ```markdown
    - **Completion Notes:**
      - All core models implemented with Pydantic
@@ -175,6 +179,7 @@ for unblocked in results['unblocked']:
 ### Gardening Workflow
 
 1. **Run health check**:
+
    ```python
    health = check_roadmap_health()
    ```
@@ -185,11 +190,13 @@ for unblocked in results['unblocked']:
    - Completed phases not archived
 
 3. **Apply gardening**:
+
    ```python
    results = garden_roadmap()
    ```
 
 4. **Report changes**:
+
    ```markdown
    ## Roadmap Gardening Report
 
@@ -203,6 +210,7 @@ for unblocked in results['unblocked']:
    ```
 
 5. **Broadcast via NATS**:
+
    ```python
    await bus.broadcast(
        from_agent=f"{personal_name}-pm",
@@ -231,6 +239,7 @@ Proactively identify stuck work streams.
 ### Detection Criteria
 
 A work stream is potentially blocked if:
+
 - Status "🔄 In Progress" for > 24 hours (check git log timestamps)
 - No recent commits touching related files
 - Dev log has no entry for this work stream
@@ -239,6 +248,7 @@ A work stream is potentially blocked if:
 ### Blocker Response
 
 1. **Post to errors channel**:
+
    ```python
    # Via NATS Chat MCP
    mcp.call_tool("send_message", {
@@ -248,6 +258,7 @@ A work stream is potentially blocked if:
    ```
 
 2. **Create blocker report**:
+
    ```markdown
    ## Blocker Report: Phase 1.2
 
@@ -268,6 +279,7 @@ A work stream is potentially blocked if:
    ```
 
 3. **Broadcast blocker**:
+
    ```python
    await bus.broadcast(
        from_agent=f"{personal_name}-pm",
@@ -399,6 +411,112 @@ Before marking roadmap as synchronized:
 - [ ] NATS broadcast sent
 - [ ] NATS chat notification posted
 
+## QA Agent Coordination
+
+After a phase is marked complete, the QA Agent audits it for quality gate compliance. PM is the decision point for remediation.
+
+### Receiving QA Reports
+
+```python
+# QA Agent sends audit report via NATS
+{
+    "type": "quality_audit_report",
+    "phase_id": "1.3",
+    "overall_status": "violation",  # or "passed"
+    "critical_count": 0,
+    "major_count": 1,
+    "minor_count": 0,
+    "violations": [
+        {
+            "gate": "coverage",
+            "severity": "major",
+            "message": "Coverage at 74% (threshold: 80%)",
+            "files": ["src/core/task_decomposer.py:45-67"]
+        }
+    ],
+    "recommendation": "spawn_remediation"
+}
+```
+
+### PM Decision Options
+
+When violations are reported:
+
+1. **Remediate** - Approve spawning a coder agent to fix gaps
+
+   ```python
+   await bus.send_direct(
+       from_agent=f"{personal_name}-pm",
+       to_agent="orchestrator",
+       message_type=MessageType.TASK_ASSIGNMENT,
+       content={
+           "type": "remediation_approved",
+           "phase_id": "1.3",
+           "task": "Add tests for task_decomposer.py to reach 80% coverage",
+           "priority": "high"
+       }
+   )
+   ```
+
+2. **Approve Exception** - Log as technical debt for later
+
+   ```python
+   await bus.send_direct(
+       from_agent=f"{personal_name}-pm",
+       to_agent="qa-agent",
+       message_type=MessageType.STATUS_UPDATE,
+       content={
+           "type": "exception_approved",
+           "phase_id": "1.3",
+           "gate": "coverage",
+           "reason": "Time-critical, prioritizing Phase 2.5",
+           "target_remediation_date": "2025-12-15"
+       }
+   )
+   ```
+
+3. **Request More Info** - Ask QA for details
+
+   ```python
+   await bus.send_direct(
+       from_agent=f"{personal_name}-pm",
+       to_agent="qa-agent",
+       message_type=MessageType.QUESTION,
+       content={
+           "phase_id": "1.3",
+           "question": "What specific lines need coverage?"
+       }
+   )
+   ```
+
+### Technical Debt Tracking
+
+When approving exceptions, ensure QA logs them to `docs/technical-debt.md`:
+
+- Phase reference
+- Gate and gap (e.g., "coverage: 74% vs 80%")
+- Reason for approval
+- Target remediation date
+- Status (open/resolved)
+
+### QA Workflow Integration
+
+```text
+Coder marks phase complete
+    │
+    ├─► PM verifies roadmap status (this workflow)
+    │
+    └─► QA Agent audits quality gates
+          │
+          ├─► All pass? → Phase fully verified ✅
+          │
+          └─► Violations? → QA reports to PM
+                             │
+                             ├─► PM approves remediation → Spawn coder
+                             │
+                             └─► PM approves exception → Log tech debt
+```
+
 ## Best Practices
 
 ### 1. Be Precise
@@ -410,6 +528,7 @@ Before marking roadmap as synchronized:
 ### 2. Verify Before Updating
 
 Always check:
+
 - Dev log confirms completion
 - Git history shows relevant commits
 - Tests are passing (check commit message)
@@ -418,6 +537,7 @@ Always check:
 ### 3. Track Agent Activity
 
 Maintain awareness of:
+
 - Which agents are active
 - What they're working on
 - How long work streams are in progress
@@ -426,6 +546,7 @@ Maintain awareness of:
 ### 4. Communicate Clearly
 
 Use structured reports and clear status updates. Include:
+
 - What was verified
 - What was changed
 - What's next
@@ -519,11 +640,15 @@ A good project manager agent:
 - ✅ Tracks agent activity and velocity
 - ✅ Identifies next available work streams
 - ✅ Coordinates team via NATS chat
+- ✅ Reviews QA reports and decides remediation strategy
+- ✅ Tracks technical debt for approved exceptions
 
 ## See Also
 
 - [Coder Agent Workflow](./coder_agent.md) - Agent that completes work streams
+- [QA Agent](./qa_agent.md) - Quality gate verification and remediation
 - [Requirements Reviewer](./requirements_reviewer.md) - Quality validation
+- [Technical Debt Log](../../docs/technical-debt.md) - Exception tracking
 - [Roadmap](../../plans/roadmap.md) - Work stream tracking
 - [Dev Log](../../docs/devlog.md) - Completed work documentation
 - [NATS Communication](../../docs/nats-architecture.md) - Inter-agent messaging
