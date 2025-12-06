@@ -10,14 +10,13 @@ Responsibilities:
 
 import re
 from pathlib import Path
-from typing import Optional
-from datetime import datetime
 
 from src.orchestrator.work_stream import (
-    parse_roadmap,
-    clear_roadmap_cache,
     WorkStream,
     WorkStreamStatus,
+    clear_roadmap_cache,
+    get_prioritized_work_streams,
+    parse_roadmap,
 )
 
 
@@ -26,7 +25,7 @@ class RoadmapGardener:
     Maintains roadmap health by auto-updating blockers and archiving completed phases.
     """
 
-    def __init__(self, project_root: Optional[Path] = None):
+    def __init__(self, project_root: Path | None = None):
         """
         Initialize the roadmap gardener.
 
@@ -181,21 +180,20 @@ class RoadmapGardener:
 
     def get_next_phases(self) -> list[WorkStream]:
         """
-        Get phases that are ready to work on.
+        Get phases that are ready to work on, prioritized (bootstrap first).
 
         Returns:
-            List of claimable work streams
+            List of claimable work streams, bootstrap phases first
         """
         # First, garden the roadmap
         self.garden()
 
-        # Then return available work
-        all_streams = parse_roadmap(self.roadmap_path)
-        return [ws for ws in all_streams if ws.is_claimable]
+        # Return prioritized work (bootstrap phases first)
+        return get_prioritized_work_streams(self.roadmap_path)
 
 
 # Singleton instance
-_gardener: Optional[RoadmapGardener] = None
+_gardener: RoadmapGardener | None = None
 
 
 def get_gardener() -> RoadmapGardener:

@@ -9,10 +9,16 @@ The orchestrator:
 - Coordinates parallel execution
 """
 
+from src.orchestrator.agent_runner import AgentProcess, AgentRunner, AgentState
+from src.orchestrator.goal_interpreter import InterpretedGoal, interpret_goal
 from src.orchestrator.orchestrator import Orchestrator, OrchestratorConfig, OrchestratorMode
-from src.orchestrator.work_stream import WorkStream, WorkStreamStatus, parse_roadmap
-from src.orchestrator.agent_runner import AgentRunner, AgentProcess, AgentState
-from src.orchestrator.goal_interpreter import interpret_goal, InterpretedGoal
+from src.orchestrator.work_stream import (
+    WorkStream,
+    WorkStreamStatus,
+    get_bootstrap_phases,
+    get_prioritized_work_streams,
+    parse_roadmap,
+)
 
 __all__ = [
     "Orchestrator",
@@ -21,6 +27,8 @@ __all__ = [
     "WorkStream",
     "WorkStreamStatus",
     "parse_roadmap",
+    "get_bootstrap_phases",
+    "get_prioritized_work_streams",
     "AgentRunner",
     "AgentProcess",
     "AgentState",

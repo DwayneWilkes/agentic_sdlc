@@ -451,7 +451,7 @@ def cmd_goal(args) -> int:
         print(colored("\n[Dry run - no agents spawned]", Colors.YELLOW))
         return 0
 
-    if result.suggested_action == "run_single" or len(result.matched_work_streams) == 1:
+    if result.command_type == CommandType.RUN_SINGLE or len(result.matched_work_streams) == 1:
         ws = result.matched_work_streams[0]
         print(f"\nSpawning agent for Phase {ws.id}...")
         agent = orchestrator.run(
@@ -466,7 +466,7 @@ def cmd_goal(args) -> int:
             print(colored(f"\n✗ Agent {agent.state.value}", Colors.RED))
             return 1
 
-    elif result.suggested_action in ("run_parallel", "run_batch"):
+    elif result.command_type in (CommandType.RUN_PARALLEL, CommandType.RUN_BATCH):
         work_stream_ids = [ws.id for ws in result.matched_work_streams]
         print(f"\nSpawning {len(work_stream_ids)} agents in parallel...")
         agents = orchestrator.run_parallel(

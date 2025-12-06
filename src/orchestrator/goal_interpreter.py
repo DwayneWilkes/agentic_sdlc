@@ -9,16 +9,15 @@ Optimizations:
 - Word tokenization with caching
 """
 
-from difflib import SequenceMatcher
-from functools import lru_cache
-from typing import Optional
 from dataclasses import dataclass, field
+from difflib import SequenceMatcher
 from enum import Enum
+from functools import lru_cache
 
 from src.orchestrator.work_stream import (
     WorkStream,
+    get_prioritized_work_streams,
     parse_roadmap,
-    get_available_work_streams,
 )
 
 
@@ -131,7 +130,6 @@ class InterpretedGoal:
     matched_work_streams: list[WorkStream]
     confidence: float  # 0.0 to 1.0
     explanation: str
-    suggested_action: str  # Deprecated, use command_type
     command_type: CommandType = CommandType.SUGGEST
     command_data: dict = field(default_factory=dict)
 
@@ -222,7 +220,7 @@ KEYWORD_MAPPINGS = {
 }
 
 
-def _check_management_command(goal: str) -> Optional[CommandType]:
+def _check_management_command(goal: str) -> CommandType | None:
     """
     Check if goal matches a management command.
 
@@ -233,7 +231,6 @@ def _check_management_command(goal: str) -> Optional[CommandType]:
         CommandType if matched, None otherwise
     """
     goal_lower = goal.lower()
-    words = set(goal_lower.split())
 
     # Check each command pattern
     for pattern_words, command in MANAGEMENT_COMMANDS.items():
@@ -271,11 +268,10 @@ def interpret_goal(goal: str, roadmap_path=None) -> InterpretedGoal:
             matched_work_streams=[],
             confidence=1.0,
             explanation=explanations.get(management_cmd, str(management_cmd)),
-            suggested_action=management_cmd.value,
             command_type=management_cmd,
         )
     all_streams = parse_roadmap(roadmap_path)
-    available = get_available_work_streams(roadmap_path)
+    available = get_prioritized_work_streams(roadmap_path)  # Bootstrap phases first
 
     # Check for "all" or "everything"
     if any(word in goal_lower for word in ["all", "everything", "batch"]):
@@ -284,7 +280,6 @@ def interpret_goal(goal: str, roadmap_path=None) -> InterpretedGoal:
             matched_work_streams=available,
             confidence=0.9,
             explanation=f"Running all {len(available)} available work streams",
-            suggested_action="run_batch",
             command_type=CommandType.RUN_BATCH,
         )
 
@@ -296,7 +291,6 @@ def interpret_goal(goal: str, roadmap_path=None) -> InterpretedGoal:
                 matched_work_streams=[available[0]],
                 confidence=0.9,
                 explanation=f"Running next available work stream: Phase {available[0].id}",
-                suggested_action="run_single",
                 command_type=CommandType.RUN_SINGLE,
             )
 
@@ -333,23 +327,22 @@ def interpret_goal(goal: str, roadmap_path=None) -> InterpretedGoal:
     # Build explanation with confidence based on match quality
     if matched_streams:
         # Higher confidence for better similarity matches
-        avg_score = sum(similarity_scores.get(ws.id, 0.5) for ws in matched_streams) / len(matched_streams)
+        scores = [similarity_scores.get(ws.id, 0.5) for ws in matched_streams]
+        avg_score = sum(scores) / len(matched_streams)
         confidence = min(0.95, 0.4 + 0.3 * avg_score + 0.1 * min(len(matched_streams), 3))
 
         if len(matched_streams) == 1:
-            explanation = f"Matched goal to Phase {matched_streams[0].id}: {matched_streams[0].name}"
-            action = "run_single"
+            ws = matched_streams[0]
+            explanation = f"Matched goal to Phase {ws.id}: {ws.name}"
             cmd_type = CommandType.RUN_SINGLE
         else:
             explanation = f"Matched goal to {len(matched_streams)} work streams"
-            action = "run_parallel"
             cmd_type = CommandType.RUN_PARALLEL
     else:
         # No specific match - offer available work
         confidence = 0.3
         explanation = "Couldn't match specific work streams. Showing available work."
         matched_streams = available[:3]  # Suggest top 3
-        action = "suggest"
         cmd_type = CommandType.SUGGEST
 
     return InterpretedGoal(
@@ -357,7 +350,6 @@ def interpret_goal(goal: str, roadmap_path=None) -> InterpretedGoal:
         matched_work_streams=matched_streams,
         confidence=confidence,
         explanation=explanation,
-        suggested_action=action,
         command_type=cmd_type,
     )
 
@@ -377,6 +369,6 @@ def format_interpretation(result: InterpretedGoal) -> str:
         lines.append("No matching work streams available.")
 
     lines.append("")
-    lines.append(f"Suggested action: {result.suggested_action}")
+    lines.append(f"Command: {result.command_type.value}")
 
     return "\n".join(lines)

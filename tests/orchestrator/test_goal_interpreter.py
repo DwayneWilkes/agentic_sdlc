@@ -1,12 +1,12 @@
 """Tests for the goal interpreter."""
 
+
 import pytest
-from pathlib import Path
 
 from src.orchestrator.goal_interpreter import (
-    interpret_goal,
-    InterpretedGoal,
+    CommandType,
     format_interpretation,
+    interpret_goal,
 )
 
 
@@ -60,14 +60,14 @@ class TestInterpretGoal:
         """Test interpreting 'run everything' goal."""
         result = interpret_goal("Run everything available", sample_roadmap)
 
-        assert result.suggested_action == "run_batch"
+        assert result.command_type == CommandType.RUN_BATCH
         assert len(result.matched_work_streams) == 3  # All non-blocked
 
     def test_interpret_next_goal(self, sample_roadmap):
         """Test interpreting 'next' goal."""
         result = interpret_goal("Start the next work stream", sample_roadmap)
 
-        assert result.suggested_action == "run_single"
+        assert result.command_type == CommandType.RUN_SINGLE
         assert len(result.matched_work_streams) == 1
 
     def test_interpret_decomposition_goal(self, sample_roadmap):
@@ -95,15 +95,15 @@ class TestInterpretGoal:
 
         assert result.confidence >= 0.5
 
-    def test_suggested_action_single_vs_parallel(self, sample_roadmap):
-        """Test correct action suggestion based on matches."""
+    def test_command_type_single_vs_parallel(self, sample_roadmap):
+        """Test correct command type based on matches."""
         single = interpret_goal("Just the parser", sample_roadmap)
-        assert single.suggested_action in ("run_single", "suggest")
+        assert single.command_type in (CommandType.RUN_SINGLE, CommandType.SUGGEST)
 
         multi = interpret_goal("foundation work", sample_roadmap)
         # Foundation matches multiple phases
         if len(multi.matched_work_streams) > 1:
-            assert multi.suggested_action in ("run_parallel", "suggest")
+            assert multi.command_type in (CommandType.RUN_PARALLEL, CommandType.SUGGEST)
 
 
 class TestFormatInterpretation:

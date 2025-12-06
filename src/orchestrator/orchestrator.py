@@ -9,24 +9,23 @@ The Orchestrator:
 5. Generates reports and handles failures
 """
 
-import time
 import subprocess
-from pathlib import Path
-from datetime import datetime
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Optional, Callable
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
 
+from src.orchestrator.agent_runner import (
+    AgentProcess,
+    AgentRunner,
+)
 from src.orchestrator.work_stream import (
     WorkStream,
     WorkStreamStatus,
+    get_prioritized_work_streams,
     parse_roadmap,
-    get_available_work_streams,
-)
-from src.orchestrator.agent_runner import (
-    AgentRunner,
-    AgentProcess,
-    AgentState,
 )
 
 
@@ -54,8 +53,8 @@ class OrchestratorEvent:
     timestamp: datetime
     event_type: str
     message: str
-    agent_id: Optional[str] = None
-    work_stream_id: Optional[str] = None
+    agent_id: str | None = None
+    work_stream_id: str | None = None
     data: dict = field(default_factory=dict)
 
 
@@ -72,8 +71,8 @@ class Orchestrator:
 
     def __init__(
         self,
-        project_root: Optional[Path] = None,
-        config: Optional[OrchestratorConfig] = None,
+        project_root: Path | None = None,
+        config: OrchestratorConfig | None = None,
     ):
         """
         Initialize the orchestrator.
@@ -110,8 +109,8 @@ class Orchestrator:
         self,
         event_type: str,
         message: str,
-        agent_id: Optional[str] = None,
-        work_stream_id: Optional[str] = None,
+        agent_id: str | None = None,
+        work_stream_id: str | None = None,
         **data,
     ) -> OrchestratorEvent:
         """Emit an orchestrator event."""
@@ -145,8 +144,8 @@ class Orchestrator:
         )
 
     def get_available_work(self) -> list[WorkStream]:
-        """Get available work streams from the roadmap."""
-        return get_available_work_streams(self.project_root / "plans" / "roadmap.md")
+        """Get available work streams from the roadmap, prioritized (bootstrap first)."""
+        return get_prioritized_work_streams(self.project_root / "plans" / "roadmap.md")
 
     def get_roadmap_status(self) -> dict:
         """
@@ -175,8 +174,8 @@ class Orchestrator:
 
     def run(
         self,
-        work_stream_id: Optional[str] = None,
-        on_output: Optional[Callable[[str], None]] = None,
+        work_stream_id: str | None = None,
+        on_output: Callable[[str], None] | None = None,
     ) -> AgentProcess:
         """
         Run a single work stream.
@@ -228,9 +227,9 @@ class Orchestrator:
 
     def run_parallel(
         self,
-        max_agents: Optional[int] = None,
-        work_stream_ids: Optional[list[str]] = None,
-        on_output: Optional[Callable[[str, str], None]] = None,
+        max_agents: int | None = None,
+        work_stream_ids: list[str] | None = None,
+        on_output: Callable[[str, str], None] | None = None,
     ) -> list[AgentProcess]:
         """
         Run multiple work streams in parallel.
@@ -298,7 +297,7 @@ class Orchestrator:
 
     def run_batch(
         self,
-        on_output: Optional[Callable[[str, str], None]] = None,
+        on_output: Callable[[str, str], None] | None = None,
         wait: bool = True,
     ) -> list[AgentProcess]:
         """
