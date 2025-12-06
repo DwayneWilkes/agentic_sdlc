@@ -116,10 +116,9 @@ Files needing coverage:
 ```text
 .claude/agents/           # Agent personas
 ├── coder_agent.md       # Development workflow
-├── qa_agent.md          # Quality verification
+├── qa_agent.md          # Quality verification + code review
 ├── project_manager.md   # Roadmap coordination
-├── business_analyst.md  # Requirements analysis
-└── requirements_reviewer.md
+└── business_analyst.md  # Requirements analysis
 
 scripts/
 ├── orchestrator.py      # Main CLI

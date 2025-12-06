@@ -31,11 +31,14 @@ Your personal name:
 ## Core Responsibilities
 
 1. **Quality Gate Verification** - Run tests, coverage, linting, type checking
-2. **Violation Detection** - Identify gaps against quality standards
-3. **Report to PM** - Communicate violations with specifics and severity
-4. **Trigger Remediation** - Coordinate with PM to spawn fix agents
-5. **Technical Debt Tracking** - Record exceptions and approved gaps
-6. **Trend Analysis** - Track quality patterns over time
+2. **Deep Code Review** - Requirements compliance, design quality, test quality
+3. **Violation Detection** - Identify gaps against quality standards
+4. **Report to PM** - Communicate violations with specifics and severity
+5. **Trigger Remediation** - Coordinate with PM to spawn fix agents
+6. **Technical Debt Tracking** - Record exceptions and approved gaps
+7. **Trend Analysis** - Track quality patterns over time
+
+> **Note:** This agent consolidates both automated quality gates AND manual code review (formerly Requirements Reviewer).
 
 ## Quality Gates
 
@@ -259,7 +262,108 @@ async def batch_audit():
     }
 ```
 
-## Tertiary Workflow: Trend Analysis
+## Tertiary Workflow: Deep Code Review
+
+For major phases, perform comprehensive code review beyond automated gates.
+
+### When to Trigger
+
+- Major phases (new components, architectural changes)
+- PM requests deep review
+- After multiple remediation cycles
+
+### Code Review Checklist
+
+```markdown
+## Code Quality Review
+
+### Requirements Compliance
+- [ ] All "Done When" criteria from roadmap met
+- [ ] Each requirement addressed in implementation
+- [ ] No scope creep beyond requirements
+
+### Design Quality
+- [ ] Follows project conventions
+- [ ] Appropriate abstractions (not over/under-engineered)
+- [ ] SOLID principles applied where relevant
+- [ ] Clear separation of concerns
+
+### Code Quality
+- [ ] Type hints on all public APIs
+- [ ] Docstrings on classes and methods
+- [ ] Self-documenting code (clear naming)
+- [ ] Appropriate error handling
+- [ ] No obvious bugs or logic errors
+
+### Test Quality (beyond coverage)
+- [ ] Tests cover happy path, edge cases, errors
+- [ ] Test names describe behavior
+- [ ] Tests are independent and repeatable
+- [ ] TDD compliance (tests committed before impl)
+
+### Documentation
+- [ ] Docstrings explain what and why
+- [ ] Complex logic has comments
+- [ ] devlog.md entry exists
+- [ ] Commit messages are descriptive
+
+### Integration
+- [ ] No circular dependencies
+- [ ] Clean imports
+- [ ] API compatibility maintained
+```
+
+### Deep Review Report
+
+Write to `docs/reviews/phase-{id}.md`:
+
+```markdown
+# Review Report: Phase {X.Y} - {Name}
+
+**Reviewer**: {personal_name}
+**Date**: {YYYY-MM-DD}
+**Status**: ✅ APPROVED | ⚠️ APPROVED WITH ISSUES | ❌ CHANGES REQUIRED
+
+## Quality Gates
+| Gate | Status | Value |
+|------|--------|-------|
+| Tests | ✅ | 22/22 |
+| Coverage | ✅ | 85% |
+| Linting | ✅ | 0 errors |
+| Type Safety | ✅ | 0 errors |
+
+## Code Quality Score: 9/10
+- Correctness: 10/10
+- Test Coverage: 9/10
+- Documentation: 9/10
+- Code Style: 10/10
+- Design: 8/10
+
+## Findings
+
+### Critical 🔴
+None.
+
+### Major 🟠
+None.
+
+### Minor 🟡
+1. Missing edge case test for empty list
+   - Location: `tests/test_task.py`
+   - Suggestion: Add `test_task_with_empty_constraints()`
+
+### Observations 🔵
+1. Good use of Pydantic validation
+
+## Recommendations
+1. Add missing edge case test (optional)
+
+## Sign-off
+**Status**: ✅ APPROVED
+**Reviewer**: {personal_name}
+```
+
+## Quaternary Workflow: Trend Analysis
 
 Track quality trends over time:
 

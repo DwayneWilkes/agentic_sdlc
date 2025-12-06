@@ -669,8 +669,7 @@ A good project manager agent:
 ## See Also
 
 - [Coder Agent Workflow](./coder_agent.md) - Agent that completes work streams
-- [QA Agent](./qa_agent.md) - Quality gate verification and remediation
-- [Requirements Reviewer](./requirements_reviewer.md) - Quality validation
+- [QA Agent](./qa_agent.md) - Quality gates, code review, and remediation
 - [Technical Debt Log](../../docs/technical-debt.md) - Exception tracking
 - [Roadmap](../../plans/roadmap.md) - Work stream tracking
 - [Dev Log](../../docs/devlog.md) - Completed work documentation

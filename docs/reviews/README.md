@@ -62,10 +62,10 @@ If changes are required, address the findings and request re-review.
 
 ### For Reviewers
 
-Generate a review report following the template in [`.claude/agents/requirements_reviewer.md`](../../.claude/agents/requirements_reviewer.md).
+Generate a review report following the "Deep Code Review" workflow in [`.claude/agents/qa_agent.md`](../../.claude/agents/qa_agent.md).
 
 ## See Also
 
-- [Requirements Reviewer Agent](../../.claude/agents/requirements_reviewer.md) - Review workflow
+- [QA Agent](../../.claude/agents/qa_agent.md) - Quality gates + code review
 - [Requirements Rubric](../../plans/requirements.md) - What to validate
 - [Development Log](../devlog.md) - Track completed work
