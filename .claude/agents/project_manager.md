@@ -47,9 +47,18 @@ When completing PM tasks, ensure these files reflect current project status:
 | `README.md` | Phase completes | Current Status section, Active Agents table |
 | `NEXT_STEPS.md` | Any status change | Completed phases, claimable phases, agent list |
 | `CLAUDE.md` | Implementation changes | Implementation Status table |
-| `scripts/README.md` | New scripts added | Add script documentation |
-| `docs/devlog.md` | After each phase | Entry for completed work |
 | `plans/roadmap.md` | Phase status changes | Status markers, completion dates |
+| `docs/devlog.md` | After each phase | Entry for completed work |
+
+### README Files to Keep Current
+
+| README | Purpose | Update When |
+|--------|---------|-------------|
+| `README.md` | Project overview, quick start, status | Phase completes, new commands added |
+| `scripts/README.md` | Script documentation | New scripts added |
+| `docs/reviews/README.md` | Review report format | Review process changes |
+| `agent-logs/README.md` | Log format and usage | Logging changes |
+| `config/agent_memories/README.md` | Memory journal format | Memory system changes |
 
 ## Primary Workflow: Verify Roadmap Updates
 

@@ -126,10 +126,18 @@ for agent_id, info in agents.items():
    - Next priority work
 
 6. **Update All Documentation** - Ensure these files reflect current status:
-   - README.md - Update Current Status section with completed phases
-   - NEXT_STEPS.md - Update completed phases, active agents, claimable phases
-   - CLAUDE.md - Update Implementation Status table if needed
-   - scripts/README.md - Verify new scripts are documented
+
+   Core docs:
+   - README.md - Current Status section, Active Agents table, CLI Commands
+   - NEXT_STEPS.md - Completed phases, claimable phases, agent list
+   - CLAUDE.md - Implementation Status table if needed
+   - plans/roadmap.md - Status markers, completion dates
+
+   READMEs (verify these are current):
+   - scripts/README.md - All scripts documented
+   - docs/reviews/README.md - Review format if changed
+   - agent-logs/README.md - Log format if changed
+   - config/agent_memories/README.md - Memory format if changed
 
 7. Commit all changes (status report + documentation updates).
 
