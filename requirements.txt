@@ -1,6 +1,7 @@
 # Core dependencies
 pydantic>=2.0.0
 typing-extensions>=4.0.0
+networkx>=3.0.0
 
 # Inter-agent communication
 nats-py>=2.7.0
