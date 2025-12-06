@@ -13,14 +13,14 @@ Optimizations:
 """
 
 import re
-from pathlib import Path
-from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional
+from enum import Enum
+from pathlib import Path
 
 # Pre-compiled regex patterns for efficiency
 _BATCH_PATTERN = re.compile(r"^## Batch (\d+)")
-_PHASE_PATTERN = re.compile(r"^### Phase (\d+\.\d+): (.+)$")
+# Captures phase ID, name, and optional priority tag (e.g., "⭐ BOOTSTRAP")
+_PHASE_PATTERN = re.compile(r"^### Phase (\d+\.\d+): (.+?)(?:\s+⭐\s*(\w+))?$")
 _TASK_PATTERN = re.compile(r"\s*-\s*\[(.?)\]\s*(.+)")
 
 # Cache for parsed roadmap
@@ -43,11 +43,17 @@ class WorkStream:
     name: str  # e.g., "Task Parser and Goal Extraction"
     status: WorkStreamStatus
     tasks: list[str] = field(default_factory=list)
-    assigned_to: Optional[str] = None
-    depends_on: Optional[str] = None
+    assigned_to: str | None = None
+    depends_on: str | None = None
     effort: str = "M"
-    done_when: Optional[str] = None
+    done_when: str | None = None
     batch: int = 1
+    priority: str = "normal"  # "bootstrap" for force-multiplier phases, "normal" otherwise
+
+    @property
+    def is_bootstrap(self) -> bool:
+        """Check if this is a bootstrap (force-multiplier) phase."""
+        return self.priority.lower() == "bootstrap"
 
     @property
     def is_available(self) -> bool:
@@ -70,10 +76,11 @@ class WorkStream:
             WorkStreamStatus.COMPLETE: "✅",
             WorkStreamStatus.BLOCKED: "🔴",
         }
-        return f"[{status_emoji[self.status]}] Phase {self.id}: {self.name}"
+        priority_marker = " ⭐" if self.is_bootstrap else ""
+        return f"[{status_emoji[self.status]}] Phase {self.id}: {self.name}{priority_marker}"
 
 
-def parse_roadmap(roadmap_path: Optional[Path] = None, use_cache: bool = True) -> list[WorkStream]:
+def parse_roadmap(roadmap_path: Path | None = None, use_cache: bool = True) -> list[WorkStream]:
     """
     Parse the roadmap.md file to extract work streams.
 
@@ -106,7 +113,7 @@ def parse_roadmap(roadmap_path: Optional[Path] = None, use_cache: bool = True) -
 
     # Split into sections by "## Batch" or "### Phase"
     lines = content.split("\n")
-    current_stream: Optional[dict] = None
+    current_stream: dict | None = None
     in_tasks = False
 
     for line in lines:
@@ -123,6 +130,10 @@ def parse_roadmap(roadmap_path: Optional[Path] = None, use_cache: bool = True) -
             if current_stream:
                 work_streams.append(_create_work_stream(current_stream))
 
+            # Extract priority tag if present (group 3 captures "BOOTSTRAP", "PRIORITY", etc.)
+            priority_tag = phase_match.group(3)
+            priority = priority_tag.lower() if priority_tag else "normal"
+
             current_stream = {
                 "id": phase_match.group(1),
                 "name": phase_match.group(2).strip(),
@@ -133,6 +144,7 @@ def parse_roadmap(roadmap_path: Optional[Path] = None, use_cache: bool = True) -
                 "depends_on": None,
                 "effort": "M",
                 "done_when": None,
+                "priority": priority,
             }
             in_tasks = False
             continue
@@ -223,10 +235,11 @@ def _create_work_stream(data: dict) -> WorkStream:
         effort=data["effort"],
         done_when=data["done_when"],
         batch=data["batch"],
+        priority=data.get("priority", "normal"),
     )
 
 
-def get_available_work_streams(roadmap_path: Optional[Path] = None) -> list[WorkStream]:
+def get_available_work_streams(roadmap_path: Path | None = None) -> list[WorkStream]:
     """
     Get work streams that are available to be claimed.
 
@@ -238,19 +251,51 @@ def get_available_work_streams(roadmap_path: Optional[Path] = None) -> list[Work
     return [ws for ws in all_streams if ws.is_claimable]
 
 
-def get_blocked_work_streams(roadmap_path: Optional[Path] = None) -> list[WorkStream]:
+def get_blocked_work_streams(roadmap_path: Path | None = None) -> list[WorkStream]:
     """Get work streams that are blocked."""
     all_streams = parse_roadmap(roadmap_path)
     return [ws for ws in all_streams if ws.status == WorkStreamStatus.BLOCKED]
 
 
-def get_in_progress_work_streams(roadmap_path: Optional[Path] = None) -> list[WorkStream]:
+def get_in_progress_work_streams(roadmap_path: Path | None = None) -> list[WorkStream]:
     """Get work streams that are in progress."""
     all_streams = parse_roadmap(roadmap_path)
     return [ws for ws in all_streams if ws.status == WorkStreamStatus.IN_PROGRESS]
 
 
-def get_completed_work_streams(roadmap_path: Optional[Path] = None) -> list[WorkStream]:
+def get_completed_work_streams(roadmap_path: Path | None = None) -> list[WorkStream]:
     """Get completed work streams."""
     all_streams = parse_roadmap(roadmap_path)
     return [ws for ws in all_streams if ws.status == WorkStreamStatus.COMPLETE]
+
+
+def get_bootstrap_phases(roadmap_path: Path | None = None) -> list[WorkStream]:
+    """
+    Get BOOTSTRAP phases that are available to work on.
+
+    Returns claimable bootstrap phases sorted by batch number.
+    These are force-multiplier phases that improve all subsequent work.
+    """
+    all_streams = parse_roadmap(roadmap_path)
+    bootstrap = [ws for ws in all_streams if ws.is_bootstrap and ws.is_claimable]
+    return sorted(bootstrap, key=lambda ws: (ws.batch, ws.id))
+
+
+def get_prioritized_work_streams(roadmap_path: Path | None = None) -> list[WorkStream]:
+    """
+    Get available work streams sorted by priority.
+
+    Bootstrap phases come first, then normal phases.
+    Within each priority level, sorted by batch then phase ID.
+
+    Returns:
+        List of claimable work streams, bootstrap phases first
+    """
+    all_streams = parse_roadmap(roadmap_path)
+    claimable = [ws for ws in all_streams if ws.is_claimable]
+
+    # Sort: bootstrap first (0), then normal (1), then by batch and ID
+    return sorted(
+        claimable,
+        key=lambda ws: (0 if ws.is_bootstrap else 1, ws.batch, ws.id)
+    )

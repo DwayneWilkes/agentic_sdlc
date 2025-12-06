@@ -1,15 +1,16 @@
 """Tests for the work stream parser."""
 
+
 import pytest
-from pathlib import Path
-from unittest.mock import patch
 
 from src.orchestrator.work_stream import (
     WorkStream,
     WorkStreamStatus,
-    parse_roadmap,
     get_available_work_streams,
     get_blocked_work_streams,
+    get_bootstrap_phases,
+    get_prioritized_work_streams,
+    parse_roadmap,
 )
 
 
@@ -182,3 +183,126 @@ class TestParseRoadmap:
         blocked = get_blocked_work_streams(sample_roadmap)
         assert len(blocked) == 1
         assert blocked[0].id == "2.1"
+
+
+class TestPriorityParsing:
+    """Tests for priority tag parsing and prioritization."""
+
+    @pytest.fixture
+    def priority_roadmap(self, tmp_path):
+        """Create a roadmap with BOOTSTRAP priority tags."""
+        roadmap = tmp_path / "roadmap.md"
+        roadmap.write_text("""# Roadmap
+
+## Batch 1 (Foundation)
+
+### Phase 1.1: Core Data Models
+- **Status:** ✅ Complete
+- **Tasks:**
+  - [✅] Create models
+- **Effort:** S
+
+### Phase 1.2: Task Parser
+- **Status:** ⚪ Not Started
+- **Tasks:**
+  - [ ] Implement parser
+- **Effort:** M
+
+## Batch 2 (Development)
+
+### Phase 2.3: Error Detection ⭐ BOOTSTRAP
+- **Status:** ⚪ Not Started
+- **Depends On:** Phase 1.1 ✅
+- **Tasks:**
+  - [ ] Detect errors
+- **Effort:** S
+
+### Phase 2.6: QA Verifier ⭐ BOOTSTRAP
+- **Status:** ⚪ Not Started
+- **Depends On:** Phase 1.1 ✅
+- **Tasks:**
+  - [ ] Verify quality
+- **Effort:** M
+
+### Phase 2.8: Stuck Detection ⭐ BOOTSTRAP
+- **Status:** 🔴 Blocked
+- **Depends On:** Phase 2.3
+- **Tasks:**
+  - [ ] Detect stuck agents
+- **Effort:** M
+
+## Batch 3 (Normal)
+
+### Phase 3.1: Team Composition
+- **Status:** ⚪ Not Started
+- **Tasks:**
+  - [ ] Compose teams
+- **Effort:** S
+""")
+        return roadmap
+
+    def test_parse_bootstrap_priority(self, priority_roadmap):
+        """Test that BOOTSTRAP tag is parsed correctly."""
+        streams = parse_roadmap(priority_roadmap)
+        by_id = {ws.id: ws for ws in streams}
+
+        # Bootstrap phases
+        assert by_id["2.3"].priority == "bootstrap"
+        assert by_id["2.3"].is_bootstrap is True
+        assert by_id["2.6"].priority == "bootstrap"
+        assert by_id["2.6"].is_bootstrap is True
+        assert by_id["2.8"].priority == "bootstrap"
+        assert by_id["2.8"].is_bootstrap is True
+
+        # Normal phases (no tag)
+        assert by_id["1.1"].priority == "normal"
+        assert by_id["1.1"].is_bootstrap is False
+        assert by_id["1.2"].priority == "normal"
+        assert by_id["3.1"].priority == "normal"
+
+    def test_str_shows_bootstrap_marker(self, priority_roadmap):
+        """Test that __str__ shows star for bootstrap phases."""
+        streams = parse_roadmap(priority_roadmap)
+        by_id = {ws.id: ws for ws in streams}
+
+        # Bootstrap phase should show star
+        assert "⭐" in str(by_id["2.3"])
+
+        # Normal phase should not show star
+        assert "⭐" not in str(by_id["1.2"])
+
+    def test_get_bootstrap_phases(self, priority_roadmap):
+        """Test getting claimable bootstrap phases."""
+        bootstrap = get_bootstrap_phases(priority_roadmap)
+
+        # Should only include claimable bootstrap phases (not blocked 2.8)
+        assert len(bootstrap) == 2
+        ids = [ws.id for ws in bootstrap]
+        assert "2.3" in ids
+        assert "2.6" in ids
+        assert "2.8" not in ids  # Blocked
+
+    def test_get_prioritized_work_streams(self, priority_roadmap):
+        """Test that prioritized work streams puts bootstrap first."""
+        prioritized = get_prioritized_work_streams(priority_roadmap)
+
+        # Should have bootstrap phases first, then normal
+        ids = [ws.id for ws in prioritized]
+
+        # Bootstrap phases (2.3, 2.6) should come before normal phases (1.2, 3.1)
+        bootstrap_indices = [ids.index("2.3"), ids.index("2.6")]
+        normal_indices = [ids.index("1.2"), ids.index("3.1")]
+
+        assert max(bootstrap_indices) < min(normal_indices), \
+            f"Bootstrap phases should come first. Got order: {ids}"
+
+    def test_prioritized_maintains_batch_order_within_priority(self, priority_roadmap):
+        """Test that within same priority, phases are sorted by batch then ID."""
+        prioritized = get_prioritized_work_streams(priority_roadmap)
+        ids = [ws.id for ws in prioritized]
+
+        # Within bootstrap: 2.3 should come before 2.6 (same batch, lower ID)
+        assert ids.index("2.3") < ids.index("2.6")
+
+        # Within normal: 1.2 should come before 3.1 (lower batch)
+        assert ids.index("1.2") < ids.index("3.1")
