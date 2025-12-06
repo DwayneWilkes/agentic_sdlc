@@ -62,11 +62,49 @@ class WorkStream:
 
     @property
     def is_claimable(self) -> bool:
-        """Check if work stream can be claimed (not started or in progress but unassigned)."""
+        """Check if work stream can be claimed (not started or in progress but unassigned).
+
+        Note: This only checks local status. Use is_claimable_with_deps() for
+        full dependency checking against a list of all work streams.
+        """
         if self.status == WorkStreamStatus.NOT_STARTED:
             return True
         if self.status == WorkStreamStatus.IN_PROGRESS and not self.assigned_to:
             return True
+        return False
+
+    def get_dependency_ids(self) -> list[str]:
+        """Parse depends_on field to get list of phase IDs."""
+        if not self.depends_on:
+            return []
+        deps = []
+        parts = re.split(r"[,;]", self.depends_on)
+        for part in parts:
+            part = part.strip()
+            # Extract phase ID (handle "Phase 1.4 ✅" format)
+            match = re.search(r"(?:Phase\s+)?(\d+\.\d+)", part)
+            if match:
+                deps.append(match.group(1))
+        return deps
+
+    def has_unmet_dependencies(self, completed_phase_ids: set[str]) -> bool:
+        """Check if this work stream has dependencies that aren't complete.
+
+        Args:
+            completed_phase_ids: Set of phase IDs that are complete
+
+        Returns:
+            True if there are unmet dependencies, False otherwise
+        """
+        if not self.depends_on:
+            return False
+        # If dependency line contains ✅, consider it satisfied
+        if "✅" in self.depends_on:
+            return False
+        dep_ids = self.get_dependency_ids()
+        for dep_id in dep_ids:
+            if dep_id not in completed_phase_ids:
+                return True
         return False
 
     def __str__(self) -> str:
@@ -246,9 +284,21 @@ def get_available_work_streams(roadmap_path: Path | None = None) -> list[WorkStr
     Returns work streams that are:
     - Not started and not blocked
     - In progress but not assigned
+    - Have all dependencies completed
     """
     all_streams = parse_roadmap(roadmap_path)
-    return [ws for ws in all_streams if ws.is_claimable]
+
+    # Build set of completed phase IDs
+    completed_ids = {
+        ws.id for ws in all_streams
+        if ws.status == WorkStreamStatus.COMPLETE
+    }
+
+    # Filter to claimable with met dependencies
+    return [
+        ws for ws in all_streams
+        if ws.is_claimable and not ws.has_unmet_dependencies(completed_ids)
+    ]
 
 
 def get_blocked_work_streams(roadmap_path: Path | None = None) -> list[WorkStream]:
@@ -275,9 +325,22 @@ def get_bootstrap_phases(roadmap_path: Path | None = None) -> list[WorkStream]:
 
     Returns claimable bootstrap phases sorted by batch number.
     These are force-multiplier phases that improve all subsequent work.
+    Only includes phases with all dependencies met.
     """
     all_streams = parse_roadmap(roadmap_path)
-    bootstrap = [ws for ws in all_streams if ws.is_bootstrap and ws.is_claimable]
+
+    # Build set of completed phase IDs
+    completed_ids = {
+        ws.id for ws in all_streams
+        if ws.status == WorkStreamStatus.COMPLETE
+    }
+
+    # Filter to claimable bootstrap phases with met dependencies
+    bootstrap = [
+        ws for ws in all_streams
+        if ws.is_bootstrap and ws.is_claimable
+        and not ws.has_unmet_dependencies(completed_ids)
+    ]
     return sorted(bootstrap, key=lambda ws: (ws.batch, ws.id))
 
 
@@ -287,12 +350,24 @@ def get_prioritized_work_streams(roadmap_path: Path | None = None) -> list[WorkS
 
     Bootstrap phases come first, then normal phases.
     Within each priority level, sorted by batch then phase ID.
+    Only includes phases with all dependencies met.
 
     Returns:
         List of claimable work streams, bootstrap phases first
     """
     all_streams = parse_roadmap(roadmap_path)
-    claimable = [ws for ws in all_streams if ws.is_claimable]
+
+    # Build set of completed phase IDs
+    completed_ids = {
+        ws.id for ws in all_streams
+        if ws.status == WorkStreamStatus.COMPLETE
+    }
+
+    # Filter to claimable with met dependencies
+    claimable = [
+        ws for ws in all_streams
+        if ws.is_claimable and not ws.has_unmet_dependencies(completed_ids)
+    ]
 
     # Sort: bootstrap first (0), then normal (1), then by batch and ID
     return sorted(

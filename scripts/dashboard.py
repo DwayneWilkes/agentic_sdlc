@@ -8,33 +8,120 @@ Usage:
     python scripts/dashboard.py --status  # One-time status report
 """
 
+import argparse
 import asyncio
 import sys
-import os
-import argparse
 from datetime import datetime
 from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import json
+import re
+import subprocess
+
 from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich.live import Live
 from rich.layout import Layout
+from rich.live import Live
+from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
+from rich.table import Table
 from rich.text import Text
-from rich.prompt import Prompt, Confirm
 
 from src.orchestrator.agent_runner import AgentRunner, AgentState, get_coordinator
-from src.coordination.nats_bus import get_message_bus, MessageType
-
 
 console = Console()
 
 
-def get_agent_table(runner: AgentRunner) -> Table:
-    """Build a table of all agents."""
+def detect_running_agents(project_root: Path | None = None) -> list[dict]:
+    """
+    Detect running agents by checking multiple sources:
+    1. Recent log files with active writes
+    2. Running claude processes
+    3. Recently claimed agent names
+
+    Returns list of detected agent info dicts.
+    """
+    if project_root is None:
+        project_root = Path(__file__).parent.parent
+
+    detected = []
+    log_dir = project_root / "agent-logs"
+    config_file = project_root / "config" / "agent_names.json"
+
+    # Check for running claude processes
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "claude.*dangerously-skip-permissions"],
+            capture_output=True, text=True
+        )
+        running_pids = result.stdout.strip().split() if result.returncode == 0 else []
+    except Exception:
+        running_pids = []
+
+    # Check recent log files (modified in last 5 minutes)
+    recent_logs = []
+    if log_dir.exists():
+        now = datetime.now().timestamp()
+        for log_file in log_dir.glob("autonomous-agent-*.log"):
+            mtime = log_file.stat().st_mtime
+            if now - mtime < 300:  # Modified in last 5 minutes
+                recent_logs.append(log_file)
+
+    # Check agent_names.json for recent claims
+    recent_claims = {}
+    if config_file.exists():
+        try:
+            config = json.loads(config_file.read_text())
+            assigned = config.get("assigned_names", {})
+            now = datetime.now()
+            for agent_id, info in assigned.items():
+                claimed_at_str = info.get("claimed_at", "")
+                if claimed_at_str:
+                    claimed_at = datetime.fromisoformat(claimed_at_str)
+                    # If claimed in last 30 minutes, might be running
+                    if (now - claimed_at).total_seconds() < 1800:
+                        recent_claims[agent_id] = info
+        except Exception:
+            pass
+
+    # Combine info: running processes + recent claims = likely active agent
+    for agent_id, info in recent_claims.items():
+        # Try to find matching log
+        log_file = None
+        work_stream = None
+
+        # Parse work stream from agent_id if present
+        match = re.match(r"coder-(\d+\.\d+)-", agent_id)
+        if match:
+            work_stream = match.group(1)
+
+        # Check for active log by timestamp in agent_id
+        for log in recent_logs:
+            if log.stat().st_mtime > datetime.now().timestamp() - 60:  # Active in last minute
+                log_file = log
+                break
+
+        # Determine if likely running (process + recent claim OR active log)
+        is_running = len(running_pids) > 0 or (log_file is not None)
+
+        detected.append({
+            "agent_id": agent_id,
+            "personal_name": info.get("name"),
+            "role": info.get("role"),
+            "claimed_at": info.get("claimed_at"),
+            "work_stream": work_stream,
+            "log_file": str(log_file) if log_file else None,
+            "is_running": is_running,
+            "source": "detected",
+        })
+
+    return detected
+
+
+def get_agent_table(runner: AgentRunner, project_root: Path | None = None) -> Table:
+    """Build a table of all agents (tracked + detected)."""
     table = Table(
         title="🤖 Agents",
         show_header=True,
@@ -57,11 +144,17 @@ def get_agent_table(runner: AgentRunner) -> Table:
         AgentState.KILLED: "⏹️",
     }
 
+    # Track agent IDs we've already shown
+    shown_ids = set()
+
+    # First, show agents from the runner (tracked by this process)
     for agent_id, process in sorted(
         runner.agents.items(),
         key=lambda x: x[1].started_at or datetime.min,
         reverse=True,
     ):
+        shown_ids.add(agent_id)
+
         duration = "-"
         if process.duration_seconds:
             secs = int(process.duration_seconds)
@@ -82,6 +175,43 @@ def get_agent_table(runner: AgentRunner) -> Table:
             duration,
             exit_code,
         )
+
+    # Then, add detected agents (from other processes)
+    detected = detect_running_agents(project_root)
+    for agent in detected:
+        agent_id = agent["agent_id"]
+        if agent_id in shown_ids:
+            continue  # Already shown from runner
+
+        # Calculate duration from claimed_at
+        duration = "-"
+        if agent.get("claimed_at"):
+            try:
+                claimed = datetime.fromisoformat(agent["claimed_at"])
+                secs = int((datetime.now() - claimed).total_seconds())
+                if secs < 60:
+                    duration = f"{secs}s"
+                elif secs < 3600:
+                    duration = f"{secs // 60}m {secs % 60}s"
+                else:
+                    duration = f"{secs // 3600}h {(secs % 3600) // 60}m"
+            except Exception:
+                pass
+
+        # Status based on detection
+        status = "🔄" if agent.get("is_running") else "❓"
+
+        table.add_row(
+            status,
+            agent.get("personal_name") or "-",
+            agent.get("work_stream") or "-",
+            agent_id[:25] + "..." if len(agent_id) > 25 else agent_id,
+            duration,
+            "-",
+        )
+
+    if not runner.agents and not detected:
+        table.add_row("-", "[dim]No agents[/dim]", "-", "-", "-", "-")
 
     return table
 
@@ -104,27 +234,36 @@ def get_claims_table() -> Table:
     return table
 
 
-def get_stats_panel(runner: AgentRunner) -> Panel:
+def get_stats_panel(runner: AgentRunner, project_root: Path | None = None) -> Panel:
     """Build stats panel."""
     running = sum(1 for a in runner.agents.values() if a.state == AgentState.RUNNING)
     completed = sum(1 for a in runner.agents.values() if a.state == AgentState.COMPLETED)
     failed = sum(1 for a in runner.agents.values() if a.state == AgentState.FAILED)
     pending = sum(1 for a in runner.agents.values() if a.state == AgentState.PENDING)
 
+    # Also count detected agents
+    detected = detect_running_agents(project_root)
+    detected_running = sum(
+        1 for d in detected
+        if d.get("is_running") and d["agent_id"] not in runner.agents
+    )
+    detected_new = [d for d in detected if d["agent_id"] not in runner.agents]
+    total = len(runner.agents) + len(detected_new)
+
     return Panel(
         Text.from_markup(
             f"[yellow]Pending: {pending}[/yellow]  "
-            f"[green]Running: {running}[/green]  "
+            f"[green]Running: {running + detected_running}[/green]  "
             f"[blue]Completed: {completed}[/blue]  "
             f"[red]Failed: {failed}[/red]  "
-            f"[dim]Total: {len(runner.agents)}[/dim]"
+            f"[dim]Total: {total}[/dim]"
         ),
         title="Stats",
         border_style="green",
     )
 
 
-def build_layout(runner: AgentRunner) -> Layout:
+def build_layout(runner: AgentRunner, project_root: Path | None = None) -> Layout:
     """Build the dashboard layout."""
     layout = Layout()
 
@@ -136,8 +275,8 @@ def build_layout(runner: AgentRunner) -> Layout:
             ),
             size=3,
         ),
-        Layout(get_stats_panel(runner), size=3),
-        Layout(get_agent_table(runner), name="agents"),
+        Layout(get_stats_panel(runner, project_root), size=3),
+        Layout(get_agent_table(runner, project_root), name="agents"),
         Layout(get_claims_table(), size=8),
         Layout(
             Panel(
@@ -159,10 +298,10 @@ def build_layout(runner: AgentRunner) -> Layout:
     return layout
 
 
-def status_report(runner: AgentRunner) -> None:
+def status_report(runner: AgentRunner, project_root: Path | None = None) -> None:
     """Print one-time status report."""
-    console.print(get_stats_panel(runner))
-    console.print(get_agent_table(runner))
+    console.print(get_stats_panel(runner, project_root))
+    console.print(get_agent_table(runner, project_root))
     console.print(get_claims_table())
 
 
@@ -263,22 +402,23 @@ def clear_completed(runner: AgentRunner) -> None:
     console.print(f"[green]Cleared {len(to_remove)} agents[/green]")
 
 
-async def watch_mode(runner: AgentRunner) -> None:
+async def watch_mode(runner: AgentRunner, project_root: Path | None = None) -> None:
     """Run in watch mode (auto-refresh, no interaction)."""
     try:
-        with Live(build_layout(runner), console=console, refresh_per_second=1) as live:
+        layout = build_layout(runner, project_root)
+        with Live(layout, console=console, refresh_per_second=1) as live:
             while True:
-                live.update(build_layout(runner))
+                live.update(build_layout(runner, project_root))
                 await asyncio.sleep(0.5)
     except KeyboardInterrupt:
         console.print("\n[yellow]Stopped[/yellow]")
 
 
-async def interactive_mode(runner: AgentRunner) -> None:
+async def interactive_mode(runner: AgentRunner, project_root: Path | None = None) -> None:
     """Run in interactive mode."""
     import select
-    import tty
     import termios
+    import tty
 
     console.print("[bold cyan]Agent Dashboard[/bold cyan]")
     console.print("Commands: [s]top [S]top-all [q]uery [g]oal [c]lear [r]efresh [x]exit")
@@ -293,7 +433,7 @@ async def interactive_mode(runner: AgentRunner) -> None:
 
         while True:
             # Show current status
-            status_report(runner)
+            status_report(runner, project_root)
             console.print("\n[dim]Press key for command...[/dim]", end="", markup=True)
 
             # Wait for input with timeout
@@ -339,19 +479,23 @@ async def interactive_mode(runner: AgentRunner) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="Live Agent Dashboard")
-    parser.add_argument("--watch", "-w", action="store_true", help="Watch mode (auto-refresh)")
-    parser.add_argument("--status", "-s", action="store_true", help="One-time status")
-    parser.add_argument("--interactive", "-i", action="store_true", help="Interactive mode (default)")
+    parser.add_argument("--watch", "-w", action="store_true",
+                        help="Watch mode (auto-refresh)")
+    parser.add_argument("--status", "-s", action="store_true",
+                        help="One-time status")
+    parser.add_argument("--interactive", "-i", action="store_true",
+                        help="Interactive mode (default)")
     args = parser.parse_args()
 
-    runner = AgentRunner()
+    project_root = Path(__file__).parent.parent
+    runner = AgentRunner(project_root=project_root)
 
     if args.status:
-        status_report(runner)
+        status_report(runner, project_root)
     elif args.watch:
-        asyncio.run(watch_mode(runner))
+        asyncio.run(watch_mode(runner, project_root))
     else:
-        asyncio.run(interactive_mode(runner))
+        asyncio.run(interactive_mode(runner, project_root))
 
 
 if __name__ == "__main__":

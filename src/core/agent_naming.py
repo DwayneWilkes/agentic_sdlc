@@ -14,19 +14,22 @@ from pathlib import Path
 class AgentNaming:
     """Manages personal names for autonomous agents."""
 
-    def __init__(self, config_path: Path | None = None):
+    def __init__(self, config_path: Path | None = None, project_id: str | None = None):
         """
         Initialize the agent naming system.
 
         Args:
             config_path: Path to agent_names.json config file.
                         Defaults to config/agent_names.json
+            project_id: Project identifier for tracking experience.
+                       Defaults to parent directory name of config file.
         """
         if config_path is None:
             project_root = Path(__file__).parent.parent.parent
             config_path = project_root / "config" / "agent_names.json"
 
         self.config_path = config_path
+        self.project_id = project_id or config_path.parent.parent.name
         self.config = self._load_config()
 
     def _load_config(self) -> dict:
@@ -252,9 +255,125 @@ class AgentNaming:
         List all currently assigned names.
 
         Returns:
-            Dict mapping agent_id -> {name, role, claimed_at}
+            Dict mapping agent_id -> {name, role, claimed_at, completed_phases}
         """
         return self.config["assigned_names"].copy()
+
+    def record_completed_phase(
+        self, personal_name: str, phase_id: str, project_id: str | None = None
+    ) -> bool:
+        """
+        Record that an agent completed a phase.
+
+        Args:
+            personal_name: Agent's personal name (e.g., "Aria")
+            phase_id: The phase ID completed (e.g., "2.3")
+            project_id: Project identifier. Defaults to self.project_id.
+
+        Returns:
+            True if recorded, False if agent not found
+        """
+        agent_id = self.get_agent_id(personal_name)
+        if not agent_id or agent_id not in self.config["assigned_names"]:
+            return False
+
+        project = project_id or self.project_id
+        entry = self.config["assigned_names"][agent_id]
+
+        # Migrate from old list format to new dict format if needed
+        if "completed_phases" not in entry:
+            entry["completed_phases"] = {}
+        elif isinstance(entry["completed_phases"], list):
+            # Migrate legacy format: assume old phases were from current project
+            old_phases = entry["completed_phases"]
+            entry["completed_phases"] = {project: old_phases}
+
+        # Ensure project key exists
+        if project not in entry["completed_phases"]:
+            entry["completed_phases"][project] = []
+
+        if phase_id not in entry["completed_phases"][project]:
+            entry["completed_phases"][project].append(phase_id)
+
+            if self.config["naming_config"]["persistent"]:
+                self._save_config()
+
+        return True
+
+    def get_completed_phases(
+        self, personal_name: str, project_id: str | None = None
+    ) -> list[str]:
+        """
+        Get list of phases completed by an agent for a specific project.
+
+        Args:
+            personal_name: Agent's personal name
+            project_id: Project identifier. Defaults to self.project_id.
+
+        Returns:
+            List of phase IDs completed by this agent for the project
+        """
+        agent_id = self.get_agent_id(personal_name)
+        if not agent_id or agent_id not in self.config["assigned_names"]:
+            return []
+
+        project = project_id or self.project_id
+        entry = self.config["assigned_names"][agent_id]
+        completed = entry.get("completed_phases", {})
+
+        # Handle legacy list format
+        if isinstance(completed, list):
+            return completed if project == self.project_id else []
+
+        return completed.get(project, [])
+
+    def get_agent_experience(
+        self, project_id: str | None = None
+    ) -> dict[str, list[str]]:
+        """
+        Get all agents' completed phases for a specific project.
+
+        Args:
+            project_id: Project identifier. Defaults to self.project_id.
+
+        Returns:
+            Dict mapping personal_name -> list of completed phase IDs
+        """
+        project = project_id or self.project_id
+        experience = {}
+        for entry in self.config["assigned_names"].values():
+            name = entry.get("name")
+            completed = entry.get("completed_phases", {})
+
+            # Handle legacy list format
+            if isinstance(completed, list):
+                phases = completed if project == self.project_id else []
+            else:
+                phases = completed.get(project, [])
+
+            if name:
+                experience[name] = phases
+        return experience
+
+    def get_all_experience(self) -> dict[str, dict[str, list[str]]]:
+        """
+        Get all agents' completed phases across all projects.
+
+        Returns:
+            Dict mapping personal_name -> {project_id -> list of phase IDs}
+        """
+        experience = {}
+        for entry in self.config["assigned_names"].values():
+            name = entry.get("name")
+            completed = entry.get("completed_phases", {})
+
+            # Handle legacy list format
+            if isinstance(completed, list):
+                completed = {self.project_id: completed}
+
+            if name:
+                experience[name] = completed
+        return experience
 
     def get_available_names(self, role: str = "default") -> list[str]:
         """

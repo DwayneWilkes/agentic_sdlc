@@ -363,8 +363,8 @@ class AgentRunner:
         self._naming = get_naming()
         self._coordinator = get_coordinator()
 
-        # Track agent experience for reuse decisions
-        self._agent_experience: dict[str, list[str]] = {}  # name -> completed phases
+        # Load agent experience from persistent storage
+        self._agent_experience = self._naming.get_agent_experience()
 
     def add_callback(self, callback: Callable[[AgentProcess], None]) -> None:
         """Add a callback to be called when agent state changes."""
@@ -385,12 +385,15 @@ class AgentRunner:
             memory = get_memory(personal_name)
             summary = memory.get_journal_summary()
 
+            # Get completed phases from persistent storage
+            completed_phases = info.get("completed_phases", [])
+
             available[personal_name] = {
                 "agent_id": agent_id,
                 "role": info.get("role", "coder"),
                 "claimed_at": info.get("claimed_at"),
                 "memory_count": summary.get("total_memories", 0),
-                "completed_phases": self._agent_experience.get(personal_name, []),
+                "completed_phases": completed_phases,
             }
 
         return available
@@ -556,11 +559,16 @@ class AgentRunner:
             # Release work stream claim
             self._coordinator.release_work_stream(agent.work_stream_id, agent.agent_id)
 
-            # Record experience if completed
+            # Record experience if completed (persistent)
             if agent.state == AgentState.COMPLETED and agent.personal_name:
+                self._naming.record_completed_phase(
+                    agent.personal_name, agent.work_stream_id
+                )
+                # Also update local cache
                 if agent.personal_name not in self._agent_experience:
                     self._agent_experience[agent.personal_name] = []
-                self._agent_experience[agent.personal_name].append(agent.work_stream_id)
+                if agent.work_stream_id not in self._agent_experience[agent.personal_name]:
+                    self._agent_experience[agent.personal_name].append(agent.work_stream_id)
             self._notify_callbacks(agent)
 
     def _monitor_agent(
@@ -754,11 +762,16 @@ class AgentRunner:
             # Release work stream claim
             self._coordinator.release_work_stream(agent.work_stream_id, agent.agent_id)
 
-            # Record experience if completed
+            # Record experience if completed (persistent)
             if agent.state == AgentState.COMPLETED and agent.personal_name:
+                self._naming.record_completed_phase(
+                    agent.personal_name, agent.work_stream_id
+                )
+                # Also update local cache
                 if agent.personal_name not in self._agent_experience:
                     self._agent_experience[agent.personal_name] = []
-                self._agent_experience[agent.personal_name].append(agent.work_stream_id)
+                if agent.work_stream_id not in self._agent_experience[agent.personal_name]:
+                    self._agent_experience[agent.personal_name].append(agent.work_stream_id)
             self._notify_callbacks(agent)
 
     def kill_agent(self, agent_id: str) -> bool:

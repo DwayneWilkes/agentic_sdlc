@@ -20,11 +20,9 @@ Usage:
 """
 
 import argparse
-import sys
 import json
-import time
+import sys
 from pathlib import Path
-from datetime import datetime
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -34,11 +32,12 @@ from src.orchestrator import (
     Orchestrator,
     OrchestratorConfig,
     OrchestratorMode,
-    parse_roadmap,
     WorkStreamStatus,
+    parse_roadmap,
 )
-from src.orchestrator.goal_interpreter import interpret_goal, format_interpretation, CommandType
-from src.orchestrator.roadmap_gardener import garden_roadmap, check_roadmap_health
+from src.orchestrator.goal_interpreter import CommandType, interpret_goal
+from src.orchestrator.roadmap_gardener import check_roadmap_health, garden_roadmap
+
 
 # ANSI colors
 class Colors:
@@ -67,12 +66,14 @@ def print_header(text: str) -> None:
 def print_event(event) -> None:
     """Print an orchestrator event."""
     timestamp = event.timestamp.strftime("%H:%M:%S")
+    passed = event.data.get("results", {}).get("passed")
+    verification_color = Colors.GREEN if passed else Colors.RED
     color = {
         "spawning_agent": Colors.CYAN,
         "agent_running": Colors.BLUE,
         "agent_completed": Colors.GREEN,
         "agent_failed": Colors.RED,
-        "verification_complete": Colors.GREEN if event.data.get("results", {}).get("passed") else Colors.RED,
+        "verification_complete": verification_color,
     }.get(event.event_type, Colors.YELLOW)
 
     print(f"[{timestamp}] {colored(event.message, color)}")
@@ -179,8 +180,9 @@ def cmd_run(args) -> int:
                 else:
                     print(colored("✗ Some verification checks failed:", Colors.RED))
                     for check, result in results["checks"].items():
-                        status = colored("✓", Colors.GREEN) if result["passed"] else colored("✗", Colors.RED)
-                        print(f"  {status} {check}")
+                        passed = result["passed"]
+                        mark = colored("✓", Colors.GREEN) if passed else colored("✗", Colors.RED)
+                        print(f"  {mark} {check}")
         else:
             print(f"\n{colored(f'✗ Agent {agent.state.value}', Colors.RED)}")
             if agent.exit_code:
@@ -359,19 +361,20 @@ def cmd_agents(args=None) -> int:
 def cmd_dashboard(args) -> int:
     """Launch live agent dashboard."""
     import asyncio
-    from scripts.dashboard import status_report, watch_mode, interactive_mode
+
+    from scripts.dashboard import interactive_mode, status_report, watch_mode
     from src.orchestrator.agent_runner import AgentRunner
 
     runner = AgentRunner(PROJECT_ROOT)
 
     if args.status:
-        status_report(runner)
+        status_report(runner, PROJECT_ROOT)
         return 0
     elif args.watch:
-        asyncio.run(watch_mode(runner))
+        asyncio.run(watch_mode(runner, PROJECT_ROOT))
         return 0
     else:
-        asyncio.run(interactive_mode(runner))
+        asyncio.run(interactive_mode(runner, PROJECT_ROOT))
         return 0
 
 
@@ -483,7 +486,9 @@ def cmd_goal(args) -> int:
         orchestrator.runner.wait_for_all()
 
         completed = sum(1 for a in agents if a.state.value == "completed")
-        print(f"\n{colored(f'Completed: {completed}/{len(agents)}', Colors.GREEN if completed == len(agents) else Colors.YELLOW)}")
+        all_done = completed == len(agents)
+        result_color = Colors.GREEN if all_done else Colors.YELLOW
+        print(f"\n{colored(f'Completed: {completed}/{len(agents)}', result_color)}")
 
     return 0
 
@@ -611,12 +616,13 @@ Or just type your goal in natural language:
                 continue
 
             if result.matched_work_streams:
-                print(f"\n  Matched work streams:")
+                print("\n  Matched work streams:")
                 for ws in result.matched_work_streams:
                     print(f"    • Phase {ws.id}: {ws.name}")
 
                 if result.confidence >= 0.5:
-                    print(f"\n  {colored('Would you like me to start working on this? [y/N]', Colors.BOLD)} ", end="")
+                    prompt = colored("Would you like me to start? [y/N]", Colors.BOLD)
+                    print(f"\n  {prompt} ", end="")
                     response = input().strip().lower()
 
                     if response in ("y", "yes"):

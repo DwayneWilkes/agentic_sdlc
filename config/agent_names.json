@@ -115,17 +115,34 @@
     "coder-autonomous-1764981103": {
       "name": "Aria",
       "role": "coder",
-      "claimed_at": "2025-12-05T16:31:54.116293"
+      "claimed_at": "2025-12-05T16:31:54.116293",
+      "completed_phases": {
+        "agentic_sdlc": ["1.2"]
+      }
     },
     "coder-autonomous-1764981707": {
       "name": "Atlas",
       "role": "coder",
-      "claimed_at": "2025-12-05T16:41:55.317039"
+      "claimed_at": "2025-12-05T16:41:55.317039",
+      "completed_phases": {
+        "agentic_sdlc": ["1.3"]
+      }
     },
     "coder-autonomous-1764981737": {
       "name": "Nexus",
       "role": "coder",
-      "claimed_at": "2025-12-05T16:42:32.943020"
+      "claimed_at": "2025-12-05T16:42:32.943020",
+      "completed_phases": {
+        "agentic_sdlc": ["1.4"]
+      }
+    },
+    "coder-autonomous-1764998845": {
+      "name": "Sage",
+      "role": "coder",
+      "claimed_at": "2025-12-05T21:27:38.039539",
+      "completed_phases": {
+        "agentic_sdlc": ["10.5"]
+      }
     }
   },
   "naming_config": {
