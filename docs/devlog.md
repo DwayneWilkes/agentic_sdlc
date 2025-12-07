@@ -1,3 +1,56 @@
+## 2025-12-07 - Phase 10.6: Flexible Goal Arbitration (AE-1) - Nexus
+
+**Status:** Complete
+
+### What was implemented
+
+- **GoalArbitrator** (`src/orchestrator/goal_arbitrator.py`): Context-sensitive goal conflict resolution
+  - **Conflict detection**: Automatically detects competing goals (speed vs correctness, safety vs instructions, resource constraints, scope creep)
+  - **Context-sensitive weighing**: Priorities adjust based on urgency, impact, deadlines, and situation context
+  - **Multiple resolution strategies**: PRIORITIZE_HIGHER, COMPROMISE, SATISFICE, SAFETY_FIRST, CONTEXT_DEPENDENT, SEQUENTIAL
+  - **Explicit trade-off reasoning**: All decisions include detailed explanations with causal reasoning
+  - **Goal satisfaction tracking**: Monitor fulfillment levels across competing objectives
+  - **Satisficing support**: Accept "good enough" solutions when perfect is impossible
+  - **Dynamic priority adjustment**: Priorities change based on changing context
+
+- **Data models**:
+  - **Goal**: Represents a goal with priority, context, constraints, and satisfaction level
+  - **GoalConflict**: Detected conflict with type, severity, and description
+  - **ArbitrationDecision**: Resolution with chosen goals, reasoning, strategy, and trade-offs
+  - **GoalConflictType**: Enum for conflict types (SPEED_VS_CORRECTNESS, SAFETY_VS_INSTRUCTION, RESOURCE_CONSTRAINT, etc.)
+  - **ArbitrationStrategy**: Enum for resolution strategies
+
+### Key decisions
+
+- **No rigid priorities**: Decisions are context-dependent, not based on fixed hierarchies
+- **Safety always wins**: Safety goals override other concerns regardless of context
+- **Explicit reasoning**: All decisions include "because/since/due to" causal explanations
+- **Trade-off documentation**: Benefits and costs are explicitly tracked
+- **Multi-strategy support**: Different conflict types use different resolution approaches
+- **Satisficing philosophy**: Accepts solutions meeting minimum thresholds when perfection impossible
+
+### Tests added
+
+- tests/orchestrator/test_goal_arbitrator.py: 28 comprehensive tests with 88% coverage
+  - Goal model creation and constraints
+  - Conflict detection (speed vs correctness, safety vs instructions, resource constraints, scope creep)
+  - Context-sensitive weighing (urgency, impact, deadlines, safety boost)
+  - Conflict resolution strategies (prioritize, compromise, satisfice, safety-first)
+  - Explicit trade-off reasoning
+  - Goal satisfaction tracking across competing objectives
+  - Satisficing behavior (accept good enough, reject insufficient)
+  - Dynamic priority adjustment
+  - Integration tests for full arbitration flow
+
+### Quality metrics
+
+- **Tests**: 28/28 passing (100%)
+- **Coverage**: 88% on goal_arbitrator.py
+- **Linting**: 0 errors (ruff)
+- **Type checking**: 0 errors in goal_arbitrator.py (mypy)
+
+---
+
 ## 2025-12-07 - Phase 6.3: Output Integration Engine (Coordination Layer) - Atlas
 
 **Status:** Complete
