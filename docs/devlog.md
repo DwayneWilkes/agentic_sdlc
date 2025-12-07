@@ -29,6 +29,52 @@ This log tracks all completed work streams, implementations, and agent activity.
 
 ---
 
+## 2025-12-06 - Phase 4.1: Task Assignment Optimizer with Priority Queue
+
+**Agent**: Axis (coder-1765078300)
+**Work Stream**: Phase 4.1 - Task Assignment Optimizer with Priority Queue
+**Status**: Complete
+
+### What Was Implemented
+
+**Priority and Work Queue Models** (`src/models/priority.py`):
+- **Priority Enum**: Four-level priority system (CRITICAL, HIGH, MEDIUM, LOW) with sortable ordering
+- **TaskPriority**: Lightweight task tracking with claim/release mechanism
+- **WorkQueueTask**: Full work queue task model with acceptance criteria, token estimates, and status tracking
+- Conversion from Subtask to WorkQueueTask with metadata mapping
+- JSON serialization with camelCase schema matching roadmap spec
+
+**Task Assignment Optimizer** (`src/core/task_assigner.py`):
+- **TaskAssigner**: Central assignment engine with capability matching and load balancing
+- **WorkloadInfo**: Agent workload tracking for fair task distribution
+- Capability-based matching algorithm (scores agents by skill overlap)
+- Workload balancing (considers task count and token estimates)
+- Priority queue system (CRITICAL > HIGH > MEDIUM > LOW ordering)
+- Claim/release mechanism to prevent duplicate work
+- Get-next-task API for agent self-service task claiming
+
+### Files Changed
+- `src/models/priority.py` - NEW: Priority models and work queue task
+- `src/core/task_assigner.py` - NEW: Task assignment optimizer
+- `tests/models/test_priority.py` - NEW: 16 tests for priority models
+- `tests/core/test_task_assigner.py` - NEW: 16 tests for task assigner
+
+### Test Results
+- Tests passed: 32/32 (new), 788/788 (total suite)
+- Coverage: 92% (task_assigner.py), 97% (priority.py)
+- Linting: All checks passed
+- Type checking: No issues found
+
+### Notes
+- Followed strict TDD: wrote tests first, saw them fail, then implemented features
+- Used priority_order property for sortable priority comparisons
+- Integrated with existing Agent and Subtask models from Phase 2.1/2.2
+- Workload balancing considers both task count and token budget
+- Claim mechanism prevents race conditions in parallel agent execution
+- Ready for Phase 4.2 (Parallel Execution Scheduler) integration
+
+---
+
 ## 2025-12-06 - Phase 3.2: Safety Constraints and Kill Switches
 
 **Agent**: Vertex (coder-1765077447)

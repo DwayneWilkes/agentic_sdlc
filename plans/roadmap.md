@@ -596,18 +596,21 @@
 
 ### Phase 4.1: Task Assignment Optimizer with Priority Queue
 
-- **Status:** 🔴 Blocked
-- **Depends On:** Phase 2.1, Phase 2.2
+- **Status:** ✅ Complete
+- **Assigned To:** Axis
+- **Completed:** 2025-12-06
+- **Depends On:** Phase 2.1 ✅, Phase 2.2 ✅
 - **Tasks:**
-  - [ ] Implement capability-based task assignment
-  - [ ] Add workload balancing across agents
-  - [ ] Implement priority queue system (CRITICAL → HIGH → MEDIUM → LOW)
-  - [ ] Add claim/release mechanism to prevent duplicate work
-  - [ ] Implement token budget estimation per task
-  - [ ] Add acceptance criteria tracking per task
-  - [ ] Create work queue JSON schema with priority, assignee, status
+  - [✅] Implement capability-based task assignment
+  - [✅] Add workload balancing across agents
+  - [✅] Implement priority queue system (CRITICAL → HIGH → MEDIUM → LOW)
+  - [✅] Add claim/release mechanism to prevent duplicate work
+  - [✅] Implement token budget estimation per task
+  - [✅] Add acceptance criteria tracking per task
+  - [✅] Create work queue JSON schema with priority, assignee, status
 - **Effort:** M
 - **Done When:** Tasks assigned to most capable agents; workload distributed evenly; no duplicate work
+- **Quality Gates:** All tests pass (32/32), 92% coverage for task_assigner.py, 97% coverage for priority.py, no linting errors, no type errors
 - **Design Notes:**
 
   ```json
@@ -1429,8 +1432,9 @@
 
 ### Phase 9.1: Self-Modification Safety Framework
 
-- **Status:** 🔴 Blocked
-- **Depends On:** Phase 3.2
+- **Status:** 🔄 In Progress
+- **Assigned To:** Beacon
+- **Depends On:** Phase 3.2 ✅
 - **Tasks:**
   - [ ] Implement isolated testing environment for self-modifications
   - [ ] **Require feature branches** for all self-improvement changes (never modify main directly)
@@ -1509,7 +1513,8 @@
 
 ### Phase 9.4: Agent Coffee Breaks (Peer Learning Dialogue)
 
-- **Status:** ⚪ Not Started
+- **Status:** 🔄 In Progress
+- **Assigned To:** Beacon
 - **Depends On:** Phase 5.1 ✅, Phase 8.6
 - **Tasks:**
   - [ ] Implement scheduled "coffee break" sessions where agents pause to discuss
