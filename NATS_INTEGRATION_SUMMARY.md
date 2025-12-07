@@ -9,12 +9,14 @@ NATS has been fully integrated into the Agentic SDLC orchestrator for high-perfo
 ### 1. Core Infrastructure
 
 **NATS Message Bus** ([src/coordination/nats_bus.py](src/coordination/nats_bus.py))
+
 - `NATSMessageBus` class - Main communication interface
 - `AgentMessage` dataclass - Standard message format
 - `MessageType` enum - 11 message types for agent coordination
 - 4 communication patterns: broadcast, direct, request/reply, work queues
 
 **Docker Compose** ([docker-compose.yml](docker-compose.yml))
+
 - NATS server with JetStream enabled
 - Monitoring on port 8222
 - Persistent storage for message replay
@@ -22,15 +24,18 @@ NATS has been fully integrated into the Agentic SDLC orchestrator for high-perfo
 ### 2. Dependencies Updated
 
 **requirements.txt**:
+
 - Added `nats-py>=2.7.0` for NATS client
 - Added `fastmcp>=2.0.0` and `mcp>=1.0.0` for MCP integration
 
 **pyproject.toml**:
+
 - Updated core dependencies with NATS and MCP packages
 
 ### 3. Documentation
 
 **Architecture** ([docs/nats-architecture.md](docs/nats-architecture.md)):
+
 - Complete NATS architecture explanation
 - Subject hierarchy design
 - Communication patterns with examples
@@ -38,12 +43,14 @@ NATS has been fully integrated into the Agentic SDLC orchestrator for high-perfo
 - Comparison with alternatives (Redis, RabbitMQ, Kafka)
 
 **Setup Guide** ([docs/NATS_SETUP.md](docs/NATS_SETUP.md)):
+
 - Installation instructions (Docker, local, from source)
 - Configuration options
 - Monitoring and troubleshooting
 - Security setup for production
 
 **Updated CLAUDE.md** ([CLAUDE.md](CLAUDE.md)):
+
 - Added NATS integration section
 - Quick start examples
 - Links to detailed documentation
@@ -51,6 +58,7 @@ NATS has been fully integrated into the Agentic SDLC orchestrator for high-perfo
 ### 4. Examples
 
 **Communication Examples** ([examples/nats_example.py](examples/nats_example.py)):
+
 - Example 1: Broadcast (pub/sub)
 - Example 2: Direct messaging
 - Example 3: Request/reply
@@ -63,7 +71,7 @@ Ready to run: `python examples/nats_example.py`
 
 ### Subject Hierarchy
 
-```
+```text
 orchestrator.
 ├── broadcast.{message_type}          # All agents
 ├── agent.{agent_id}.{message_type}   # Direct to agent
@@ -88,6 +96,7 @@ orchestrator.
 ### Communication Patterns
 
 **1. Broadcast (Pub/Sub)**
+
 ```python
 await bus.broadcast(
     from_agent="architect-001",
@@ -97,6 +106,7 @@ await bus.broadcast(
 ```
 
 **2. Direct Messaging**
+
 ```python
 await bus.send_to_agent(
     from_agent="parser-dev",
@@ -107,6 +117,7 @@ await bus.send_to_agent(
 ```
 
 **3. Request/Reply**
+
 ```python
 response = await bus.request(
     from_agent="decomposer",
@@ -118,6 +129,7 @@ response = await bus.request(
 ```
 
 **4. Work Queues**
+
 ```python
 # Create queue with 3 workers
 await bus.create_work_queue(
@@ -197,7 +209,7 @@ NATS enables the subagent development approach:
 
 ### Phase 1.1 Communication Flow
 
-```
+```text
 Architect (completes Task model)
     ↓ [broadcast: TASK_COMPLETE]
 Parser Developer (receives notification)
@@ -227,6 +239,7 @@ Decomposer (receives notification, starts work)
 ## Files Modified/Created
 
 ### Created (10 files)
+
 1. `src/coordination/nats_bus.py` - NATS message bus implementation
 2. `docker-compose.yml` - NATS server configuration
 3. `docs/nats-architecture.md` - Architecture documentation
@@ -235,6 +248,7 @@ Decomposer (receives notification, starts work)
 6. `NATS_INTEGRATION_SUMMARY.md` - This file
 
 ### Modified (3 files)
+
 1. `requirements.txt` - Added nats-py, fastmcp, mcp
 2. `pyproject.toml` - Added dependencies
 3. `CLAUDE.md` - Added NATS integration section
@@ -242,18 +256,21 @@ Decomposer (receives notification, starts work)
 ## Next Steps
 
 ### Immediate
+
 1. ✅ NATS infrastructure ready
 2. ✅ Communication patterns defined
 3. ✅ Examples working
 4. ⏭️ Start Phase 1.1 development with agents
 
 ### Integration Tasks
+
 1. Update agent base class to use NATS
 2. Add heartbeat monitoring to orchestrator
 3. Implement agent discovery via NATS
 4. Add metrics collection from NATS stats
 
 ### Advanced Features (Later)
+
 1. JetStream for message persistence
 2. NATS KV for shared state
 3. NATS Object Store for artifacts
@@ -271,9 +288,10 @@ Decomposer (receives notification, starts work)
 
 ## Monitoring
 
-Access NATS monitoring at: http://localhost:8222
+Access NATS monitoring at: <http://localhost:8222>
 
 **Available Endpoints**:
+
 - `/varz` - Server statistics
 - `/connz` - Active connections
 - `/subsz` - Subscriptions
@@ -286,7 +304,7 @@ Access NATS monitoring at: http://localhost:8222
 - Architecture: [docs/nats-architecture.md](docs/nats-architecture.md)
 - Setup: [docs/NATS_SETUP.md](docs/NATS_SETUP.md)
 - Examples: [examples/nats_example.py](examples/nats_example.py)
-- NATS Docs: https://docs.nats.io/
+- NATS Docs: <https://docs.nats.io/>
 
 ---
 

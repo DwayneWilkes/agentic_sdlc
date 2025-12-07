@@ -176,7 +176,7 @@ We will decompose the orchestrator development into specialized subagent roles, 
 
 **Stream 1: Data Foundation**
 
-```
+```text
 Day 1-2: Architect → Design all models
 Day 3-4: Parser Developer → Implement TaskParser (parallel with Architect completing)
 Day 5: Integration testing
@@ -184,7 +184,7 @@ Day 5: Integration testing
 
 **Stream 2: Core Logic**
 
-```
+```text
 Day 1-2: Wait for Architect models
 Day 3-4: Decomposition Engineer → Build decomposer
 Day 3-4: Registry Manager → Create registry (parallel)
@@ -193,7 +193,7 @@ Day 5: Integration testing
 
 **Stream 3: Quality & Documentation**
 
-```
+```text
 Day 1-5: Test Engineer → Write tests as components complete
 Day 1-5: Documentation Writer → Document as components complete
 ```
@@ -202,7 +202,7 @@ Day 1-5: Documentation Writer → Document as components complete
 
 **Team Formation**
 
-```
+```text
 Day 1-2: Team Designer → Team composition logic
 Day 3-4: Agent Factory Engineer → Agent instantiation
 Day 5: Integration
@@ -210,7 +210,7 @@ Day 5: Integration
 
 **Resilience**
 
-```
+```text
 Day 1-3: Error Handling Specialist → Error detection & recovery
 Day 4-5: Integration and testing
 ```

@@ -16,7 +16,7 @@ The orchestrator uses NATS (Neural Autonomy Transport System) for all inter-agen
 
 All orchestrator messages use a hierarchical subject structure:
 
-```
+```text
 orchestrator.
 ├── broadcast.{message_type}          # Broadcast to all agents
 ├── agent.{agent_id}.{message_type}   # Direct agent communication
@@ -81,6 +81,7 @@ await bus.subscribe(
 ```
 
 **Use cases**:
+
 - Status updates
 - Heartbeats
 - Global announcements
@@ -107,6 +108,7 @@ await bus.subscribe_to_agent_messages(
 ```
 
 **Use cases**:
+
 - Questions between agents
 - Dependency notifications
 - Specific coordination
@@ -129,6 +131,7 @@ print(response.content["schema"])
 ```
 
 **Use cases**:
+
 - Query shared state
 - Request permissions
 - Synchronous coordination
@@ -157,6 +160,7 @@ for test in tests:
 ```
 
 **Use cases**:
+
 - Parallel test execution
 - Distributed builds
 - Load-balanced processing
@@ -351,6 +355,7 @@ correlation_id = f"{agent_id}-{timestamp}-{request_id}"
 | Use Case | Agent comms | Cache+msgs | Enterprise | Event streams |
 
 **Why NATS?**
+
 - Simplest to deploy and operate
 - Lowest latency for agent communication
 - Built-in request/reply (no custom protocol)

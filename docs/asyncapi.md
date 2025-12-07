@@ -21,7 +21,7 @@ The AsyncAPI specification (`asyncapi.yaml`) defines:
 
 ## Specification Location
 
-```
+```text
 asyncapi.yaml  # Root of project
 ```
 
@@ -34,6 +34,7 @@ asyncapi.yaml  # Root of project
 **Purpose**: One-to-many communication
 
 **Use Cases**:
+
 - Status updates
 - Heartbeats
 - Global announcements
@@ -55,6 +56,7 @@ await bus.broadcast(
 **Purpose**: Point-to-point communication
 
 **Use Cases**:
+
 - Questions between agents
 - Dependency notifications
 - Specific coordination
@@ -77,6 +79,7 @@ await bus.send_to_agent(
 **Purpose**: Team-specific communication
 
 **Use Cases**:
+
 - Team coordination
 - Shared context
 - Team announcements
@@ -97,6 +100,7 @@ await bus.publish(
 **Purpose**: Load-balanced task distribution
 
 **Use Cases**:
+
 - Parallel test execution
 - Distributed builds
 - Scalable processing
@@ -247,7 +251,7 @@ Install the [AsyncAPI Preview](https://marketplace.visualstudio.com/items?itemNa
 
 ### Example 1: Task Completion Flow
 
-```
+```text
 1. Architect completes Task model
    └─> BROADCAST: orchestrator.broadcast.task_complete
        {
@@ -297,7 +301,7 @@ Install the [AsyncAPI Preview](https://marketplace.visualstudio.com/items?itemNa
 
 ### Example 2: Blocker Resolution
 
-```
+```text
 1. Coder Agent encounters blocker
    └─> BROADCAST: orchestrator.broadcast.blocker
        {
@@ -457,7 +461,7 @@ Web-based editor and visualizer:
 npx @asyncapi/studio asyncapi.yaml
 ```
 
-Or use the online version: https://studio.asyncapi.com/
+Or use the online version: <https://studio.asyncapi.com/>
 
 ### Validation
 

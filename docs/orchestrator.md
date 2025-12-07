@@ -104,7 +104,7 @@ In interactive mode you can:
 
 Example session:
 
-```
+```text
 You: Start working on the task parser
 
 Orchestrator:
@@ -146,7 +146,7 @@ python scripts/orchestrator.py report --json
 
 ### Components
 
-```
+```text
 src/orchestrator/
 ├── __init__.py           # Module exports
 ├── orchestrator.py       # Main Orchestrator class

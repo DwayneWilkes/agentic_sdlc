@@ -63,7 +63,7 @@ The script runs **three phases** autonomously:
 
 **Example Output**:
 
-```
+```text
 [INFO] Starting Autonomous Agent...
 [INFO] Project Root: /home/user/agentic_sdlc
 [INFO] Roadmap: /home/user/agentic_sdlc/plans/roadmap.md

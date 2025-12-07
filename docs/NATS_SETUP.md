@@ -30,7 +30,8 @@ python examples/nats_example.py
 
 ### 3. Monitor NATS
 
-Open http://localhost:8222 in your browser to see:
+Open <http://localhost:8222> in your browser to see:
+
 - Active connections
 - Message statistics
 - Subject subscriptions

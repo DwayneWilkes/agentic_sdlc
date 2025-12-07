@@ -250,7 +250,7 @@ This analysis applies strategic business frameworks to prioritize the 15 capabil
 
 ### 4.2 Impact/Effort Matrix
 
-```
+```text
                     HIGH IMPACT
                         |
     QUICK WINS          |          BIG BETS

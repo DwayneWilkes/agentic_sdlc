@@ -47,7 +47,7 @@ The Orchestrator Agent is a meta-agent system designed for general problem-solvi
 
 ## Project Structure
 
-```
+```text
 agentic_sdlc/
 ├── src/                    # Source code
 │   ├── models/            # Data models (Task, Agent, Team)

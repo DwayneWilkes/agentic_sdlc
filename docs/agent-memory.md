@@ -94,6 +94,7 @@ print(context)
 ```
 
 Output:
+
 ```markdown
 # Aurora's Memory Journal
 
@@ -121,7 +122,8 @@ for prompt in prompts:
 ```
 
 Output:
-```
+
+```text
 - Have you learned anything new about: JetStream consumer configuration?
 - What mistake taught you the most today?
 - What would you do differently next time?
@@ -167,7 +169,7 @@ This keeps active memory manageable while maintaining a history of learning.
 
 Memories are stored per-agent in `config/agent_memories/`:
 
-```
+```text
 config/agent_memories/
 ├── aurora.json
 ├── echo.json
@@ -176,6 +178,7 @@ config/agent_memories/
 ```
 
 Each file contains:
+
 ```json
 {
   "agent_name": "Aurora",
@@ -238,6 +241,7 @@ pytest tests/core/test_agent_memory.py --cov=src/core/agent_memory
 ## Future Enhancements
 
 Potential improvements:
+
 - LLM-powered summarization for richer distillation
 - Cross-agent memory sharing (with consent)
 - Memory visualization tools

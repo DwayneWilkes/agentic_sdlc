@@ -6,7 +6,7 @@ This directory stores persistent memory journals for autonomous agents.
 
 Each agent gets their own JSON file named after their personal name:
 
-```
+```text
 agent_memories/
 ├── aurora.json      # Aurora's memory journal
 ├── echo.json        # Echo's memory journal
@@ -53,6 +53,7 @@ Each agent's memory file contains:
 ## Auto-Summarization
 
 When a memory type exceeds 10 entries, older entries are automatically summarized:
+
 - Original entries are preserved in the summary
 - Summaries represent "distilled wisdom"
 - This keeps active memory manageable while preserving history
