@@ -20,7 +20,7 @@ Logs are organized by project name:
 agent-logs/
 ├── {project_name}/
 │   ├── autonomous-agent-YYYYMMDD-HHMMSS.log
-│   ├── qa-agent-YYYYMMDD-HHMMSS.log
+│   ├── tech-lead-agent-YYYYMMDD-HHMMSS.log
 │   └── pm-agent-YYYYMMDD-HHMMSS.log
 └── README.md
 ```

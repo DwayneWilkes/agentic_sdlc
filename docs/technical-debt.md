@@ -45,12 +45,12 @@ This log tracks quality gate exceptions that were approved but need future remed
 
 ## Process
 
-1. QA Agent identifies violations during phase audit
+1. Tech Lead identifies violations during phase audit
 2. PM reviews and decides: remediate or approve exception
-3. If exception approved, QA Agent logs here with:
+3. If exception approved, Tech Lead logs here with:
    - Phase reference
    - Specific gate and gap
    - Reason for approval
    - Target remediation date
 4. Remediation agent fixes the gap
-5. QA Agent verifies fix and moves item to Resolved
+5. Tech Lead verifies fix and moves item to Resolved

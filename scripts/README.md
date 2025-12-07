@@ -85,20 +85,21 @@ The script runs **three phases** autonomously:
 - `1` - Error (missing dependencies, no work available, uncommitted changes, etc.)
 - Other - Claude Code execution failure
 
-### `qa_agent.sh`
+### `tech_lead.sh`
 
-**Purpose**: Launches Claude Code to perform a comprehensive quality audit.
+**Purpose**: Launches Claude Code for coder supervision and quality audits.
 
 **Usage**:
 
 ```bash
-./scripts/qa_agent.sh
+./scripts/tech_lead.sh
 # Or via orchestrator:
-python scripts/orchestrator.py qa
+python scripts/orchestrator.py tech-lead
 ```
 
 **What it does**:
 
+- Supervises coder agents (investigates failures, calls coder back if needed)
 - Runs all quality gates (pytest, coverage, ruff, mypy)
 - Identifies violations with severity levels (Critical/Major/Minor)
 - Generates `docs/qa-audit.md` with findings and recommendations

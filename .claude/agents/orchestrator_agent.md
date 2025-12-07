@@ -706,7 +706,7 @@ A good orchestrator agent:
 
 - [Coder Agent](./coder_agent.md) - Agent that completes work streams
 - [Project Manager](./project_manager.md) - Roadmap verification
-- [QA Agent](./qa_agent.md) - Quality gate verification
+- [Tech Lead](./tech_lead.md) - Coder supervision & quality gate verification
 - [Roadmap](../../plans/roadmap.md) - Work stream tracking
 - [Target Repos](../../config/targets.yaml) - Multi-repo configuration
 - [NATS Communication](../../docs/nats-architecture.md) - Inter-agent messaging

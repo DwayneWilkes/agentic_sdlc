@@ -156,16 +156,16 @@
 - **Effort:** M
 - **Done When:** All completed phases verified against quality gates; violations flagged and remediated automatically
 - **Implementation Notes:**
-  - QA Agent persona: `.claude/agents/qa_agent.md`
-  - Launch script: `scripts/qa_agent.sh`
-  - CLI command: `python scripts/orchestrator.py qa`
-  - Also includes deep code review (merged from Requirements Reviewer)
+  - Tech Lead persona: `.claude/agents/tech_lead.md`
+  - Launch script: `scripts/tech_lead.sh`
+  - CLI command: `python scripts/orchestrator.py tech-lead`
+  - Includes coder supervision, quality gates, and deep code review
 - **Design Notes:**
 
   ```text
   Phase Marked Complete
     │
-    ├─► QA Agent runs quality checks
+    ├─► Tech Lead runs quality checks
     │     ├─► pytest tests/
     │     ├─► pytest --cov=src tests/
     │     ├─► ruff check src/ tests/

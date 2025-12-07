@@ -40,7 +40,7 @@ Autonomous agents follow these workflows:
 |-------|--------------|---------|
 | Coder | [coder_agent.md](.claude/agents/coder_agent.md) | Claim work, TDD, commit |
 | PM | [project_manager.md](.claude/agents/project_manager.md) | Roadmap verification |
-| QA | [qa_agent.md](.claude/agents/qa_agent.md) | Quality gate audits |
+| Tech Lead | [tech_lead.md](.claude/agents/tech_lead.md) | Coder supervision, quality audits |
 | Orchestrator | [orchestrator_agent.md](.claude/agents/orchestrator_agent.md) | Team coordination |
 
 ### 6-Phase Coder Workflow

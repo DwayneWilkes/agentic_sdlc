@@ -97,10 +97,14 @@ Orchestrator.run(goal)
 
 ## Agent Execution
 
-Agents are run via the Claude CLI:
+Agents are run via the Claude CLI with model selection:
 
 ```bash
-claude -p --dangerously-skip-permissions "$PROMPT"
+# Coder agents use Sonnet for cost efficiency
+claude -p --model sonnet --dangerously-skip-permissions "$PROMPT"
+
+# PM/Tech Lead agents use Opus for complex reasoning
+claude -p --model opus --dangerously-skip-permissions "$PROMPT"
 ```
 
 The runner manages:
@@ -126,7 +130,7 @@ Agents follow workflows defined in `.claude/agents/`:
 
 - `coder_agent.md` - 6-phase TDD workflow
 - `project_manager.md` - Roadmap verification
-- `qa_agent.md` - Quality gate audits
+- `tech_lead.md` - Coder supervision & quality audits
 - `orchestrator_agent.md` - Team coordination
 
 ## Related
@@ -134,5 +138,5 @@ Agents follow workflows defined in `.claude/agents/`:
 - Uses: [core/](../core/AGENTS.md) for parsing/decomposition
 - Uses: [models/](../models/AGENTS.md) for data structures
 - Uses: [coordination/](../coordination/AGENTS.md) for NATS messaging
-- Entry point: [scripts/autonomous_agent.sh](../../scripts/AGENTS.md)
+- Entry points: [scripts/](../../scripts/AGENTS.md) (autonomous_agent.sh, coder_agent.sh, pm_agent.sh, tech_lead.sh)
 - Agent workflows: [.claude/agents/](../../.claude/agents/)

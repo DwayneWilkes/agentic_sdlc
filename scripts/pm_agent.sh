@@ -3,36 +3,26 @@ set -euo pipefail
 
 # PM Agent - Project Management & Roadmap Synchronization
 # This script launches Claude Code to verify roadmap status and track progress.
+#
+# Usage:
+#   ./scripts/pm_agent.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=agent_common.sh
+source "$SCRIPT_DIR/agent_common.sh"
+
+# Set project paths (PM agent only works on orchestrator itself)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT_NAME="$(basename "$PROJECT_ROOT")"
 PM_AGENT="$PROJECT_ROOT/.claude/agents/project_manager.md"
-LOG_DIR="$PROJECT_ROOT/agent-logs/$PROJECT_NAME"
-TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-LOG_FILE="$LOG_DIR/pm-agent-$TIMESTAMP.log"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# Setup logging
+setup_logging "pm-agent" "$PROJECT_ROOT" "$PROJECT_NAME"
 
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-log_to_file() { echo "$1" | tee -a "$LOG_FILE"; }
-
-# Check if Claude Code CLI is available
-if ! command -v claude &> /dev/null; then
-    log_error "Claude Code CLI not found. Please install it first."
-    exit 1
-fi
-
-# Create log directory
-mkdir -p "$LOG_DIR"
+# Check prerequisites
+require_claude_cli
+require_file "$PM_AGENT" "PM agent workflow"
 
 # Change to project root
 cd "$PROJECT_ROOT"
@@ -44,12 +34,6 @@ log_info "Log File: $LOG_FILE"
 log_to_file "=== PM Agent Execution - $TIMESTAMP ==="
 log_to_file "Project Root: $PROJECT_ROOT"
 log_to_file ""
-
-# Check if PM agent workflow exists
-if [[ ! -f "$PM_AGENT" ]]; then
-    log_error "PM agent workflow not found at $PM_AGENT"
-    exit 1
-fi
 
 # Generate agent ID
 AGENT_ID="pm-$(date +%s)"
@@ -149,8 +133,8 @@ log_to_file "=== PM Execution ==="
 log_to_file "Starting: $(date)"
 log_to_file ""
 
-# Launch Claude Code
-claude -p --dangerously-skip-permissions "$PROMPT" 2>&1 | tee -a "$LOG_FILE"
+# PM agents use Opus 4.5 for complex reasoning
+claude -p --model opus --dangerously-skip-permissions "$PROMPT" 2>&1 | tee -a "$LOG_FILE"
 PM_EXIT_CODE=${PIPESTATUS[0]}
 
 log_to_file ""

@@ -117,14 +117,14 @@ Files needing coverage:
 ```text
 .claude/agents/           # Agent personas
 ├── coder_agent.md       # Development workflow
-├── qa_agent.md          # Quality verification + code review
+├── tech_lead.md         # Coder supervision + quality verification
 ├── project_manager.md   # Roadmap coordination
 └── business_analyst.md  # Requirements analysis
 
 scripts/
 ├── orchestrator.py      # Main CLI
 ├── autonomous_agent.sh  # Coder agent launcher
-├── qa_agent.sh          # QA agent launcher
+├── tech_lead.sh         # Tech Lead agent launcher
 ├── pm_agent.sh          # PM agent launcher
 └── dashboard.py         # Live monitoring
 

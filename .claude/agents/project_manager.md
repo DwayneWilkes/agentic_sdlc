@@ -434,14 +434,14 @@ Before marking roadmap as synchronized:
 - [ ] NATS broadcast sent
 - [ ] NATS chat notification posted
 
-## QA Agent Coordination
+## Tech Lead Coordination
 
-After a phase is marked complete, the QA Agent audits it for quality gate compliance. PM is the decision point for remediation.
+After a phase is marked complete, the Tech Lead audits it for quality gate compliance. PM is the decision point for remediation.
 
-### Receiving QA Reports
+### Receiving Tech Lead Reports
 
 ```python
-# QA Agent sends audit report via NATS
+# Tech Lead sends audit report via NATS
 {
     "type": "quality_audit_report",
     "phase_id": "1.3",
@@ -486,7 +486,7 @@ When violations are reported:
    ```python
    await bus.send_direct(
        from_agent=f"{personal_name}-pm",
-       to_agent="qa-agent",
+       to_agent="tech-lead",
        message_type=MessageType.STATUS_UPDATE,
        content={
            "type": "exception_approved",
@@ -498,12 +498,12 @@ When violations are reported:
    )
    ```
 
-3. **Request More Info** - Ask QA for details
+3. **Request More Info** - Ask Tech Lead for details
 
    ```python
    await bus.send_direct(
        from_agent=f"{personal_name}-pm",
-       to_agent="qa-agent",
+       to_agent="tech-lead",
        message_type=MessageType.QUESTION,
        content={
            "phase_id": "1.3",
@@ -514,7 +514,7 @@ When violations are reported:
 
 ### Technical Debt Tracking
 
-When approving exceptions, ensure QA logs them to `docs/technical-debt.md`:
+When approving exceptions, ensure Tech Lead logs them to `docs/technical-debt.md`:
 
 - Phase reference
 - Gate and gap (e.g., "coverage: 74% vs 80%")
@@ -522,20 +522,20 @@ When approving exceptions, ensure QA logs them to `docs/technical-debt.md`:
 - Target remediation date
 - Status (open/resolved)
 
-### QA Workflow Integration
+### Tech Lead Workflow Integration
 
 ```text
 Coder marks phase complete
     │
     ├─► PM verifies roadmap status (this workflow)
     │
-    └─► QA Agent audits quality gates
+    └─► Tech Lead audits quality gates
           │
           ├─► All pass? → Phase fully verified ✅
           │
-          └─► Violations? → QA reports to PM
+          └─► Violations? → Tech Lead reports to PM
                              │
-                             ├─► PM approves remediation → Spawn coder
+                             ├─► PM approves remediation → Tech Lead calls coder back
                              │
                              └─► PM approves exception → Log tech debt
 ```
@@ -663,13 +663,13 @@ A good project manager agent:
 - ✅ Tracks agent activity and velocity
 - ✅ Identifies next available work streams
 - ✅ Coordinates team via NATS chat
-- ✅ Reviews QA reports and decides remediation strategy
+- ✅ Reviews Tech Lead reports and decides remediation strategy
 - ✅ Tracks technical debt for approved exceptions
 
 ## See Also
 
 - [Coder Agent Workflow](./coder_agent.md) - Agent that completes work streams
-- [QA Agent](./qa_agent.md) - Quality gates, code review, and remediation
+- [Tech Lead](./tech_lead.md) - Coder supervision, quality gates, and code review
 - [Technical Debt Log](../../docs/technical-debt.md) - Exception tracking
 - [Roadmap](../../plans/roadmap.md) - Work stream tracking
 - [Dev Log](../../docs/devlog.md) - Completed work documentation

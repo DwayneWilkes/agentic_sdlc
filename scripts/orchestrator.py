@@ -378,28 +378,28 @@ def cmd_dashboard(args) -> int:
         return 0
 
 
-def cmd_qa(args) -> int:
-    """Launch QA agent to audit quality gates."""
+def cmd_tech_lead(args) -> int:
+    """Launch Tech Lead agent for coder supervision and quality audits."""
     import subprocess
 
-    print_header("QA Agent - Quality Audit")
+    print_header("Tech Lead - Coder Supervision & Quality Audit")
 
-    qa_script = PROJECT_ROOT / "scripts" / "qa_agent.sh"
-    if not qa_script.exists():
-        print(colored("Error: qa_agent.sh not found", Colors.RED))
+    tech_lead_script = PROJECT_ROOT / "scripts" / "tech_lead.sh"
+    if not tech_lead_script.exists():
+        print(colored("Error: tech_lead.sh not found", Colors.RED))
         return 1
 
-    print(f"Launching QA agent...")
-    print(f"Log: agent-logs/qa-agent-*.log\n")
+    print(f"Launching Tech Lead agent...")
+    print(f"Log: agent-logs/tech-lead-agent-*.log\n")
 
     try:
         result = subprocess.run(
-            [str(qa_script)],
+            [str(tech_lead_script)],
             cwd=str(PROJECT_ROOT),
         )
         return result.returncode
     except KeyboardInterrupt:
-        print(colored("\nQA agent interrupted", Colors.YELLOW))
+        print(colored("\nTech Lead agent interrupted", Colors.YELLOW))
         return 130
 
 
@@ -839,10 +839,10 @@ def main():
         help="One-time status report",
     )
 
-    # qa command
-    qa_parser = subparsers.add_parser(
-        "qa",
-        help="Launch QA agent to audit quality gates",
+    # tech-lead command
+    tech_lead_parser = subparsers.add_parser(
+        "tech-lead",
+        help="Launch Tech Lead agent for coder supervision and quality audits",
     )
 
     # pm command
@@ -869,7 +869,7 @@ def main():
         "garden": cmd_garden,
         "agents": cmd_agents,
         "dashboard": cmd_dashboard,
-        "qa": cmd_qa,
+        "tech-lead": cmd_tech_lead,
         "pm": cmd_pm,
     }
 
