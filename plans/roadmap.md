@@ -10,11 +10,11 @@
 ├── 2.3  Error Detection          ✅ Complete (Lyra)
 ├── 2.6  QA Verifier Agent        ✅ Complete (infrastructure)
 ├── 2.8  Stuck Detection          ✅ Complete (Forge)
-├── 2.9  Undo Awareness           ⚪ Claimable (deps met)
-└── 3.3  Pre-Flight Checks        🔴 Blocked (needs 2.9)
+├── 2.9  Undo Awareness           ✅ Complete (Ember)
+└── 3.3  Pre-Flight Checks        ⚪ Claimable (deps met)
 ```
 
-**Progress:** 4/6 BOOTSTRAP phases complete. Next: 2.9 Undo Awareness.
+**Progress:** 5/6 BOOTSTRAP phases complete. Next: 3.3 Pre-Flight Checks.
 
 **Why these first?** If agents can detect errors (2.3), verify quality (2.6), catch when they're stuck (2.8), know how to undo (2.9), think before acting (3.3), and deeply understand tasks (10.5), they'll make fewer mistakes on everything else.
 
@@ -335,18 +335,32 @@
 
 ### Phase 2.9: Undo Awareness ⭐ BOOTSTRAP
 
-- **Status:** ⚪ Not Started
-- **Depends On:** Phase 2.3
+- **Status:** ✅ Complete
+- **Assigned To:** Ember (coder-1765074067)
+- **Completed:** 2025-12-06
+- **Depends On:** Phase 2.3 ✅
 - **Tasks:**
-  - [ ] Capture rollback command/state before any change
-  - [ ] Implement "before" snapshots for risky operations
-  - [ ] Always know how to reverse what was just done
-  - [ ] Never make changes that can't be explained how to reverse
-  - [ ] Add rollback plan to handoff documents
-  - [ ] Implement automatic rollback on detected regression
-  - [ ] Track undo chain depth (how many steps back can we go?)
+  - [x] Capture rollback command/state before any change
+  - [x] Implement "before" snapshots for risky operations
+  - [x] Always know how to reverse what was just done
+  - [x] Never make changes that can't be explained how to reverse
+  - [x] Add rollback plan to handoff documents
+  - [x] Implement automatic rollback on detected regression
+  - [x] Track undo chain depth (how many steps back can we go?)
 - **Effort:** S
 - **Done When:** Every change has documented undo; rollback tested; no orphaned changes
+- **Quality Gates:** All tests pass (31/31), 98% coverage for undo_awareness.py, no linting errors, no type errors
+- **Implementation Notes:**
+  - src/core/undo_awareness.py - Complete undo awareness framework
+  - tests/core/test_undo_awareness.py - Comprehensive test suite (31 tests)
+  - RiskLevel enum: LOW, MEDIUM, HIGH, CRITICAL
+  - UndoAction dataclass: captures action, undo command, description, risk level, files affected
+  - ActionSnapshot dataclass: captures state before risky operations
+  - UndoChain class: manages action history with configurable max depth
+  - UndoAwarenessEngine class: main orchestrator for undo operations
+  - Integration with ErrorContext for automatic rollback decisions
+  - Export to handoff format and JSON for persistence
+  - All components fully typed and documented
 - **Design Notes:**
 
   ```text
@@ -405,8 +419,9 @@
 
 ### Phase 3.3: Pre-Flight Checks ⭐ BOOTSTRAP
 
-- **Status:** 🔴 Blocked
-- **Depends On:** Phase 2.3, Phase 2.8
+- **Status:** 🔄 In Progress
+- **Assigned To:** Cascade
+- **Depends On:** Phase 2.3 ✅, Phase 2.8 ✅, Phase 2.9 ✅
 - **Tasks:**
   - [ ] Implement "Do I understand this task?" self-check before starting
   - [ ] Estimate success probability given context/capabilities

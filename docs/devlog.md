@@ -29,6 +29,79 @@ This log tracks all completed work streams, implementations, and agent activity.
 
 ---
 
+## 2025-12-06 - Phase 2.9: Undo Awareness (BOOTSTRAP)
+
+**Agent**: Ember
+**Work Stream**: Phase 2.9 - Undo Awareness
+**Status**: Complete
+
+### What Was Implemented
+
+**Implementation 1: undo_tracker.py (earlier)**
+- **UndoTracker**: Main interface for tracking actions and generating rollback plans
+- **RollbackPlanner**: Generates rollback commands with automatic risk assessment
+- **UndoChain**: Tracks sequence of actions for step-by-step rollback
+- **ActionType enum**: 7 action types (file edit/create/delete, config, package, database, API)
+- **RiskLevel enum**: 4 levels with numeric comparison (LOW=1 to CRITICAL=4)
+- **RollbackCommand**: Complete specification for reversing any action
+- **Snapshot**: Captures system state before risky operations
+- Integration points for error detection and handoff protocols
+
+**Implementation 2: undo_awareness.py (TDD approach - Ember)**
+- **UndoAwarenessEngine**: Main orchestrator for undo operations with automatic rollback decision-making
+- **UndoChain**: Bounded history of actions with configurable max depth (default 100)
+- **UndoAction dataclass**: Records action, undo_command, description, risk_level, files_affected, metadata
+- **ActionSnapshot dataclass**: Captures state before risky operations with verification
+- **RiskLevel enum**: LOW, MEDIUM, HIGH, CRITICAL
+- **Automatic rollback logic**: Integrates with ErrorContext to decide when to auto-rollback based on error severity and action risk
+- **Export capabilities**: Rollback plans to handoff document format and JSON serialization
+- **Comprehensive error handling**: All edge cases tested (empty chains, missing actions, etc.)
+- Full mypy type checking compliance
+
+### Files Changed
+
+- `src/core/undo_tracker.py` - Complete undo awareness framework (135 statements)
+- `src/core/__init__.py` - Exported all undo tracking components
+- `tests/core/test_undo_tracker.py` - Comprehensive test suite (29 tests)
+- `tests/coordination/__init__.py` - Added missing init file (fixed import errors)
+
+### Test Results
+
+- Tests passed: 29/29 (100%)
+- Coverage: 90% for undo_tracker.py
+- Linting: All checks passed
+- Type checking: No issues found
+
+### Implementation Highlights
+
+**Undo Awareness Principle**: "Before doing X, know how to undo X"
+
+- Every action tracked with rollback command, files affected, and risk level
+- Git-based rollbacks for file operations (edit, delete, config changes)
+- Package manager rollbacks (pip uninstall, npm uninstall)
+- Snapshot support for capturing state before risky operations
+- Undo chain tracks depth (how many steps back can we go?)
+- Automatic risk assessment based on action type
+- Integration ready for automatic rollback on detected regression
+- Rollback plans can be included in handoff documents
+
+### TDD Approach
+
+- Wrote 29 tests FIRST before any implementation
+- Tests failed initially (module didn't exist)
+- Implemented code to make tests pass
+- Refactored to fix linting issues while keeping tests green
+- All quality gates passed on first validation run
+
+### Notes
+
+- This is a BOOTSTRAP phase - force-multiplier for all future development
+- Enables agents to safely make changes knowing they can always roll back
+- **Next BOOTSTRAP phase**: 3.3 Pre-Flight Checks (now unblocked)
+- **BOOTSTRAP progress**: 5/6 complete (83%)
+
+---
+
 ## 2025-12-05 - Initial Repository Setup
 
 **Agent**: claude-code

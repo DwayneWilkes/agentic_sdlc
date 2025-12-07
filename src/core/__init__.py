@@ -8,6 +8,15 @@ from src.core.task_decomposer import (
     TaskDecomposer,
 )
 from src.core.task_parser import ParsedTask, TaskParser
+from src.core.undo_tracker import (
+    ActionType,
+    RiskLevel,
+    RollbackCommand,
+    RollbackPlanner,
+    Snapshot,
+    UndoChain,
+    UndoTracker,
+)
 
 __all__ = [
     "TaskParser",
@@ -18,4 +27,11 @@ __all__ = [
     "SubtaskNode",
     "RoleRegistry",
     "AgentRole",
+    "UndoTracker",
+    "RollbackCommand",
+    "RollbackPlanner",
+    "ActionType",
+    "RiskLevel",
+    "Snapshot",
+    "UndoChain",
 ]
