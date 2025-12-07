@@ -29,6 +29,70 @@ This log tracks all completed work streams, implementations, and agent activity.
 
 ---
 
+## 2025-12-06 - Phase 3.2: Safety Constraints and Kill Switches
+
+**Agent**: Vertex (coder-1765077447)
+**Work Stream**: Phase 3.2 - Safety Constraints and Kill Switches
+**Status**: Complete
+
+### What Was Implemented
+
+**Action Validation Framework** (`src/security/action_validator.py`):
+- **ActionValidator**: Pre-execution validation with risk classification (SAFE, MODERATE, DESTRUCTIVE)
+- **RiskLevel Enum**: Three-tier risk classification system
+- **SafetyBoundary**: Configurable hard constraints that cannot be crossed
+- **ValidationResult**: Comprehensive validation decisions with approval requirements
+- Integration with existing AccessControlPolicy for layered security
+- Path matching with wildcard support for flexible boundary definitions
+
+**Destructive Operation Approval Gates** (`src/security/approval_gate.py`):
+- **ApprovalGate**: Async human-in-the-loop approval workflow
+- **ApprovalRequest**: Structured request format with full context
+- **ApprovalStatus Enum**: PENDING, APPROVED, DENIED, TIMEOUT states
+- Timeout handling with configurable duration (default 5 minutes)
+- Auto-deny on timeout option for security-critical scenarios
+- Complete request history tracking for audit trail
+- Support for both approval and denial with reasons
+
+**Emergency Stop Mechanism** (`src/security/emergency_stop.py`):
+- **EmergencyStop**: Multi-mode stop system (GRACEFUL, IMMEDIATE, EMERGENCY)
+- **StopMode Enum**: Three shutdown strategies for different urgency levels
+- **StopReason Enum**: Categorized stop triggers (user, safety, error, kill switch)
+- NATS integration for broadcasting stop commands to all agents
+- Targeted agent stopping (stop specific agents vs. broadcast to all)
+- Stop handler registration for custom shutdown behavior
+- Complete stop history and statistics tracking
+
+### Files Changed
+- `src/security/action_validator.py` - New module (95 lines, 88% coverage)
+- `src/security/approval_gate.py` - New module (115 lines, 95% coverage)
+- `src/security/emergency_stop.py` - New module (82 lines, 88% coverage)
+- `tests/security/test_action_validator.py` - Comprehensive test suite (12 tests)
+- `tests/security/test_approval_gate.py` - Comprehensive test suite (13 tests)
+- `tests/security/test_emergency_stop.py` - Comprehensive test suite (15 tests)
+- `plans/roadmap.md` - Updated Phase 3.2 status to Complete
+
+### Test Results
+- Tests passed: 40/40 (100%)
+- Coverage:
+  - action_validator.py: 88%
+  - approval_gate.py: 95%
+  - emergency_stop.py: 88%
+- Linting: All checks passed (ruff)
+- Type checking: No errors (mypy)
+
+### Notes
+- **TDD Approach**: All tests written before implementation, ensuring clear requirements
+- **Layered Security**: Action validator builds on top of existing sandbox and access control
+- **Safety Boundaries**: Configurable "red lines" that prevent dangerous operations regardless of permissions
+- **Human-in-the-Loop**: Async approval workflow allows human review of destructive actions
+- **Emergency Control**: Three-tier stop system provides flexibility for different shutdown scenarios
+- **NATS Integration**: Emergency stop broadcasts through existing NATS infrastructure
+- **Audit Trail**: Complete history tracking for all approvals and stops
+- **Production Ready**: All components fully typed, documented, and tested with high coverage
+
+---
+
 ## 2025-12-06 - Phase 2.2: Agent Instantiation and Configuration
 
 **Agent**: Zenith (coder-1765076224)
