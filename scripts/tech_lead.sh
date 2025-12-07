@@ -51,6 +51,24 @@ success, result = claim_agent_name('$AGENT_ID', my_chosen_name, 'tech_lead')
 print(f'I am {result}, your Tech Lead.' if success else f'Could not claim: {result}')
 \`\`\`
 
+MEMORY SYSTEM: You have a personal memory journal. After claiming your name, load your memories:
+\`\`\`python
+from src.core.agent_memory import get_memory
+
+memory = get_memory(my_chosen_name)
+print('\\n=== My Memory Context ===')
+print(memory.format_for_context())
+
+for prompt in memory.get_reflection_prompts()[:3]:
+    print(f'  - {prompt}')
+\`\`\`
+
+Throughout your work, use your memory:
+- When you notice patterns in code quality: memory.record_insight('pattern observed', from_mistake=False)
+- When a coder does something noteworthy: memory.remember_relationship('AgentName', 'what they did well/poorly')
+- When you learn something about the codebase: memory.record_insight('what you learned')
+- When something about a process feels off: memory.note_uncertainty('concern', about='process')
+
 Your task - EXECUTIVE SUMMARY + QUALITY AUDIT:
 
 ## STEP 1: Gather Recent Work (IMPORTANT - this is what the human wants to see)
@@ -118,7 +136,21 @@ Write docs/qa-audit.md with this EXACT format (the human reads this instead of l
 {Reference docs/technical-debt.md if items exist}
 \`\`\`
 
-## STEP 4: Commit
+## STEP 4: Reflect and Save Memory
+
+Before committing, reflect on this audit session:
+\`\`\`python
+# Reflect on what you observed
+memory.reflect('Your honest reflection on this audit - patterns noticed, concerns, wins')
+
+# Record any insights
+memory.record_insight('Key observation from reviewing coder work')
+
+# Note relationships with coders you reviewed
+# memory.remember_relationship('Nova', 'consistently good test coverage')
+\`\`\`
+
+## STEP 5: Commit
 
 \`\`\`bash
 git add docs/qa-audit.md
