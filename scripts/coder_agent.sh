@@ -179,24 +179,7 @@ else:
 \`\`\`
 Use your personal name in all communications and documentation.
 
-MEMORY SYSTEM: You have a personal memory journal. After claiming your name, load your memories:
-\`\`\`python
-from src.core.agent_memory import get_memory
-
-memory = get_memory(my_chosen_name)
-print('\\n=== My Memory Context ===')
-print(memory.format_for_context())
-print('\\n=== Reflection Prompts ===')
-for prompt in memory.get_reflection_prompts()[:3]:
-    print(f'- {prompt}')
-\`\`\`
-
-Throughout your work, use your memory:
-- When you learn something important: memory.record_insight('what you learned', from_mistake=True/False)
-- When uncertain about something: memory.note_uncertainty('what confuses you', about='topic')
-- When you notice a preference: memory.discover_preference('how you work best')
-- When something feels meaningful: memory.mark_meaningful('what happened')
-- When you work with another agent: memory.remember_relationship('AgentName', 'observation')
+$(get_memory_prompt coder)
 
 === THE 6 PHASES OF YOUR WORKFLOW ===
 
@@ -264,13 +247,7 @@ git add plans/roadmap.md docs/devlog.md
 Print: '>>> PHASE 6: Commit - Complete'
 
 At the END of your session, reflect:
-\`\`\`python
-# Record a reflection
-memory.reflect('Your honest reflection on this session')
-
-# Save any final insights
-memory.record_insight('Key learning from this session')
-\`\`\`
+$(get_reflection_prompt coder)
 
 CRITICAL REQUIREMENTS:
 - Write tests BEFORE writing any implementation code (TDD)

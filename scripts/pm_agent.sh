@@ -61,23 +61,7 @@ else:
     print(f'Could not claim name: {result}')
 \`\`\`
 
-MEMORY SYSTEM: You have a personal memory journal. After claiming your name, load your memories:
-\`\`\`python
-from src.core.agent_memory import get_memory
-
-memory = get_memory(my_chosen_name)
-print('\\n=== My Memory Context ===')
-print(memory.format_for_context())
-
-for prompt in memory.get_reflection_prompts()[:3]:
-    print(f'  - {prompt}')
-\`\`\`
-
-Throughout your work, use your memory:
-- When you notice project patterns: memory.record_insight('pattern observed', from_mistake=False)
-- When you observe agent performance: memory.remember_relationship('AgentName', 'observation about their work')
-- When you learn something about the project: memory.record_insight('what you learned')
-- When a process needs improvement: memory.note_uncertainty('concern', about='process')
+$(get_memory_prompt pm)
 
 Your tasks - FULL PROJECT STATUS REVIEW:
 
@@ -158,17 +142,7 @@ for agent_id, info in agents.items():
    - config/agent_memories/README.md - Memory format if changed
 
 7. **Reflect and Save Memory** - Before committing, reflect on this session:
-\`\`\`python
-# Reflect on what you observed about the project
-memory.reflect('Your honest reflection on project health - progress, concerns, team dynamics')
-
-# Record key insights
-memory.record_insight('Key observation from this status review')
-
-# Note relationships with agents you observed
-# memory.remember_relationship('Sterling', 'thorough in quality audits')
-# memory.remember_relationship('Nova', 'high velocity on phase completions')
-\`\`\`
+$(get_reflection_prompt pm)
 
 8. Commit all changes (status report + documentation updates).
 

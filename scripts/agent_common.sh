@@ -10,6 +10,7 @@
 #   - Log directory setup (setup_logging)
 #   - Project path resolution (resolve_project_paths)
 #   - Worktree checks (require_clean_worktree, investigate_dirty_worktree)
+#   - Memory prompts (get_memory_prompt, get_reflection_prompt)
 
 # Colors for output
 RED='\033[0;31m'
@@ -124,6 +125,91 @@ require_clean_worktree() {
     log_to_file "WARNING: Uncommitted changes detected"
     log_to_file "$(git status --short)"
     return 1
+}
+
+# Generate the memory system prompt for an agent
+# Usage: memory_prompt=$(get_memory_prompt "coder|tech_lead|pm")
+# Returns: The prompt text for memory initialization and usage
+get_memory_prompt() {
+    local agent_type="$1"
+
+    local usage_hints=""
+    case "$agent_type" in
+        coder)
+            usage_hints="- When you learn something important: memory.record_insight('what you learned', from_mistake=True/False)
+- When uncertain about something: memory.note_uncertainty('what confuses you', about='topic')
+- When you notice a preference: memory.discover_preference('how you work best')
+- When something feels meaningful: memory.mark_meaningful('what happened')
+- When you work with another agent: memory.remember_relationship('AgentName', 'observation')"
+            ;;
+        tech_lead)
+            usage_hints="- When you notice patterns in code quality: memory.record_insight('pattern observed', from_mistake=False)
+- When a coder does something noteworthy: memory.remember_relationship('AgentName', 'what they did well/poorly')
+- When you learn something about the codebase: memory.record_insight('what you learned')
+- When something about a process feels off: memory.note_uncertainty('concern', about='process')"
+            ;;
+        pm)
+            usage_hints="- When you notice project patterns: memory.record_insight('pattern observed', from_mistake=False)
+- When you observe agent performance: memory.remember_relationship('AgentName', 'observation about their work')
+- When you learn something about the project: memory.record_insight('what you learned')
+- When a process needs improvement: memory.note_uncertainty('concern', about='process')"
+            ;;
+    esac
+
+    cat <<EOF
+MEMORY SYSTEM: You have a personal memory journal. After claiming your name, load your memories:
+\\\`\\\`\\\`python
+from src.core.agent_memory import get_memory
+
+memory = get_memory(my_chosen_name)
+print('\\\\n=== My Memory Context ===')
+print(memory.format_for_context())
+
+for prompt in memory.get_reflection_prompts()[:3]:
+    print(f'  - {prompt}')
+\\\`\\\`\\\`
+
+Throughout your work, use your memory:
+$usage_hints
+EOF
+}
+
+# Generate the memory reflection prompt for end of session
+# Usage: reflection_prompt=$(get_reflection_prompt "coder|tech_lead|pm")
+get_reflection_prompt() {
+    local agent_type="$1"
+
+    local reflection_text=""
+    local example_relationships=""
+
+    case "$agent_type" in
+        coder)
+            reflection_text="Your honest reflection on this session"
+            example_relationships="# memory.remember_relationship('TechLead', 'gave helpful feedback')"
+            ;;
+        tech_lead)
+            reflection_text="Your honest reflection on this audit - patterns noticed, concerns, wins"
+            example_relationships="# memory.remember_relationship('Nova', 'consistently good test coverage')"
+            ;;
+        pm)
+            reflection_text="Your honest reflection on project health - progress, concerns, team dynamics"
+            example_relationships="# memory.remember_relationship('Sterling', 'thorough in quality audits')
+# memory.remember_relationship('Nova', 'high velocity on phase completions')"
+            ;;
+    esac
+
+    cat <<EOF
+\\\`\\\`\\\`python
+# Reflect on what you observed
+memory.reflect('$reflection_text')
+
+# Record any insights
+memory.record_insight('Key observation from this session')
+
+# Note relationships with agents you worked with
+$example_relationships
+\\\`\\\`\\\`
+EOF
 }
 
 # Investigate dirty worktree - called when coder fails to commit
