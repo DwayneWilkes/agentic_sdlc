@@ -1,12 +1,11 @@
 """Tests for the InteractionLogger."""
 
-import pytest
 from datetime import datetime, timedelta
 
 from src.coordination.interaction_logger import (
     InteractionLogger,
-    LoggedInteraction,
     InteractionQuery,
+    LoggedInteraction,
 )
 from src.coordination.nats_bus import AgentMessage, MessageType
 

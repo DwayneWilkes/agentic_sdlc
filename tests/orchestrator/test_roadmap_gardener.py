@@ -1,13 +1,14 @@
 """Tests for the RoadmapGardener module."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from src.orchestrator.roadmap_gardener import (
     RoadmapGardener,
-    get_gardener,
-    garden_roadmap,
     check_roadmap_health,
+    garden_roadmap,
+    get_gardener,
 )
 from src.orchestrator.work_stream import (
     clear_roadmap_cache,
@@ -285,7 +286,9 @@ class TestGarden:
         assert "⚪ Not Started" in updated_content
         assert "🔴 Blocked" not in updated_content
 
-    def test_garden_unblocks_phase_with_satisfied_deps(self, temp_project, roadmap_with_satisfied_deps):
+    def test_garden_unblocks_phase_with_satisfied_deps(
+        self, temp_project, roadmap_with_satisfied_deps
+    ):
         """Test that garden unblocks phases whose dependencies are complete."""
         roadmap_path = temp_project / "plans" / "roadmap.md"
         roadmap_path.write_text(roadmap_with_satisfied_deps)
@@ -413,9 +416,14 @@ class TestCheckHealth:
         gardener = RoadmapGardener(project_root=temp_project)
         health = gardener.check_health()
 
-        assert any("1.2" in issue and "no dependencies" in issue for issue in health["issues"])
+        assert any(
+            "1.2" in issue and "no dependencies" in issue
+            for issue in health["issues"]
+        )
 
-    def test_check_health_detects_should_be_unblocked(self, temp_project, roadmap_with_satisfied_deps):
+    def test_check_health_detects_should_be_unblocked(
+        self, temp_project, roadmap_with_satisfied_deps
+    ):
         """Test that check_health detects phases that should be unblocked."""
         roadmap_path = temp_project / "plans" / "roadmap.md"
         roadmap_path.write_text(roadmap_with_satisfied_deps)

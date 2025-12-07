@@ -20,7 +20,7 @@ class SandboxViolationType(Enum):
     SUBPROCESS_DENIED = "subprocess_denied"
 
 
-class SandboxViolation(Exception):
+class SandboxViolationError(Exception):
     """Exception raised when agent violates sandbox policy."""
 
     def __init__(
@@ -82,7 +82,7 @@ class AgentSandbox:
     config: SandboxConfig
     """Sandbox configuration."""
 
-    _violations: list[SandboxViolation] = field(default_factory=list, init=False)
+    _violations: list[SandboxViolationError] = field(default_factory=list, init=False)
     """History of violations (for tracking)."""
 
     def validate_file_access(self, file_path: str) -> None:
@@ -92,13 +92,13 @@ class AgentSandbox:
             file_path: Path to the file
 
         Raises:
-            SandboxViolation: If file access is not allowed
+            SandboxViolationError: If file access is not allowed
         """
         # Resolve to absolute path to prevent path traversal
         try:
             abs_path = Path(file_path).resolve()
         except (OSError, RuntimeError) as e:
-            violation = SandboxViolation(
+            violation = SandboxViolationError(
                 violation_type=SandboxViolationType.FILE_ACCESS,
                 message=f"Invalid file path: {file_path}",
                 attempted_action=file_path,
@@ -110,7 +110,7 @@ class AgentSandbox:
         if abs_path.is_symlink():
             real_path = abs_path.resolve()
             if not self._is_path_allowed(str(real_path)):
-                violation = SandboxViolation(
+                violation = SandboxViolationError(
                     violation_type=SandboxViolationType.FILE_ACCESS,
                     message=f"Symlink points to forbidden path: {real_path}",
                     attempted_action=file_path,
@@ -120,7 +120,7 @@ class AgentSandbox:
 
         # Check if path is in allowed directories
         if not self._is_path_allowed(str(abs_path)):
-            violation = SandboxViolation(
+            violation = SandboxViolationError(
                 violation_type=SandboxViolationType.FILE_ACCESS,
                 message=f"Access denied to path: {abs_path}. Not in allowed paths.",
                 attempted_action=file_path,
@@ -135,11 +135,11 @@ class AgentSandbox:
             command: Command to execute
 
         Raises:
-            SandboxViolation: If command execution is not allowed
+            SandboxViolationError: If command execution is not allowed
         """
         # Check if subprocess execution is enabled
         if not self.config.enable_subprocess:
-            violation = SandboxViolation(
+            violation = SandboxViolationError(
                 violation_type=SandboxViolationType.SUBPROCESS_DENIED,
                 message="Subprocess execution is disabled for this agent",
                 attempted_action=command,
@@ -152,7 +152,7 @@ class AgentSandbox:
 
         # Check if command is in allowed list
         if base_command not in self.config.allowed_commands:
-            violation = SandboxViolation(
+            violation = SandboxViolationError(
                 violation_type=SandboxViolationType.COMMAND_EXECUTION,
                 message=f"Command '{base_command}' not in allowed commands list",
                 attempted_action=command,
@@ -167,10 +167,10 @@ class AgentSandbox:
             size_mb: File size in MB
 
         Raises:
-            SandboxViolation: If file size exceeds limit
+            SandboxViolationError: If file size exceeds limit
         """
         if size_mb > self.config.max_file_size_mb:
-            violation = SandboxViolation(
+            violation = SandboxViolationError(
                 violation_type=SandboxViolationType.FILE_SIZE_LIMIT,
                 message=f"File size {size_mb}MB exceeds limit of {self.config.max_file_size_mb}MB",
                 attempted_action=f"{size_mb}MB",
@@ -185,10 +185,10 @@ class AgentSandbox:
             memory_mb: Memory usage in MB
 
         Raises:
-            SandboxViolation: If memory usage exceeds limit
+            SandboxViolationError: If memory usage exceeds limit
         """
         if memory_mb > self.config.max_memory_mb:
-            violation = SandboxViolation(
+            violation = SandboxViolationError(
                 violation_type=SandboxViolationType.MEMORY_LIMIT,
                 message=(
                     f"Memory usage {memory_mb}MB exceeds "
@@ -206,10 +206,10 @@ class AgentSandbox:
             url: URL to access
 
         Raises:
-            SandboxViolation: If network access is not allowed
+            SandboxViolationError: If network access is not allowed
         """
         if not self.config.enable_network:
-            violation = SandboxViolation(
+            violation = SandboxViolationError(
                 violation_type=SandboxViolationType.NETWORK_ACCESS,
                 message="Network access is disabled for this agent",
                 attempted_action=url,
@@ -217,7 +217,7 @@ class AgentSandbox:
             self._violations.append(violation)
             raise violation
 
-    def get_violations(self) -> list[SandboxViolation]:
+    def get_violations(self) -> list[SandboxViolationError]:
         """Get history of sandbox violations.
 
         Returns:

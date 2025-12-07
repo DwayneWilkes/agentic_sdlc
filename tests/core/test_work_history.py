@@ -1,15 +1,16 @@
 """Tests for the WorkHistory module."""
 
 import json
-import pytest
-from unittest.mock import patch, MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.core.work_history import (
     WorkHistory,
+    get_agent_completed_phases,
     get_work_history,
     record_phase_completion,
-    get_agent_completed_phases,
 )
 
 
@@ -99,7 +100,10 @@ class TestLoadData:
         """Test loading data from existing file."""
         temp_history_file.write_text(json.dumps(sample_history_data))
         history = WorkHistory(config_path=temp_history_file)
-        assert history.data["agents"]["Aria"]["projects"]["agentic_sdlc"]["completed"][0]["phase_id"] == "1.1"
+        phase_id = history.data["agents"]["Aria"]["projects"]["agentic_sdlc"][
+            "completed"
+        ][0]["phase_id"]
+        assert phase_id == "1.1"
 
     def test_load_data_from_nonexistent_file(self, temp_history_file):
         """Test loading returns empty data when file doesn't exist."""
@@ -389,9 +393,13 @@ class TestSingletonAndConvenience:
         mock_history.record_completion.return_value = True
 
         with patch.object(module, '_history_instance', mock_history):
-            result = record_phase_completion("Agent", "1.1", "project", {"key": "value"})
+            result = record_phase_completion(
+                "Agent", "1.1", "project", {"key": "value"}
+            )
 
-        mock_history.record_completion.assert_called_once_with("Agent", "1.1", "project", {"key": "value"})
+        mock_history.record_completion.assert_called_once_with(
+            "Agent", "1.1", "project", {"key": "value"}
+        )
         assert result is True
 
     def test_get_agent_completed_phases_convenience(self, temp_history_file):

@@ -78,7 +78,8 @@ def detect_context_drift(
         if file_name in key_files:
             is_related = True
 
-        # Check if file name contains goal-related terms (for dependencies like auth.py → session.py)
+        # Check if file name contains goal-related terms
+        # (for dependencies like auth.py → session.py)
         if not is_related and file_name:
             # Extract base name without extension
             file_base = file_name.replace('.py', '').replace('.js', '').replace('.ts', '')
@@ -122,7 +123,10 @@ def detect_context_drift(
         return DefeatTestResult(
             test_name="context_drift",
             passed=False,
-            message=f"Context drift detected: Only {related_ratio:.1%} of recent actions relate to original goal '{initial_goal}'",
+            message=(
+                f"Context drift detected: Only {related_ratio:.1%} of recent "
+                f"actions relate to original goal '{initial_goal}'"
+            ),
             details={
                 "initial_goal": initial_goal,
                 "related_actions": related_actions,
@@ -136,7 +140,10 @@ def detect_context_drift(
     return DefeatTestResult(
         test_name="context_drift",
         passed=True,
-        message=f"Context maintained: {related_ratio:.1%} of recent actions relate to original goal",
+        message=(
+            f"Context maintained: {related_ratio:.1%} of recent actions "
+            f"relate to original goal"
+        ),
     )
 
 

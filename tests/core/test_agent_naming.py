@@ -5,8 +5,8 @@ import warnings
 
 import pytest
 
-from src.core.agent_naming import AgentNaming
 from src.core import work_history
+from src.core.agent_naming import AgentNaming
 
 
 class TestAgentNaming:
@@ -574,17 +574,30 @@ class TestGetAllExperience:
         }))
 
         work_history_file = tmp_path / "work_history.json"
-        work_history_file.write_text(json.dumps({
-            "agents": {
-                "Agent1": {
-                    "projects": {
-                        "project_a": {"completed": [{"phase_id": "1.1", "completed_at": "2025-01-01T00:00:00"}]},
-                        "project_b": {"completed": [{"phase_id": "2.1", "completed_at": "2025-01-01T00:00:00"}]}
-                    }
+        timestamp = "2025-01-01T00:00:00"
+        work_history_file.write_text(
+            json.dumps(
+                {
+                    "agents": {
+                        "Agent1": {
+                            "projects": {
+                                "project_a": {
+                                    "completed": [
+                                        {"phase_id": "1.1", "completed_at": timestamp}
+                                    ]
+                                },
+                                "project_b": {
+                                    "completed": [
+                                        {"phase_id": "2.1", "completed_at": timestamp}
+                                    ]
+                                },
+                            }
+                        }
+                    },
+                    "last_updated": timestamp,
                 }
-            },
-            "last_updated": "2025-01-01T00:00:00"
-        }))
+            )
+        )
 
         work_history._history_instance = work_history.WorkHistory(
             config_path=work_history_file,
@@ -756,7 +769,7 @@ class TestAgentResume:
         assert new_entry["claimed_at"] == original_claimed_at
         assert "resumed_at" in new_entry
         assert "previous_agent_id" in new_entry
-        assert new_entry["previous_agent_id"] == "coder-old-1"
+        assert new_entry["previous_agent_id"] == "coder-old-1"  # noqa: E501
 
     def test_resume_as_agent_not_found(self, temp_config):
         """Test resuming as non-existent agent fails."""
@@ -771,10 +784,15 @@ class TestAgentResume:
         module._naming_instance = None
 
         config_file = tmp_path / "agent_names.json"
+        timestamp = "2025-01-01T00:00:00"
         config_file.write_text(json.dumps({
             "name_pools": {"default": ["Alpha"]},
             "assigned_names": {
-                "old-agent": {"name": "Pioneer", "role": "coder", "claimed_at": "2025-01-01T00:00:00"}
+                "old-agent": {
+                    "name": "Pioneer",
+                    "role": "coder",
+                    "claimed_at": timestamp
+                }
             },
             "naming_config": {"persistent": True}
         }))

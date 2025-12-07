@@ -9,7 +9,7 @@ import pytest
 from src.security.sandbox import (
     AgentSandbox,
     SandboxConfig,
-    SandboxViolation,
+    SandboxViolationError,
     SandboxViolationType,
 )
 
@@ -45,12 +45,12 @@ class TestSandboxConfig:
         assert config.enable_subprocess is True
 
 
-class TestSandboxViolation:
-    """Test SandboxViolation exception."""
+class TestSandboxViolationError:
+    """Test SandboxViolationError exception."""
 
     def test_violation_creation(self):
         """Test creating a sandbox violation."""
-        violation = SandboxViolation(
+        violation = SandboxViolationError(
             violation_type=SandboxViolationType.FILE_ACCESS,
             message="Attempted to access forbidden path",
             attempted_action="/etc/passwd",
@@ -96,7 +96,7 @@ class TestAgentSandbox:
         config = SandboxConfig(allowed_paths=["/tmp/allowed"])
         sandbox = AgentSandbox(agent_id="test-agent", config=config)
 
-        with pytest.raises(SandboxViolation) as exc_info:
+        with pytest.raises(SandboxViolationError) as exc_info:
             sandbox.validate_file_access("/etc/passwd")
 
         assert exc_info.value.violation_type == SandboxViolationType.FILE_ACCESS
@@ -137,7 +137,7 @@ class TestAgentSandbox:
         )
         sandbox = AgentSandbox(agent_id="test-agent", config=config)
 
-        with pytest.raises(SandboxViolation) as exc_info:
+        with pytest.raises(SandboxViolationError) as exc_info:
             sandbox.validate_command("rm -rf /")
 
         assert exc_info.value.violation_type == SandboxViolationType.COMMAND_EXECUTION
@@ -150,7 +150,7 @@ class TestAgentSandbox:
         )
         sandbox = AgentSandbox(agent_id="test-agent", config=config)
 
-        with pytest.raises(SandboxViolation) as exc_info:
+        with pytest.raises(SandboxViolationError) as exc_info:
             sandbox.validate_command("git status")
 
         assert exc_info.value.violation_type == SandboxViolationType.SUBPROCESS_DENIED
@@ -168,7 +168,7 @@ class TestAgentSandbox:
         config = SandboxConfig(max_file_size_mb=1)
         sandbox = AgentSandbox(agent_id="test-agent", config=config)
 
-        with pytest.raises(SandboxViolation) as exc_info:
+        with pytest.raises(SandboxViolationError) as exc_info:
             sandbox.validate_file_size(2.0)
 
         assert exc_info.value.violation_type == SandboxViolationType.FILE_SIZE_LIMIT
@@ -186,7 +186,7 @@ class TestAgentSandbox:
         config = SandboxConfig(max_memory_mb=512)
         sandbox = AgentSandbox(agent_id="test-agent", config=config)
 
-        with pytest.raises(SandboxViolation) as exc_info:
+        with pytest.raises(SandboxViolationError) as exc_info:
             sandbox.validate_memory_usage(1024)
 
         assert exc_info.value.violation_type == SandboxViolationType.MEMORY_LIMIT
@@ -204,7 +204,7 @@ class TestAgentSandbox:
         config = SandboxConfig(enable_network=False)
         sandbox = AgentSandbox(agent_id="test-agent", config=config)
 
-        with pytest.raises(SandboxViolation) as exc_info:
+        with pytest.raises(SandboxViolationError) as exc_info:
             sandbox.validate_network_access("https://api.example.com")
 
         assert exc_info.value.violation_type == SandboxViolationType.NETWORK_ACCESS
@@ -225,12 +225,12 @@ class TestAgentSandbox:
         # Trigger violations (catch them so test continues)
         try:
             sandbox.validate_file_access("/etc/passwd")
-        except SandboxViolation:
+        except SandboxViolationError:
             pass
 
         try:
             sandbox.validate_file_access("/var/log/syslog")
-        except SandboxViolation:
+        except SandboxViolationError:
             pass
 
         violations = sandbox.get_violations()
@@ -248,7 +248,7 @@ class TestAgentSandbox:
         # Trigger violation in sandbox1
         try:
             sandbox1.validate_file_access("/etc/passwd")
-        except SandboxViolation:
+        except SandboxViolationError:
             pass
 
         # sandbox2 should have no violations
@@ -262,7 +262,7 @@ class TestAgentSandbox:
             sandbox = AgentSandbox(agent_id="test-agent", config=config)
 
             # Try to escape using path traversal
-            with pytest.raises(SandboxViolation):
+            with pytest.raises(SandboxViolationError):
                 sandbox.validate_file_access(f"{tmpdir}/../../../etc/passwd")
 
     def test_symlink_escape_prevention(self):
@@ -276,5 +276,5 @@ class TestAgentSandbox:
             link_path.symlink_to("/etc/passwd")
 
             # Should detect and block access to symlink target
-            with pytest.raises(SandboxViolation):
+            with pytest.raises(SandboxViolationError):
                 sandbox.validate_file_access(str(link_path))

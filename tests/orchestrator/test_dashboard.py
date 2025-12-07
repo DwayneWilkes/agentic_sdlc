@@ -1,14 +1,12 @@
 """Tests for the Agent Dashboard."""
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 
 from src.orchestrator.dashboard import (
-    AgentInfo,
     AgentDashboard,
+    AgentInfo,
 )
-from src.orchestrator.agent_spawner import AgentStatus
 
 
 class TestAgentInfo:

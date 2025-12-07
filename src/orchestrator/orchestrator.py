@@ -163,7 +163,9 @@ class Orchestrator:
         """
         all_streams = parse_roadmap(self.project_root / "plans" / "roadmap.md")
 
-        by_status = {status: [] for status in WorkStreamStatus}
+        by_status: dict[WorkStreamStatus, list[WorkStream]] = {
+            status: [] for status in WorkStreamStatus
+        }
         for ws in all_streams:
             by_status[ws.status].append(ws)
 
@@ -369,7 +371,7 @@ class Orchestrator:
         Returns:
             Dictionary with verification results
         """
-        results = {
+        results: dict[str, Any] = {
             "agent_id": agent.agent_id,
             "work_stream_id": agent.work_stream_id,
             "personal_name": agent.personal_name,

@@ -1196,7 +1196,9 @@ class AgentRunner:
         Returns:
             Dictionary with agent statuses and statistics
         """
-        agents_by_state = {state: [] for state in AgentState}
+        agents_by_state: dict[AgentState, list[dict[str, Any]]] = {
+            state: [] for state in AgentState
+        }
 
         for agent in self.agents.values():
             agents_by_state[agent.state].append({

@@ -7,11 +7,11 @@ The orchestrator is responsible for requirements governance - ensuring the
 implementation meets the design criteria in the 15 capability areas.
 """
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
-import re
 
 
 class ComplianceStatus(Enum):
@@ -63,7 +63,11 @@ class ComplianceReport:
 
     def get_gaps(self) -> list[Requirement]:
         """Get requirements that are not fully met."""
-        return [r for r in self.requirements if r.status in (ComplianceStatus.NO, ComplianceStatus.PARTIAL)]
+        return [
+            r
+            for r in self.requirements
+            if r.status in (ComplianceStatus.NO, ComplianceStatus.PARTIAL)
+        ]
 
     def get_by_section(self, section: str) -> list[Requirement]:
         """Get requirements for a specific section."""
@@ -441,7 +445,7 @@ if __name__ == "__main__":
     report = generate_compliance_report()
     output = save_compliance_report(report)
     print(f"Compliance report saved to: {output}")
-    print(f"\nSummary:")
+    print("\nSummary:")
     print(f"  Total: {report.summary['total']}")
     print(f"  Compliant: {report.summary['yes']}")
     print(f"  Partial: {report.summary['partial']}")

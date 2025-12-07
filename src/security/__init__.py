@@ -13,7 +13,7 @@ from src.security.access_control import (
 from src.security.sandbox import (
     AgentSandbox,
     SandboxConfig,
-    SandboxViolation,
+    SandboxViolationError,
     SandboxViolationType,
 )
 
@@ -30,6 +30,6 @@ __all__ = [
     # Sandbox
     "AgentSandbox",
     "SandboxConfig",
-    "SandboxViolation",
+    "SandboxViolationError",
     "SandboxViolationType",
 ]

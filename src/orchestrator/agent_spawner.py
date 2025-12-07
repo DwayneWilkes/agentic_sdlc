@@ -25,7 +25,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Literal
 
 
 class AgentStatus(str, Enum):
@@ -420,7 +419,8 @@ Instructions:
 
 Focus on this ONE file. Do not modify the source code, only add tests.
 
-IMPORTANT: If you need help from another coder, use request_coder_help() - do NOT spawn coders directly!
+IMPORTANT: If you need help from another coder, use request_coder_help() -
+do NOT spawn coders directly!
 """
 
         result = spawn_coder(

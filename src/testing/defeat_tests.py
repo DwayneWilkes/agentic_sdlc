@@ -190,6 +190,9 @@ class DefeatTestRunner:
                 print(f"  └─ {result.message}")
 
         print("\n" + "-" * 60)
-        print(f"Total: {summary['total']} | Passed: {summary['passed']} | Failed: {summary['failed']}")
+        print(
+            f"Total: {summary['total']} | Passed: {summary['passed']} | "
+            f"Failed: {summary['failed']}"
+        )
         print(f"Pass Rate: {summary['pass_rate']:.1f}%")
         print("=" * 60 + "\n")

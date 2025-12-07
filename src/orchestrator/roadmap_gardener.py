@@ -46,7 +46,7 @@ class RoadmapGardener:
         Returns:
             Dictionary with results of gardening actions
         """
-        results = {
+        results: dict[str, list[str]] = {
             "unblocked": [],
             "still_blocked": [],
             "errors": [],
@@ -147,7 +147,7 @@ class RoadmapGardener:
         clear_roadmap_cache()
         all_streams = parse_roadmap(self.roadmap_path)
 
-        by_status = {}
+        by_status: dict[str, list[str]] = {}
         for ws in all_streams:
             status = ws.status.value
             if status not in by_status:

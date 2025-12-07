@@ -81,7 +81,7 @@ class ToolRegistry:
         project = project_id or self.project_id
 
         # Create tool entry
-        tool_record = {
+        tool_record: dict[str, Any] = {
             "name": tool_name,
             "creator": creator_name,
             "description": description,

@@ -1,15 +1,11 @@
 """Tests for the tool registry system."""
 
-import json
-import pytest
-from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from src.core.tool_registry import (
     ToolRegistry,
-    get_tool_registry,
-    register_tool_contribution,
-    record_tool_use,
 )
 
 
@@ -81,22 +77,23 @@ class TestToolRegistry:
         )
 
         # Initial score is 10 (creation bonus)
-        initial_score = temp_registry.data["agent_contributions"]["ToolMaker"]["tool_developer_score"]
+        contributions = temp_registry.data["agent_contributions"]["ToolMaker"]
+        initial_score = contributions["tool_developer_score"]  # noqa: E501
         assert initial_score == 10
 
         # First user adopts the tool
         temp_registry.record_tool_usage("popular_tool", "User1")
-        score_after_first = temp_registry.data["agent_contributions"]["ToolMaker"]["tool_developer_score"]
+        score_after_first = contributions["tool_developer_score"]  # noqa: E501
         assert score_after_first == 15  # +5 for adoption
 
         # Second user adopts
         temp_registry.record_tool_usage("popular_tool", "User2")
-        score_after_second = temp_registry.data["agent_contributions"]["ToolMaker"]["tool_developer_score"]
+        score_after_second = contributions["tool_developer_score"]  # noqa: E501
         assert score_after_second == 20  # +5 for another adoption
 
         # Same user uses again - no additional adoption bonus
         temp_registry.record_tool_usage("popular_tool", "User1")
-        score_same_user = temp_registry.data["agent_contributions"]["ToolMaker"]["tool_developer_score"]
+        score_same_user = contributions["tool_developer_score"]  # noqa: E501
         assert score_same_user == 20  # No change
 
     def test_get_top_tool_developers(self, temp_registry):
@@ -218,13 +215,20 @@ class TestConvenienceFunctions:
         import src.core.tool_registry as module
         monkeypatch.setattr(module, "_registry_instance", None)
 
-        # Mock the config path
-        config_path = tmp_path / "tool_registry.json"
-
         with patch.object(ToolRegistry, "__init__", lambda self, **kwargs: None):
-            with patch.object(ToolRegistry, "_load_data", return_value={"tools": {}, "agent_contributions": {}, "last_updated": None}):
+            with patch.object(
+                ToolRegistry,
+                "_load_data",
+                return_value={
+                    "tools": {},
+                    "agent_contributions": {},
+                    "last_updated": None,
+                },
+            ):
                 with patch.object(ToolRegistry, "_save_data"):
-                    with patch.object(ToolRegistry, "register_tool") as mock_register:
+                    with patch.object(
+                        ToolRegistry, "register_tool"
+                    ) as mock_register:
                         mock_register.return_value = {"name": "test"}
 
                         # Can't easily test the singleton pattern without more mocking

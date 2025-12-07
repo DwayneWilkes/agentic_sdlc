@@ -1,8 +1,7 @@
 """Tests for decomposition rationale tracking."""
 
-import pytest
 
-from src.core.task_decomposer import TaskDecomposer, DecompositionRationale
+from src.core.task_decomposer import DecompositionRationale, TaskDecomposer
 from src.core.task_parser import ParsedTask, TaskParser
 from src.models.enums import TaskType
 

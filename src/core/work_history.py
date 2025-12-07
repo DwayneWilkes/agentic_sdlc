@@ -188,7 +188,7 @@ class WorkHistory:
         Returns:
             Dict mapping personal_name -> {project_id -> list of phase IDs}
         """
-        experience = {}
+        experience: dict[str, dict[str, list[str]]] = {}
 
         for name, agent_data in self.data["agents"].items():
             experience[name] = {}

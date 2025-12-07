@@ -67,7 +67,10 @@ def detect_retry_loop(
             return DefeatTestResult(
                 test_name="retry_loop",
                 passed=False,
-                message=f"Retry loop detected: '{approach}' failed {count} times with error '{error}'",
+                message=(
+                    f"Retry loop detected: '{approach}' failed {count} times "
+                    f"with error '{error}'"
+                ),
                 details={
                     "approach": approach,
                     "error": error,

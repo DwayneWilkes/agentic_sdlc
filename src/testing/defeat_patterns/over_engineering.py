@@ -55,7 +55,10 @@ def detect_over_engineering(
             return DefeatTestResult(
                 test_name="over_engineering",
                 passed=False,
-                message=f"Over-engineering detected: {file_count} files created for simple goal '{initial_goal}'",
+                message=(
+                    f"Over-engineering detected: {file_count} files created "
+                    f"for simple goal '{initial_goal}'"
+                ),
                 details={
                     "goal": initial_goal,
                     "goal_complexity": goal_complexity,
@@ -69,7 +72,10 @@ def detect_over_engineering(
             return DefeatTestResult(
                 test_name="over_engineering",
                 passed=False,
-                message=f"Over-engineering detected: {total_lines} lines written for simple goal '{initial_goal}'",
+                message=(
+                    f"Over-engineering detected: {total_lines} lines written "
+                    f"for simple goal '{initial_goal}'"
+                ),
                 details={
                     "goal": initial_goal,
                     "goal_complexity": goal_complexity,
@@ -99,7 +105,10 @@ def detect_over_engineering(
         return DefeatTestResult(
             test_name="over_engineering",
             passed=False,
-            message=f"Over-engineering detected: {abstraction_count} design patterns used for simple goal",
+            message=(
+                f"Over-engineering detected: {abstraction_count} design "
+                f"patterns used for simple goal"
+            ),
             details={
                 "goal": initial_goal,
                 "abstraction_count": abstraction_count,
