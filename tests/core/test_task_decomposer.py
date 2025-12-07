@@ -552,3 +552,272 @@ class TestDecompositionResult:
 
         if group_with_3:
             assert "task-4" in group_with_3  # Both should be parallelizable
+
+
+class TestDependencyGraphEdgeCases:
+    """Test edge cases for DependencyGraph."""
+
+    def test_critical_path_empty_graph(self):
+        """Test critical path on empty graph."""
+        graph = DependencyGraph()
+        critical_path = graph.get_critical_path()
+        assert critical_path == []
+
+    def test_get_node_existing(self):
+        """Test getting an existing node."""
+        graph = DependencyGraph()
+        node = SubtaskNode(id="task-1", description="Task 1", parent_id=None, depth=0)
+        graph.add_node(node)
+
+        retrieved = graph.get_node("task-1")
+        assert retrieved is not None
+        assert retrieved.id == "task-1"
+
+    def test_get_node_nonexistent(self):
+        """Test getting a nonexistent node."""
+        graph = DependencyGraph()
+        retrieved = graph.get_node("nonexistent")
+        assert retrieved is None
+
+
+class TestDecompositionResultEdgeCases:
+    """Test edge cases for DecompositionResult."""
+
+    def test_get_parallel_groups_empty(self):
+        """Test get_parallel_groups with empty graph."""
+        parsed_task = ParsedTask(
+            goal="Empty", task_type=TaskType.SOFTWARE, raw_description="Empty"
+        )
+        graph = DependencyGraph()
+        result = DecompositionResult(task=parsed_task, subtasks=[], dependency_graph=graph)
+
+        groups = result.get_parallel_groups()
+        assert groups == []
+
+
+class TestTaskDecomposerTaskTypes:
+    """Test decomposition of different task types."""
+
+    def test_decompose_analysis_task(self):
+        """Test decomposing an analysis task."""
+        decomposer = TaskDecomposer(max_depth=2)
+        parsed_task = ParsedTask(
+            goal="Analyze customer churn patterns",
+            task_type=TaskType.ANALYSIS,
+            raw_description="Analyze customer churn patterns in the data",
+        )
+
+        result = decomposer.decompose(parsed_task)
+
+        assert len(result.subtasks) >= 3
+        subtask_descriptions = " ".join([st.description.lower() for st in result.subtasks])
+        # Should have analysis-related subtasks
+        assert any(
+            keyword in subtask_descriptions
+            for keyword in ["data", "analysis", "interpret", "report", "results"]
+        )
+
+    def test_decompose_creative_task(self):
+        """Test decomposing a creative task."""
+        decomposer = TaskDecomposer(max_depth=2)
+        parsed_task = ParsedTask(
+            goal="Design a new marketing campaign",
+            task_type=TaskType.CREATIVE,
+            raw_description="Design a creative marketing campaign",
+        )
+
+        result = decomposer.decompose(parsed_task)
+
+        assert len(result.subtasks) >= 3
+        subtask_descriptions = " ".join([st.description.lower() for st in result.subtasks])
+        # Should have creative-related subtasks
+        assert any(
+            keyword in subtask_descriptions
+            for keyword in ["brainstorm", "draft", "design", "iterate", "finalize"]
+        )
+
+    def test_decompose_hybrid_task(self):
+        """Test decomposing a hybrid task."""
+        decomposer = TaskDecomposer(max_depth=2)
+        parsed_task = ParsedTask(
+            goal="Research and implement a new feature",
+            task_type=TaskType.HYBRID,
+            raw_description="Research and implement a new feature",
+        )
+
+        result = decomposer.decompose(parsed_task)
+
+        # Hybrid uses generic decomposition
+        assert len(result.subtasks) >= 2
+        assert result.dependency_graph.is_acyclic()
+
+    def test_decompose_hybrid_uses_generic(self):
+        """Test that hybrid task type uses generic decomposition."""
+        decomposer = TaskDecomposer(max_depth=2)
+        parsed_task = ParsedTask(
+            goal="Do something that spans categories",
+            task_type=TaskType.HYBRID,
+            raw_description="Do something hybrid",
+        )
+
+        result = decomposer.decompose(parsed_task)
+
+        # HYBRID uses generic decomposition (prepare/execute/review)
+        assert len(result.subtasks) >= 2
+        subtask_descriptions = " ".join([st.description.lower() for st in result.subtasks])
+        assert any(
+            keyword in subtask_descriptions
+            for keyword in ["prepare", "plan", "execute", "review", "finalize"]
+        )
+
+
+class TestTaskDecomposerSoftwareVariants:
+    """Test various software task decomposition scenarios."""
+
+    def test_decompose_database_task(self):
+        """Test decomposing a database-focused task."""
+        decomposer = TaskDecomposer(max_depth=1)
+        parsed_task = ParsedTask(
+            goal="Create database models for user management",
+            task_type=TaskType.SOFTWARE,
+            raw_description="Create database models for user management",
+        )
+
+        result = decomposer.decompose(parsed_task)
+
+        subtask_descriptions = " ".join([st.description.lower() for st in result.subtasks])
+        assert any(
+            keyword in subtask_descriptions
+            for keyword in ["model", "data", "design"]
+        )
+
+    def test_decompose_task_with_authentication(self):
+        """Test decomposing a task that mentions authentication."""
+        decomposer = TaskDecomposer(max_depth=1)
+        parsed_task = ParsedTask(
+            goal="Build API with JWT authentication",
+            task_type=TaskType.SOFTWARE,
+            success_criteria=["JWT token validation works"],
+            raw_description="Build API with JWT auth",
+        )
+
+        result = decomposer.decompose(parsed_task)
+
+        subtask_descriptions = " ".join([st.description.lower() for st in result.subtasks])
+        assert "auth" in subtask_descriptions or "security" in subtask_descriptions
+
+    def test_decompose_task_with_deployment(self):
+        """Test decomposing a task that mentions deployment."""
+        decomposer = TaskDecomposer(max_depth=1)
+        parsed_task = ParsedTask(
+            goal="Build and deploy the application",
+            task_type=TaskType.SOFTWARE,
+            raw_description="Build and deploy the application",
+        )
+
+        result = decomposer.decompose(parsed_task)
+
+        subtask_descriptions = " ".join([st.description.lower() for st in result.subtasks])
+        assert "deploy" in subtask_descriptions
+
+
+class TestTaskDecomposerDepth:
+    """Test decomposition at various depths."""
+
+    def test_max_depth_zero_returns_empty(self):
+        """Test that max_depth=0 returns no subtasks."""
+        decomposer = TaskDecomposer(max_depth=0)
+        parsed_task = ParsedTask(
+            goal="Build something",
+            task_type=TaskType.SOFTWARE,
+            raw_description="Build something",
+        )
+
+        result = decomposer.decompose(parsed_task)
+
+        # At depth 0, recursive call returns empty
+        # But the initial call still creates subtasks at depth 0
+        # Let me check - the decompose method calls _decompose_recursive with depth=0
+        # and inside, if depth >= max_depth, it returns []
+        # Since max_depth=0 and depth starts at 0, 0 >= 0 is True
+        assert result.subtasks == []
+
+    def test_deeper_decomposition_software(self):
+        """Test that depth > 0 uses generic decomposition."""
+        decomposer = TaskDecomposer(max_depth=2)
+        parsed_task = ParsedTask(
+            goal="Build API",
+            task_type=TaskType.SOFTWARE,
+            raw_description="Build API",
+        )
+
+        # This creates subtasks at depth 0
+        result = decomposer.decompose(parsed_task)
+
+        # At depth > 0, software tasks use generic decomposition
+        # We verify by checking that decomposition happened
+        assert len(result.subtasks) > 0
+
+    def test_research_task_deeper_depth(self):
+        """Test research task decomposition at deeper depth."""
+        decomposer = TaskDecomposer(max_depth=2)
+        parsed_task = ParsedTask(
+            goal="Research AI",
+            task_type=TaskType.RESEARCH,
+            raw_description="Research AI technologies",
+        )
+
+        result = decomposer.decompose(parsed_task)
+
+        # At depth 0, research workflow is used
+        assert len(result.subtasks) >= 3
+
+
+class TestGenericDecomposition:
+    """Test generic task decomposition."""
+
+    def test_generic_decomposition_structure(self):
+        """Test that generic decomposition creates expected structure."""
+        decomposer = TaskDecomposer(max_depth=1)
+        # HYBRID uses generic decomposition
+        parsed_task = ParsedTask(
+            goal="Complete a generic task",
+            task_type=TaskType.HYBRID,
+            raw_description="Do something generic",
+        )
+
+        result = decomposer.decompose(parsed_task)
+
+        # Generic decomposition creates 3 phases
+        assert len(result.subtasks) == 3
+
+        descriptions = [st.description for st in result.subtasks]
+        assert "Prepare and plan" in descriptions
+        assert "Execute main work" in descriptions
+        assert "Review and finalize" in descriptions
+
+    def test_generic_decomposition_dependencies(self):
+        """Test that generic decomposition has correct dependencies."""
+        decomposer = TaskDecomposer(max_depth=1)
+        # HYBRID uses generic decomposition
+        parsed_task = ParsedTask(
+            goal="Complete a task",
+            task_type=TaskType.HYBRID,
+            raw_description="Do something",
+        )
+
+        result = decomposer.decompose(parsed_task)
+
+        # Find the execute task - it should depend on prepare
+        execute_task = next(
+            (st for st in result.subtasks if "Execute" in st.description), None
+        )
+        prepare_task = next(
+            (st for st in result.subtasks if "Prepare" in st.description), None
+        )
+
+        assert execute_task is not None
+        assert prepare_task is not None
+
+        # Execute should depend on prepare
+        assert result.dependency_graph.has_dependency(execute_task.id, prepare_task.id)

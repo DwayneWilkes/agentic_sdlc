@@ -362,6 +362,309 @@ class TestAgentExperienceTracking:
         assert phases_a_fresh == ["1.1", "1.2"]
 
 
+class TestClaimNameFromPool:
+    """Tests for claim_name_from_pool (legacy function)."""
+
+    @pytest.fixture
+    def temp_config(self, tmp_path):
+        """Create a temporary agent_names.json config."""
+        config_file = tmp_path / "agent_names.json"
+        config_file.write_text(json.dumps({
+            "name_pools": {
+                "coder": ["Ada", "Alan", "Grace"],
+                "default": ["Alpha", "Beta", "Gamma"]
+            },
+            "assigned_names": {},
+            "naming_config": {
+                "format": "{name}-{role_suffix}",
+                "allow_duplicates": False,
+                "add_numeric_suffix_on_conflict": True,
+                "persistent": True
+            }
+        }))
+        return config_file
+
+    def test_claim_from_pool_new_agent(self, temp_config):
+        """Test claiming name from pool for new agent."""
+        naming = AgentNaming(temp_config)
+        name = naming.claim_name_from_pool("agent-1", "coder")
+        assert name in ["Ada", "Alan", "Grace"]
+
+    def test_claim_from_pool_preferred_name(self, temp_config):
+        """Test claiming with preferred name."""
+        naming = AgentNaming(temp_config)
+        name = naming.claim_name_from_pool("agent-1", "coder", preferred_name="Ada")
+        assert name == "Ada"
+
+    def test_claim_from_pool_preferred_taken(self, temp_config):
+        """Test claiming with taken preferred name adds suffix."""
+        naming = AgentNaming(temp_config)
+        naming.claim_name_from_pool("agent-1", "coder", preferred_name="Ada")
+        name = naming.claim_name_from_pool("agent-2", "coder", preferred_name="Ada")
+        assert name == "Ada-2"
+
+    def test_claim_from_pool_existing_agent(self, temp_config):
+        """Test claiming returns existing name for same agent."""
+        naming = AgentNaming(temp_config)
+        name1 = naming.claim_name_from_pool("agent-1", "coder", preferred_name="Ada")
+        name2 = naming.claim_name_from_pool("agent-1", "coder", preferred_name="Grace")
+        assert name1 == name2 == "Ada"
+
+    def test_claim_from_pool_all_taken(self, tmp_path):
+        """Test claiming when all pool names are taken."""
+        config_file = tmp_path / "agent_names.json"
+        config_file.write_text(json.dumps({
+            "name_pools": {
+                "default": ["Alpha"]
+            },
+            "assigned_names": {
+                "agent-1": {"name": "Alpha", "role": "default", "claimed_at": "2025-01-01T00:00:00"}
+            },
+            "naming_config": {
+                "add_numeric_suffix_on_conflict": True,
+                "persistent": True
+            }
+        }))
+        naming = AgentNaming(config_file)
+        name = naming.claim_name_from_pool("agent-2", "default")
+        assert name == "Alpha-2"
+
+    def test_claim_from_pool_no_suffix(self, tmp_path):
+        """Test claiming without suffix option."""
+        config_file = tmp_path / "agent_names.json"
+        config_file.write_text(json.dumps({
+            "name_pools": {
+                "default": ["Alpha", "Beta"]
+            },
+            "assigned_names": {
+                "agent-1": {"name": "Alpha", "role": "default", "claimed_at": "2025-01-01T00:00:00"}
+            },
+            "naming_config": {
+                "add_numeric_suffix_on_conflict": False,
+                "persistent": True
+            }
+        }))
+        naming = AgentNaming(config_file)
+        name = naming.claim_name_from_pool("agent-2", "default", preferred_name="Alpha")
+        # Should pick from available pool names instead
+        assert name == "Beta"
+
+
+class TestReleaseNameAndAvailability:
+    """Tests for release_name and get_available_names."""
+
+    @pytest.fixture
+    def temp_config(self, tmp_path):
+        """Create a temporary agent_names.json config."""
+        config_file = tmp_path / "agent_names.json"
+        config_file.write_text(json.dumps({
+            "name_pools": {
+                "coder": ["Ada", "Alan", "Grace"],
+                "default": ["Alpha", "Beta", "Gamma"]
+            },
+            "assigned_names": {
+                "agent-1": {"name": "Ada", "role": "coder", "claimed_at": "2025-01-01T00:00:00"},
+                "agent-2": {"name": "Alan", "role": "coder", "claimed_at": "2025-01-01T00:00:00"}
+            },
+            "naming_config": {
+                "persistent": True
+            }
+        }))
+        return config_file
+
+    def test_release_name_success(self, temp_config):
+        """Test successfully releasing a name."""
+        naming = AgentNaming(temp_config)
+        result = naming.release_name("agent-1")
+        assert result is True
+        assert naming.get_name("agent-1") is None
+        assert naming.is_name_available("Ada") is True
+
+    def test_release_name_nonexistent(self, temp_config):
+        """Test releasing name for nonexistent agent."""
+        naming = AgentNaming(temp_config)
+        result = naming.release_name("nonexistent")
+        assert result is False
+
+    def test_get_available_names(self, temp_config):
+        """Test getting available names for a role."""
+        naming = AgentNaming(temp_config)
+        available = naming.get_available_names("coder")
+        assert "Grace" in available
+        assert "Ada" not in available
+        assert "Alan" not in available
+
+    def test_get_available_names_default_role(self, temp_config):
+        """Test getting available names for default role."""
+        naming = AgentNaming(temp_config)
+        available = naming.get_available_names("default")
+        assert set(available) == {"Alpha", "Beta", "Gamma"}
+
+    def test_get_available_names_unknown_role(self, temp_config):
+        """Test getting available names for unknown role falls back to default."""
+        naming = AgentNaming(temp_config)
+        available = naming.get_available_names("unknown_role")
+        assert set(available) == {"Alpha", "Beta", "Gamma"}
+
+
+class TestMakeUnique:
+    """Tests for _make_unique helper."""
+
+    @pytest.fixture
+    def temp_config(self, tmp_path):
+        """Create a minimal config."""
+        config_file = tmp_path / "agent_names.json"
+        config_file.write_text(json.dumps({
+            "name_pools": {"default": ["Alpha"]},
+            "assigned_names": {},
+            "naming_config": {"persistent": True}
+        }))
+        return config_file
+
+    def test_make_unique_name_available(self, temp_config):
+        """Test _make_unique returns name if available."""
+        naming = AgentNaming(temp_config)
+        result = naming._make_unique("Alpha", set())
+        assert result == "Alpha"
+
+    def test_make_unique_adds_suffix(self, temp_config):
+        """Test _make_unique adds suffix when name taken."""
+        naming = AgentNaming(temp_config)
+        result = naming._make_unique("Alpha", {"Alpha"})
+        assert result == "Alpha-2"
+
+    def test_make_unique_increments_suffix(self, temp_config):
+        """Test _make_unique increments suffix for multiple conflicts."""
+        naming = AgentNaming(temp_config)
+        assigned = {"Alpha", "Alpha-2", "Alpha-3"}
+        result = naming._make_unique("Alpha", assigned)
+        assert result == "Alpha-4"
+
+
+class TestConfigPathAndErrors:
+    """Tests for config path handling and error cases."""
+
+    def test_default_config_path(self):
+        """Test default config path resolves correctly."""
+        naming = AgentNaming()
+        assert naming.config_path.name == "agent_names.json"
+        assert "config" in str(naming.config_path)
+
+    def test_config_file_not_found(self, tmp_path):
+        """Test FileNotFoundError when config doesn't exist."""
+        config_file = tmp_path / "nonexistent.json"
+        with pytest.raises(FileNotFoundError) as exc_info:
+            AgentNaming(config_file)
+        assert "Agent naming config not found" in str(exc_info.value)
+
+
+class TestGetAllExperience:
+    """Tests for get_all_experience deprecated method."""
+
+    @pytest.fixture
+    def naming_with_experience(self, tmp_path):
+        """Create naming with work history."""
+        work_history._history_instance = None
+
+        config_file = tmp_path / "agent_names.json"
+        config_file.write_text(json.dumps({
+            "name_pools": {"default": ["Alpha"]},
+            "assigned_names": {},
+            "naming_config": {"persistent": True}
+        }))
+
+        work_history_file = tmp_path / "work_history.json"
+        work_history_file.write_text(json.dumps({
+            "agents": {
+                "Agent1": {
+                    "projects": {
+                        "project_a": {"completed": [{"phase_id": "1.1", "completed_at": "2025-01-01T00:00:00"}]},
+                        "project_b": {"completed": [{"phase_id": "2.1", "completed_at": "2025-01-01T00:00:00"}]}
+                    }
+                }
+            },
+            "last_updated": "2025-01-01T00:00:00"
+        }))
+
+        work_history._history_instance = work_history.WorkHistory(
+            config_path=work_history_file,
+            project_id="test"
+        )
+
+        return AgentNaming(config_file)
+
+    def test_get_all_experience(self, naming_with_experience):
+        """Test get_all_experience deprecated method."""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = naming_with_experience.get_all_experience()
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+        assert "Agent1" in result
+        assert "project_a" in result["Agent1"]
+        assert "project_b" in result["Agent1"]
+
+
+class TestConvenienceFunctions:
+    """Tests for module-level convenience functions."""
+
+    @pytest.fixture
+    def reset_singleton(self, tmp_path):
+        """Reset the singleton and provide test config."""
+        import src.core.agent_naming as module
+        module._naming_instance = None
+
+        config_file = tmp_path / "agent_names.json"
+        config_file.write_text(json.dumps({
+            "name_pools": {"default": ["Alpha", "Beta"]},
+            "assigned_names": {
+                "agent-1": {"name": "Taken", "role": "default", "claimed_at": "2025-01-01T00:00:00"}
+            },
+            "naming_config": {"persistent": True}
+        }))
+
+        # Set default path to test file
+        original_init = AgentNaming.__init__
+
+        def patched_init(self, config_path=None, project_id=None):
+            original_init(self, config_path or config_file, project_id)
+
+        module.AgentNaming.__init__ = patched_init
+        yield
+        module.AgentNaming.__init__ = original_init
+        module._naming_instance = None
+
+    def test_get_naming_singleton(self, reset_singleton):
+        """Test get_naming returns singleton."""
+        import src.core.agent_naming as module
+
+        naming1 = module.get_naming()
+        naming2 = module.get_naming()
+        assert naming1 is naming2
+
+    def test_claim_agent_name_convenience(self, reset_singleton):
+        """Test claim_agent_name convenience function."""
+        import src.core.agent_naming as module
+
+        success, result = module.claim_agent_name("agent-new", "NewName", "default")
+        assert success is True
+        assert result == "NewName"
+
+    def test_is_name_available_convenience(self, reset_singleton):
+        """Test is_name_available convenience function."""
+        import src.core.agent_naming as module
+
+        assert module.is_name_available("NewName") is True
+        assert module.is_name_available("Taken") is False
+
+    def test_get_taken_names_convenience(self, reset_singleton):
+        """Test get_taken_names convenience function."""
+        import src.core.agent_naming as module
+
+        taken = module.get_taken_names()
+        assert "Taken" in taken
+
+
 class TestAgentReuseScoring:
     """Tests for agent reuse based on experience."""
 
