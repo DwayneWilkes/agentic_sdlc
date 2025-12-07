@@ -75,6 +75,20 @@ ruff check src/ tests/ 2>&1 | tail -3
 mypy src/ 2>&1 | tail -3
 \`\`\`
 
+## STEP 2.5: Dead Code Analysis (if requested or periodic)
+
+If DEAD_CODE_ANALYSIS=true is set, or this is a periodic review, run:
+\`\`\`bash
+./scripts/dead_code_analysis.sh
+\`\`\`
+
+Check docs/dead-code-report.md and summarize:
+- High-confidence dead code (should be removed)
+- Unused infrastructure (may be future use - document it)
+- Unused imports (can auto-fix with --fix)
+
+Add a Dead Code section to the report if issues found.
+
 ## STEP 3: Create Executive Summary Report
 
 Write docs/qa-audit.md with this EXACT format (the human reads this instead of logs):
