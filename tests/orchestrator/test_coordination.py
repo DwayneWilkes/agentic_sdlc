@@ -21,6 +21,8 @@ class TestWorkStreamCoordinator:
     def setup_method(self):
         """Create a fresh coordinator for each test."""
         self.coordinator = WorkStreamCoordinator()
+        # Clear any claims from previous tests (same PID, so stale cleanup won't help)
+        self.coordinator.clear_all_claims()
 
     def test_claim_work_stream_success(self):
         """Test successfully claiming a work stream."""
@@ -151,6 +153,8 @@ class TestWorkStreamCoordinatorNATS:
     def setup_method(self):
         """Create a fresh coordinator for each test."""
         self.coordinator = WorkStreamCoordinator()
+        # Clear any claims from previous tests
+        self.coordinator.clear_all_claims()
 
     @patch('src.orchestrator.agent_runner.get_message_bus')
     def test_broadcast_status(self, mock_get_bus):

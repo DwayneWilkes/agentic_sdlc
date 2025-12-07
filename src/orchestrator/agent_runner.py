@@ -198,6 +198,19 @@ class WorkStreamCoordinator:
         except OSError:
             pass  # File doesn't exist or can't be locked
 
+    def clear_all_claims(self) -> None:
+        """Clear all claims (for testing purposes)."""
+        with self._lock:
+            self._claimed.clear()
+            if self._claims_file.exists():
+                try:
+                    with open(self._claims_file, "w") as f:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                        json.dump({}, f)
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                except OSError:
+                    pass
+
     async def _get_bus(self) -> NATSMessageBus:
         """Get or create NATS connection."""
         if self._nats_bus is None:
