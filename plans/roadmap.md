@@ -1843,16 +1843,16 @@
 
 ### Phase 10.3: Attention Schema (AST-1)
 
-- **Status:** 🟢 Ready
+- **Status:** ✅ Complete
 - **Depends On:** Phase 6.1 ✅
 - **Tasks:**
-  - [ ] Model current attention state (what am I focusing on?)
-  - [ ] Track attention history within task (where has focus been?)
-  - [ ] Detect attention drift (started on X, now on tangent Y)
-  - [ ] Implement deliberate attention redirection
-  - [ ] Add "attention budget" per subtask
-  - [ ] Create attention priority signals (what SHOULD I focus on?)
-  - [ ] Implement attention persistence (don't lose important threads)
+  - [x] Model current attention state (what am I focusing on?)
+  - [x] Track attention history within task (where has focus been?)
+  - [x] Detect attention drift (started on X, now on tangent Y)
+  - [x] Implement deliberate attention redirection
+  - [x] Add "attention budget" per subtask
+  - [x] Create attention priority signals (what SHOULD I focus on?)
+  - [x] Implement attention persistence (don't lose important threads)
 - **Effort:** M
 - **Done When:** Agents can model, monitor, and control their attention state
 - **Design Notes:**
