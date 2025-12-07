@@ -428,6 +428,11 @@ class AgentRunner:
         best_score = 0
 
         for name, info in available.items():
+            # Only consider coders for coding tasks
+            role = info.get("role", "coder")
+            if role not in ("coder",):
+                continue
+
             score = 0
 
             # Prefer agents who completed phases in same batch
@@ -882,6 +887,14 @@ class AgentRunner:
     def get_active_agents(self) -> list[AgentProcess]:
         """Get all agents that are pending or running (not finished)."""
         return [a for a in self.agents.values() if not a.is_finished]
+
+    def get_claimed_streams(self) -> dict[str, str]:
+        """Get all currently claimed work streams.
+
+        Returns:
+            Dict mapping work_stream_id to agent_id that claimed it
+        """
+        return self._coordinator.get_claimed_streams()
 
     def wait_for_all(self, timeout: int | None = None) -> bool:
         """

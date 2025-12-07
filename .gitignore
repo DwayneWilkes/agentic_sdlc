@@ -88,3 +88,9 @@ experiments/
 
 # Claude Code local settings
 .claude/settings.local.json
+config/agent_status.json
+config/agent_names.json
+config/metrics.json
+config/.running_agents.json
+config/.work_claims.json
+agent-logs/

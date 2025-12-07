@@ -144,8 +144,15 @@ class Orchestrator:
         )
 
     def get_available_work(self) -> list[WorkStream]:
-        """Get available work streams from the roadmap, prioritized (bootstrap first)."""
-        return get_prioritized_work_streams(self.project_root / "plans" / "roadmap.md")
+        """Get available work streams from the roadmap, prioritized (bootstrap first).
+
+        Excludes work streams that are already claimed by running agents.
+        """
+        all_available = get_prioritized_work_streams(self.project_root / "plans" / "roadmap.md")
+
+        # Filter out already-claimed work streams
+        claimed = self.runner.get_claimed_streams()
+        return [ws for ws in all_available if ws.id not in claimed]
 
     def get_roadmap_status(self) -> dict:
         """
