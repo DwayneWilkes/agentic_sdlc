@@ -1,28 +1,30 @@
 #!/bin/bash
 set -euo pipefail
 
-# Coder Agent - 6-Phase TDD Workflow
-# This script launches Claude Code to autonomously complete the next task
-# from the roadmap using test-driven development.
+# Coder Agent - Flexible TDD Workflow
+# This script launches Claude Code to autonomously complete tasks using TDD.
+# Can work from the roadmap OR accept ad-hoc tasks.
 #
 # Usage:
-#   ./scripts/coder_agent.sh                    # Work on orchestrator itself
+#   ./scripts/coder_agent.sh                    # Work on next roadmap item
+#   TASK="raise test coverage to 80%" ./scripts/coder_agent.sh  # Ad-hoc task
 #   TARGET_PATH=/path/to/repo ./scripts/coder_agent.sh  # Work on external repo
 #
 # Environment Variables:
+#   TASK                 - Ad-hoc task description (optional, overrides roadmap)
 #   TARGET_PATH          - Path to target repository (default: orchestrator)
 #   TARGET_NAME          - Name for logging (default: directory name)
 #   TARGET_ROADMAP       - Roadmap file path (default: plans/roadmap.md)
 #   TARGET_CODER_AGENT   - Coder workflow file (default: .claude/agents/coder_agent.md)
 #   TARGET_IDENTITY_CONTEXT - Identity file to inject (optional)
 #
-# The 6 Phases:
+# Workflow Phases:
 #   0. Identity     - Claim personal name, load memory
-#   1. Claim        - Find and claim unclaimed work stream
+#   1. Claim/Task   - Find roadmap work OR use TASK if provided
 #   2. Analyze      - Understand requirements, plan implementation
 #   3. TDD          - Write tests first, then implementation
 #   4. Validate     - Run all quality gates
-#   5. Document     - Update roadmap, write devlog
+#   5. Document     - Update roadmap/devlog
 #   6. Commit       - Stage specific files, commit with message
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -64,6 +66,41 @@ log_to_file ""
 
 # Generate agent ID
 AGENT_ID="coder-$(date +%s)"
+
+# Check for ad-hoc task vs roadmap mode
+ADHOC_TASK="${TASK:-}"
+if [[ -n "$ADHOC_TASK" ]]; then
+    log_info "Ad-hoc task mode: $ADHOC_TASK"
+    log_to_file "Mode: Ad-hoc task"
+    log_to_file "Task: $ADHOC_TASK"
+else
+    log_info "Roadmap mode: claiming next available work stream"
+    log_to_file "Mode: Roadmap work stream"
+fi
+
+# Build the phase 1 instructions based on mode
+if [[ -n "$ADHOC_TASK" ]]; then
+    PHASE1_INSTRUCTIONS=">>> PHASE 1: TASK ASSIGNMENT
+You have been assigned an ad-hoc task:
+
+**TASK:** $ADHOC_TASK
+
+This is NOT from the roadmap - it's a direct request.
+
+1. Understand the task requirements
+2. Identify what files need to be created/modified
+3. Print: '>>> PHASE 1: Task Assignment - Complete (task: $ADHOC_TASK)'"
+else
+    PHASE1_INSTRUCTIONS=">>> PHASE 1: CLAIM WORK STREAM
+1. Read plans/roadmap.md to understand the project
+2. Find the next unclaimed work stream:
+   - Look for Status: ⚪ Not Started
+   - OR Status: 🔄 In Progress with Assigned To: -
+3. Claim by editing roadmap.md:
+   - Set Status to: 🔄 In Progress
+   - Set Assigned To: {your_personal_name}
+4. Print: '>>> PHASE 1: Claim Work Stream - Complete (claimed {phase_id})'"
+fi
 
 # Create the prompt for Claude Code
 PROMPT="You are operating as an autonomous Coder Agent. Follow the workflow defined in .claude/agents/coder_agent.md exactly.
@@ -119,15 +156,7 @@ Throughout your work, use your memory:
 
 You MUST complete ALL 6 phases in order. Print phase markers as you go.
 
->>> PHASE 1: CLAIM WORK STREAM
-1. Read plans/roadmap.md to understand the project
-2. Find the next unclaimed work stream:
-   - Look for Status: ⚪ Not Started
-   - OR Status: 🔄 In Progress with Assigned To: -
-3. Claim by editing roadmap.md:
-   - Set Status to: 🔄 In Progress
-   - Set Assigned To: {your_personal_name}
-4. Print: '>>> PHASE 1: Claim Work Stream - Complete (claimed {phase_id})'
+$PHASE1_INSTRUCTIONS
 
 >>> PHASE 2: ANALYSIS & PLANNING
 1. Read the work stream requirements carefully
@@ -207,7 +236,7 @@ CRITICAL REQUIREMENTS:
 - Only stage files you worked on (src/*, tests/*, plans/roadmap.md, docs/devlog.md)
 - Write a descriptive commit message following the format in .claude/agents/coder_agent.md
 
-If there are no unclaimed work streams, respond with: \"No work streams available to claim.\"
+If you're in roadmap mode and there are no unclaimed work streams, respond with: \"No work streams available to claim.\"
 
 Begin now."
 

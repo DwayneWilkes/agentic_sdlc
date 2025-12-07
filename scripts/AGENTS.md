@@ -45,14 +45,20 @@ Signal handling:
 
 ### coder_agent.sh
 
-Standalone coder agent with 6-phase TDD workflow:
+Flexible coder agent with 6-phase TDD workflow. Can work from roadmap OR accept ad-hoc tasks:
 
 ```bash
-# Run directly (without orchestration overhead)
+# Work on next roadmap item
 ./scripts/coder_agent.sh
+
+# Ad-hoc task (overrides roadmap)
+TASK="raise test coverage to 80%" ./scripts/coder_agent.sh
 
 # On external repository
 TARGET_PATH=/path/to/repo ./scripts/coder_agent.sh
+
+# Ad-hoc task on external repo
+TASK="fix the login bug" TARGET_PATH=/path/to/repo ./scripts/coder_agent.sh
 ```
 
 **The 6 Phases:**
@@ -60,7 +66,7 @@ TARGET_PATH=/path/to/repo ./scripts/coder_agent.sh
 | Phase | Name       | Description                               |
 | ----- | ---------- | ----------------------------------------- |
 | 0     | Identity   | Claim personal name, load memory          |
-| 1     | Claim      | Find and claim unclaimed work stream      |
+| 1     | Claim/Task | Claim roadmap work OR use TASK if set     |
 | 2     | Analyze    | Understand requirements, plan             |
 | 3     | TDD        | Write tests first, then implementation    |
 | 4     | Validate   | Run all quality gates                     |
@@ -138,6 +144,7 @@ fi
 
 | Variable                  | Purpose                    | Default                        |
 | ------------------------- | -------------------------- | ------------------------------ |
+| `TASK`                    | Ad-hoc task for coder      | None (use roadmap)             |
 | `TARGET_PATH`             | Path to target repository  | Current directory              |
 | `TARGET_NAME`             | Name for logging           | Directory name                 |
 | `TARGET_ROADMAP`          | Roadmap file path          | plans/roadmap.md               |
