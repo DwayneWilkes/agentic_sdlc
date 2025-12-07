@@ -359,6 +359,7 @@ class AgentRunner:
 
         self.script_path = project_root / "scripts" / "autonomous_agent.sh"
         self.log_dir = project_root / "agent-logs"
+        self._pid_file = project_root / "config" / ".running_agents.json"
 
         self.agents: dict[str, AgentProcess] = {}
         self._lock = threading.Lock()
@@ -370,9 +371,89 @@ class AgentRunner:
         # Load agent experience from persistent storage
         self._agent_experience = self._work_history.get_agent_experience()
 
+        # Reconnect to any orphaned agents from previous runs
+        self._reconnect_orphaned_agents()
+
     def add_callback(self, callback: Callable[[AgentProcess], None]) -> None:
         """Add a callback to be called when agent state changes."""
         self._callbacks.append(callback)
+
+    def _save_running_agents(self) -> None:
+        """Persist running agent PIDs to file for crash recovery."""
+        import json
+        import os
+
+        running = {}
+        with self._lock:
+            for agent_id, agent in self.agents.items():
+                if agent.process and agent.is_running:
+                    running[agent_id] = {
+                        "pid": agent.process.pid,
+                        "work_stream_id": agent.work_stream_id,
+                        "personal_name": agent.personal_name,
+                        "started_at": agent.started_at.isoformat() if agent.started_at else None,
+                    }
+
+        self._pid_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self._pid_file, "w") as f:
+            json.dump(running, f, indent=2)
+
+    def _reconnect_orphaned_agents(self) -> None:
+        """Reconnect to agents from previous runs that are still running."""
+        import json
+        import os
+
+        if not self._pid_file.exists():
+            return
+
+        try:
+            with open(self._pid_file) as f:
+                saved = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return
+
+        reconnected = 0
+        for agent_id, info in saved.items():
+            pid = info.get("pid")
+            if not pid:
+                continue
+
+            # Check if process is still running
+            try:
+                os.kill(pid, 0)  # Signal 0 checks if process exists
+            except OSError:
+                continue  # Process not running
+
+            # Reconnect - create AgentProcess without subprocess reference
+            # (we can still send signals via PID)
+            agent = AgentProcess(
+                agent_id=agent_id,
+                work_stream_id=info.get("work_stream_id", "unknown"),
+                state=AgentState.RUNNING,
+                personal_name=info.get("personal_name"),
+            )
+            if info.get("started_at"):
+                try:
+                    agent.started_at = datetime.fromisoformat(info["started_at"])
+                except ValueError:
+                    pass
+
+            # Store PID for later signal sending
+            agent._orphan_pid = pid
+
+            with self._lock:
+                self.agents[agent_id] = agent
+                # Re-claim work stream
+                self._coordinator.claim_work_stream(
+                    agent.work_stream_id, agent_id
+                )
+            reconnected += 1
+
+        if reconnected:
+            print(f"Reconnected to {reconnected} orphaned agent(s)")
+
+        # Clean up the PID file
+        self._pid_file.unlink(missing_ok=True)
 
     def get_available_agents(self) -> dict[str, dict]:
         """
@@ -561,6 +642,7 @@ class AgentRunner:
             )
 
             agent.process = process
+            self._save_running_agents()  # Persist PID for crash recovery
             self._monitor_agent(agent, process, on_output)
 
         except Exception as e:
@@ -569,6 +651,7 @@ class AgentRunner:
 
         finally:
             agent.completed_at = datetime.now()
+            self._save_running_agents()  # Update PID file on completion
 
             # Broadcast completion/failure via NATS
             status = "completed" if agent.state == AgentState.COMPLETED else "failed"
@@ -785,6 +868,7 @@ class AgentRunner:
             )
 
             agent.process = process
+            self._save_running_agents()  # Persist PID for crash recovery
             self._monitor_agent(agent, process, on_output)
 
         except Exception as e:
@@ -793,6 +877,7 @@ class AgentRunner:
 
         finally:
             agent.completed_at = datetime.now()
+            self._save_running_agents()  # Update PID file on completion
 
             # Broadcast completion/failure via NATS
             status = "completed" if agent.state == AgentState.COMPLETED else "failed"
@@ -834,22 +919,30 @@ class AgentRunner:
         Returns:
             True if agent was killed, False if not found or not running
         """
+        import os
+        import signal
+
         with self._lock:
             agent = self.agents.get(agent_id)
             if not agent or not agent.is_running:
                 return False
 
-            if agent.process:
-                try:
+            try:
+                if agent.process:
                     agent.process.kill()
-                    agent.state = AgentState.KILLED
-                    agent.completed_at = datetime.now()
-                    self._notify_callbacks(agent)
-                    return True
-                except Exception:
+                elif hasattr(agent, "_orphan_pid"):
+                    # Handle orphaned agent (reconnected from previous run)
+                    os.kill(agent._orphan_pid, signal.SIGKILL)
+                else:
                     return False
 
-        return False
+                agent.state = AgentState.KILLED
+                agent.completed_at = datetime.now()
+                self._notify_callbacks(agent)
+                self._save_running_agents()  # Update PID file
+                return True
+            except Exception:
+                return False
 
     def kill_all(self) -> int:
         """
