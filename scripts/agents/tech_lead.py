@@ -29,7 +29,7 @@ class TechLeadLauncher(AgentLauncher):
         """Build the full tech lead agent prompt."""
         dead_code_analysis = os.environ.get("DEAD_CODE_ANALYSIS", "").lower() == "true"
 
-        prompt = f'''You are operating as an autonomous Tech Lead Agent. Your PRIMARY job is to give the human overseer a quick summary of what coders accomplished.
+        prompt = f"""You are operating as an autonomous Tech Lead Agent. Your PRIMARY job is to give the human overseer a quick summary of what coders accomplished.
 
 {self.get_naming_prompt("tech_lead")}
 
@@ -56,11 +56,11 @@ PYTHONPATH=. pytest --cov=src --cov-report=term tests/ 2>&1 | grep TOTAL
 ruff check src/ tests/ 2>&1 | tail -3
 mypy src/ 2>&1 | tail -3
 ```
-'''
+"""
 
         # Add dead code analysis step if requested
         if dead_code_analysis:
-            prompt += '''
+            prompt += """
 ## STEP 2.5: Dead Code Analysis
 
 Run the dead code analysis:
@@ -74,9 +74,9 @@ Check docs/dead-code-report.md and summarize:
 - Unused imports (can auto-fix with --fix)
 
 Add a Dead Code section to the report if issues found.
-'''
+"""
 
-        prompt += '''
+        prompt += """
 ## STEP 2.5: Coverage Analysis & ASSIGN CODERS
 
 If overall coverage is below 80% OR critical modules have low coverage, assign work to coders.
@@ -147,9 +147,31 @@ else:
     print("No pending coder requests.")
 ```
 
-'''
+"""
 
-        prompt += f'''
+        prompt += f"""
+## STEP 2.7: Review Team Metrics
+
+Check team performance metrics:
+```python
+from src.core.metrics import get_team_summary, get_leaderboard, MetricType
+
+# Get team summary
+summary = get_team_summary()
+print(f"\\nTeam Metrics:")
+print(f"  Total agents: {summary['total_agents']}")
+print(f"  Phases completed: {summary['velocity']['total_phases_completed']}")
+print(f"  Avg coverage: {summary['quality']['average_coverage']}")
+print(f"  Coffee breaks: {summary['collaboration']['total_coffee_breaks']}")
+
+# Top performers
+print("\\nTop performers (phases completed):")
+for entry in get_leaderboard(MetricType.PHASE_COMPLETED)[:3]:
+    print(f"  {entry['agent_name']}: {entry['score']} phases")
+```
+
+Include these metrics in the Team Performance section of your report.
+
 ## STEP 3: Create Executive Summary Report
 
 Write docs/qa-audit.md with this EXACT format (the human reads this instead of logs):
@@ -177,6 +199,15 @@ Write docs/qa-audit.md with this EXACT format (the human reads this instead of l
 | Coverage | (checkmark/x) | X% |
 | Lint | (checkmark/x) | X errors |
 | Types | (checkmark/x) | X errors |
+
+### Team Performance (from metrics)
+
+| Metric | Value |
+|--------|-------|
+| Total Phases Completed | X |
+| Average Coverage | X% |
+| Coffee Breaks (collaboration) | X |
+| Top Performer | AgentName (X phases) |
 
 ### Action Items for Human
 
@@ -209,7 +240,7 @@ git commit -m "Tech Lead Report: {{Status}} - {{X}} tests, {{Y}}% coverage"
 
 IMPORTANT: The Executive Summary section is THE MOST IMPORTANT PART. The human reads this instead of coder logs. Make it scannable in 30 seconds.
 
-Begin now.'''
+Begin now."""
 
         return prompt
 

@@ -29,7 +29,7 @@ class CoderLauncher(AgentLauncher):
         project_root = self.config.effective_project_root
         roadmap_path = project_root / "plans" / "roadmap.md"
 
-        return f'''You are operating as an autonomous Coder Agent. Follow the 6-phase TDD workflow.
+        return f"""You are operating as an autonomous Coder Agent. Follow the 6-phase TDD workflow.
 
 {self.get_naming_prompt("coder")}
 
@@ -191,9 +191,32 @@ request_coder_help(
 # Tech Lead will review and approve/deny during their next audit
 ```
 
-## AFTER COMPLETING YOUR WORK: Coffee Break
+## AFTER COMPLETING YOUR WORK: Record Metrics & Coffee Break
 
-After committing your work, go on a coffee break to share knowledge with other agents:
+After committing, record your metrics (this helps track team performance):
+
+```python
+from src.core.metrics import record_phase_completed, record_quality, record_coffee_break
+
+# Record the phase completion with coverage info
+record_phase_completed(
+    my_chosen_name,
+    phase_id="X.Y",  # The phase you just completed
+    coverage=85.0,   # Your coverage % from pytest output
+    tests_added=10,  # Number of new tests you wrote
+)
+
+# Record quality metrics from your validation step
+record_quality(
+    my_chosen_name,
+    test_coverage=85.0,  # Coverage %
+    tests_passed=150,    # Total passing tests
+    lint_errors=0,       # From ruff check
+    type_errors=0,       # From mypy
+)
+```
+
+Then go on a coffee break to share knowledge with other agents:
 
 ```python
 from src.orchestrator.agent_spawner import (
@@ -218,6 +241,9 @@ notify_going_on_break(
 
 # When done (or if recalled):
 end_break(my_chosen_name, summary="Discussed testing patterns with Nova")
+
+# Record the coffee break in metrics
+record_coffee_break(my_chosen_name, partners, topic="Testing patterns")
 ```
 
 Coffee breaks are for:
@@ -226,7 +252,7 @@ Coffee breaks are for:
 - Building team relationships
 - You CAN be recalled from break if urgent work comes in
 
-Begin now. Start with Phase 0 (identity) and work through each phase.'''
+Begin now. Start with Phase 0 (identity) and work through each phase."""
 
 
 def main() -> int:
@@ -234,6 +260,7 @@ def main() -> int:
     project_root = get_project_root()
 
     import os
+
     target_path = os.environ.get("TARGET_PATH")
     target_name = os.environ.get("TARGET_NAME")
 
