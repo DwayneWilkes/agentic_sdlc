@@ -1,3 +1,105 @@
+## 2025-12-07 - Phase 10.3: Attention Schema (AST-1) - Ada
+
+**Status:** Complete
+
+### What was implemented
+
+- **AttentionSchema** (`src/core/attention_schema.py`): Comprehensive attention tracking for agent self-awareness
+  - **AttentionState**: Model primary, secondary, and background focus with duration tracking
+  - **AttentionDriftEvent**: Detect and classify drift events (LOW/MEDIUM/HIGH severity)
+  - **AttentionBudget**: Track time budgets with status (UNDER/ON_TRACK/OVER)
+  - **AttentionPrioritySignal**: Generate signals for budget exceeded, drift detected, time limits
+  - **Thread persistence**: Save pending threads with priority for later attention
+  - **History tracking**: Full attention history with drift events and redirections
+  - **State persistence**: Save/restore attention state for long-running tasks
+  - 28 comprehensive tests with 96% coverage
+
+### Key decisions
+
+- **Thread-safe implementation**: Used `threading.RLock` for concurrent attention updates from multiple agents
+- **Immutable drift events**: Used `frozen=True` dataclasses to prevent accidental modification of historical data
+- **Similarity-based drift detection**: Used Jaccard similarity (intersection/union) to classify drift severity
+  - HIGH: < 10% word overlap (completely different tasks)
+  - MEDIUM: 10-30% overlap (moderately related)
+  - LOW: > 30% overlap (related tasks)
+- **Budget signals**: Generate CRITICAL signals when budget exceeded, HIGH when >80% consumed
+- **Priority ordering**: Signals and threads ordered by priority (CRITICAL > HIGH > MEDIUM > LOW)
+- **Dual thread tracking**: Both `pending_threads` (with priority) and `background_threads` (for state snapshot)
+
+### Tests added
+
+- `tests/core/test_attention_schema.py`: 28 tests
+  - 3 tests for basic attention tracking (set focus, duration, multiple levels)
+  - 4 tests for drift detection (detect, classify LOW/MEDIUM/HIGH, history)
+  - 4 tests for attention budget (create, consume, exceed, on-track)
+  - 3 tests for attention redirection (deliberate, with reason, return to task)
+  - 3 tests for thread persistence (persist, retrieve, priority ordering)
+  - 3 tests for priority signals (time limit, drift, signal ordering)
+  - 3 tests for integration (full workflow, state snapshot, persistence)
+  - 5 tests for edge cases (no focus, zero budget, negative budget, empty task, thread safety)
+
+### Quality metrics
+
+- **Tests**: 1330 total (28 new), all passing
+- **Coverage**: 96% on attention_schema.py (81% overall)
+- **Linting**: Zero errors (ruff)
+- **Type checking**: Zero errors (mypy --strict)
+
+### Integration notes
+
+This completes Phase 10.3 of Batch 10 (Consciousness & Meta-Reasoning). The attention schema enables agents to:
+1. Model what they're currently focusing on
+2. Detect when attention has drifted from the original task
+3. Track time budgets and get alerts when approaching limits
+4. Persist important threads for later attention
+5. Make deliberate attention redirections with documented reasons
+
+This unblocks Phase 10.4 (State-Dependent Querying) which depends on Phase 10.3.
+
+---
+
+## 2025-12-07 - Phase 8.1: Performance Analysis Engine - Ada
+
+**Status:** Complete
+
+### What was implemented
+
+- **PerformanceAnalysisEngine** (`src/self_improvement/performance_analysis.py`): Post-task performance analysis
+  - **DecompositionMetrics**: Analyze task decomposition quality (granularity, depth, parallelism)
+  - **SelectionMetrics**: Analyze agent-task alignment and utilization balance
+  - **CoordinationMetrics**: Analyze handoffs, blockers, and idle time
+  - **ImprovementOpportunity**: Track opportunities with category, impact, evidence
+  - **PerformanceReport**: Complete analysis report with efficiency score
+  - 15 comprehensive tests covering all analysis dimensions
+
+### Key decisions
+
+- **Three analysis dimensions**: Decomposition, Selection, Coordination - mirrors the orchestrator's three core activities
+- **Threshold-based detection**: Use configurable thresholds to identify inefficiencies (e.g., >10 handoffs = excessive)
+- **Impact prioritization**: Label opportunities as low/medium/high to guide Phase 8.2 strategy optimization
+- **Evidence-based recommendations**: Each opportunity includes supporting data and suggested action
+- **Human-readable formatting**: Generate formatted reports for transparency
+- **Direct graph access**: Access DependencyGraph._nodes dict (no public get_all_nodes API)
+
+### Tests added
+
+- `tests/self_improvement/test_performance_analysis.py`: 15 tests
+  - 5 tests for data models (metrics and opportunities)
+  - 3 tests for decomposition analysis (optimal, too granular, deep nesting)
+  - 3 tests for selection analysis (aligned, misaligned, unbalanced)
+  - 2 tests for coordination analysis (efficient, excessive handoffs)
+  - 1 test for opportunity identification
+  - 1 test for report formatting
+
+### Quality gates
+
+- ✅ 15 new tests, all passing (1330 total tests pass)
+- ✅ 98% coverage on performance_analysis.py
+- ✅ 0 linting errors (ruff)
+- ✅ 0 type errors (mypy --strict)
+
+---
+
 ## 2025-12-07 - Phase 7.2: Feedback Integration - Ada
 
 **Status:** Complete
