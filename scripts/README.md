@@ -6,7 +6,7 @@ Automation scripts for the Agentic SDLC orchestrator project.
 
 ### `autonomous_agent.sh`
 
-**Purpose**: Launches Claude Code in headless mode to autonomously complete the next work stream from the roadmap using the TDD agent workflow.
+**Purpose**: Launches the full autonomous development cycle with coder, tech lead, and PM agents.
 
 **Usage**:
 
@@ -16,114 +16,94 @@ Automation scripts for the Agentic SDLC orchestrator project.
 
 **What it does**:
 
-The script runs **three phases** autonomously:
+The script runs **five steps** autonomously:
 
-1. **Phase 1: TDD Workflow Execution**
-   - Reads `plans/roadmap.md` and identifies next unclaimed work stream
-   - Claims work and marks as "In Progress" with agent assignment
-   - Follows all 6 phases from `.claude/agents/coder_agent.md`:
-     - Phase 1: Claim Work Stream
-     - Phase 2: Analysis & Planning
-     - Phase 3: Test-Driven Development (tests first!)
-     - Phase 4: Integration & Validation (quality gates)
-     - Phase 5: Documentation (devlog, roadmap)
-     - Phase 6: Commit (atomic, descriptive)
+1. **Step 1: Coder Agent** (via `scripts.agents.coder`)
+   - Claims work from `plans/roadmap.md`
+   - Follows 6-phase TDD workflow
+   - Implements features with tests first
+   - Commits completed work
 
-2. **Phase 2: Auto-Commit** (if needed)
-   - Checks if working tree is dirty after Phase 1
-   - Spawns another Claude Code instance to review and commit remaining changes
-   - Creates descriptive commit message based on devlog and roadmap
+2. **Step 2: Worktree Verification**
+   - Checks if coder committed all changes
+   - Tech Lead investigates dirty worktree if needed
 
-3. **Phase 3: Roadmap Verification**
-   - Verifies roadmap status is accurately updated
-   - Checks if work stream is marked as "✅ Complete"
-   - Updates roadmap if synchronization is needed
-   - Uses Project Manager agent from `.claude/agents/project_manager.md`
+3. **Step 3: Tech Lead Audit** (via `scripts.agents.tech_lead`)
+   - Runs all quality gates (tests, coverage, lint, types)
+   - Generates executive summary report
+   - Identifies issues and recommendations
+
+4. **Step 4: PM Update** (via `scripts.agents.pm`)
+   - Updates all documentation
+   - Synchronizes roadmap status
+   - Generates project status report
+
+5. **Step 5: Requirements Compliance** (periodic)
+   - Runs on Mondays or when `RUN_REQUIREMENTS_CHECK=true`
+   - Generates compliance report against requirements.md
 
 **Requirements**:
 
 - Claude Code CLI installed (`claude` command available)
-- Clean working tree recommended (but not required)
+- Python virtual environment at `.venv/`
 - Valid roadmap with unclaimed work streams
 
 **Quality Gates Enforced**:
 
-- ✅ All tests pass (`pytest tests/ -v`)
-- ✅ Coverage ≥ 80% (`pytest --cov=src tests/`)
-- ✅ No linting errors (`ruff check src/ tests/`)
-- ✅ No type errors (`mypy src/`)
+- All tests pass (`pytest tests/ -v`)
+- Coverage ≥ 80% (`pytest --cov=src tests/`)
+- No linting errors (`ruff check src/ tests/`)
+- No type errors (`mypy src/`)
 
 **Output**:
 
-- Colored terminal output showing progress for each phase
-- Timestamped log file in `agent-logs/autonomous-agent-YYYYMMDD-HHMMSS.log`
-- Updated `plans/roadmap.md` with completed work (verified in Phase 3)
+- Colored terminal output showing progress
+- Timestamped log file in `agent-logs/{project}/`
+- Updated `plans/roadmap.md` with completed work
 - New entry in `docs/devlog.md`
-- Git commit with implemented feature
-
-**Example Output**:
-
-```text
-[INFO] Starting Autonomous Agent...
-[INFO] Project Root: /home/user/agentic_sdlc
-[INFO] Roadmap: /home/user/agentic_sdlc/plans/roadmap.md
-[INFO] Log File: /home/user/agentic_sdlc/agent-logs/autonomous-agent-20251205-143000.log
-[INFO] Executing TDD workflow...
-[SUCCESS] Claude Code execution completed
-[INFO] Checking git working tree status...
-[SUCCESS] Working tree is clean. No uncommitted changes.
-[INFO] Verifying roadmap synchronization...
-[SUCCESS] Roadmap verification completed
-[SUCCESS] Autonomous agent completed successfully!
-[INFO] Check docs/devlog.md for details on what was implemented.
-[INFO] Full execution log: /home/user/agentic_sdlc/agent-logs/autonomous-agent-20251205-143000.log
-```
+- Reports: `docs/qa-audit.md`, `docs/pm-status.md`
 
 **Exit Codes**:
 
 - `0` - Success (work completed and committed)
-- `1` - Error (missing dependencies, no work available, uncommitted changes, etc.)
+- `1` - Error (missing dependencies, no work available, etc.)
 - Other - Claude Code execution failure
 
-### `tech_lead.sh`
+### Python Agent Modules (`scripts/agents/`)
 
-**Purpose**: Launches Claude Code for coder supervision and quality audits.
-
-**Usage**:
+Agent launchers are now Python modules for better maintainability:
 
 ```bash
-./scripts/tech_lead.sh
-# Or via orchestrator:
-python scripts/orchestrator.py tech-lead
+# Run directly
+PYTHONPATH=. python -m scripts.agents.coder
+PYTHONPATH=. python -m scripts.agents.tech_lead
+PYTHONPATH=. python -m scripts.agents.pm
 ```
 
-**What it does**:
+#### `agents/coder.py`
 
-- Supervises coder agents (investigates failures, calls coder back if needed)
-- Runs all quality gates (pytest, coverage, ruff, mypy)
-- Identifies violations with severity levels (Critical/Major/Minor)
-- Generates `docs/qa-audit.md` with findings and recommendations
-- Commits the audit report
+6-phase TDD workflow. Uses Sonnet model for cost efficiency.
 
-### `pm_agent.sh`
+#### `agents/tech_lead.py`
 
-**Purpose**: Launches Claude Code for project management and roadmap synchronization.
-
-**Usage**:
+Quality audit and coder supervision. Uses Opus model for thorough analysis.
 
 ```bash
-./scripts/pm_agent.sh
-# Or via orchestrator:
-python scripts/orchestrator.py pm
+# With dead code analysis
+DEAD_CODE_ANALYSIS=true PYTHONPATH=. python -m scripts.agents.tech_lead
 ```
 
-**What it does**:
+#### `agents/pm.py`
 
-- Runs roadmap gardening (unblocks phases with satisfied dependencies)
-- Reviews agent status and activity
-- Verifies roadmap accuracy against devlog
-- Generates `docs/pm-status.md` with project health summary
-- Commits the status report
+Project management and documentation updates. Uses Opus model.
+
+#### `agents/base.py`
+
+Base class providing:
+- `AgentLauncher` - Shared execution logic
+- `AgentConfig` - Configuration dataclass
+- Memory system prompts (clean Python, no bash escaping)
+- Claude CLI invocation
 
 ### `orchestrator.py`
 
@@ -159,7 +139,7 @@ python scripts/orchestrator-mcp-server.py
 **Available Tools**:
 
 - `analyze_task(task_description)` - Extract goal, constraints, context, task type
-- `decompose_task(task_description, max_depth)` - Break down into subtasks with dependency graph
+- `decompose_task(task_description, max_depth)` - Break down into subtasks
 - `design_team(task_type, subtasks, constraints)` - Design optimal agent teams
 - `assign_tasks(agents, subtasks, dependencies)` - Assign tasks optimally
 - `track_progress(execution_id)` - Monitor ongoing execution
@@ -173,9 +153,32 @@ python scripts/orchestrator-mcp-server.py
 - `orchestrator://priorities` - Feature prioritization
 - `orchestrator://project-status` - Current project status
 
+### `dead_code_analysis.sh`
+
+**Purpose**: Detect unused code using vulture and ruff.
+
+**Usage**:
+
+```bash
+./scripts/dead_code_analysis.sh         # Generate report
+./scripts/dead_code_analysis.sh --fix   # Auto-fix unused imports
+```
+
+**Output**: `docs/dead-code-report.md`
+
+### `agent-status.sh`
+
+**Purpose**: Quick overview of agent activity and project status.
+
+**Usage**:
+
+```bash
+./scripts/agent-status.sh
+```
+
 ## Running Multiple Autonomous Cycles
 
-To run multiple autonomous agent cycles (for parallel work stream completion):
+To run multiple autonomous agent cycles:
 
 ```bash
 # Run once
@@ -192,91 +195,74 @@ echo "No more work streams available."
 
 ## Monitoring Autonomous Execution
 
-To monitor what the autonomous agent is doing:
-
 ```bash
-# In another terminal, watch the devlog
+# Watch the devlog
 watch -n 2 tail -n 20 docs/devlog.md
 
-# Or watch git commits
+# Watch git commits
 watch -n 2 git log --oneline -5
 
-# Or watch roadmap status
+# Watch roadmap status
 watch -n 2 grep -A 3 "Status:" plans/roadmap.md
+
+# Quick status check
+./scripts/agent-status.sh
 ```
+
+## Environment Variables
+
+| Variable                  | Purpose                    | Default                        |
+| ------------------------- | -------------------------- | ------------------------------ |
+| `TARGET_PATH`             | Path to target repository  | Current directory              |
+| `TARGET_NAME`             | Name for logging           | Directory name                 |
+| `SKIP_PM_VERIFY`          | Skip PM verification step  | false                          |
+| `SKIP_TL_AUDIT`           | Skip Tech Lead audit       | false                          |
+| `RUN_REQUIREMENTS_CHECK`  | Force requirements check   | false (auto on Mondays)        |
+| `DEAD_CODE_ANALYSIS`      | Run dead code analysis     | false                          |
 
 ## Troubleshooting
 
 ### "Claude Code CLI not found"
 
-Install Claude Code CLI:
-
-```bash
-# Follow installation instructions for your platform
-# https://github.com/anthropics/claude-code
-```
+Install Claude Code CLI from https://github.com/anthropics/claude-code
 
 ### "Working tree still dirty after commit attempt"
 
-Manual intervention required. Check what's uncommitted:
+Manual intervention required:
 
 ```bash
 git status
 git diff
 ```
 
-Review the changes and commit manually if needed.
-
 ### "No work streams available to claim"
 
-All work streams are either:
+All work streams are either completed, blocked, or in progress. Run the PM to unblock phases:
 
-- Already completed (✅)
-- Blocked (🔴)
-- In progress by another agent (🔄 with assignment)
-
-Either wait for in-progress work to complete, or unblock blocked work streams.
-
-## Development
-
-### Adding New Scripts
-
-1. Create script in `scripts/` directory
-2. Make executable: `chmod +x scripts/your_script.sh`
-3. Add documentation to this README
-4. Test thoroughly before committing
-
-### Script Conventions
-
-- Use `#!/bin/bash` shebang
-- Include `set -euo pipefail` for safety
-- Add colored output for clarity
-- Include helpful error messages
-- Exit with appropriate exit codes
-- Add usage documentation
+```bash
+PYTHONPATH=. python -m scripts.agents.pm
+```
 
 ## Safety Notes
 
-⚠️ **The autonomous agent uses `--dangerously-skip-permissions-prompt`**
+**The autonomous agent uses `--dangerously-skip-permissions`**
 
 This is necessary for headless operation but means:
 
 - The agent has full file system access
 - No permission prompts will be shown
 - Review code before running in production
-- Consider running in a sandboxed environment for untrusted tasks
 
-✅ **Safety features built-in:**
+**Safety features built-in:**
 
 - Quality gates prevent broken code from being committed
 - TDD workflow ensures tests exist before implementation
-- Atomic commits with only relevant files
 - Clear audit trail via devlog and git history
-- Working tree verification before exit
+- Working tree verification
 
 ## See Also
 
-- [Coder Agent Workflow](../.claude/agents/coder_agent.md) - Complete TDD workflow documentation
-- [Development Log](../docs/devlog.md) - Track completed work
-- [Roadmap](../plans/roadmap.md) - View available work streams
-- [NATS Architecture](../docs/nats-architecture.md) - Inter-agent communication
+- [Coder Agent Workflow](../.claude/agents/coder_agent.md)
+- [Development Log](../docs/devlog.md)
+- [Roadmap](../plans/roadmap.md)
+- [AGENTS.md](./AGENTS.md) - Detailed script documentation

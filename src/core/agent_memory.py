@@ -514,7 +514,7 @@ class AgentMemory:
 
         return prompts
 
-    def format_for_context(self, max_entries: int = 20) -> str:
+    def format_for_context(self, _max_entries: int = 20) -> str:
         """
         Format memories for inclusion in agent context/prompt.
 

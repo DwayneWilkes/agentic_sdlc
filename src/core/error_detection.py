@@ -117,7 +117,7 @@ class FailureDetector:
         import signal
         from types import FrameType
 
-        def timeout_handler(signum: int, frame: FrameType | None) -> None:  # noqa: ARG001
+        def timeout_handler(_signum: int, _frame: FrameType | None) -> None:
             raise TimeoutError(f"Operation exceeded {timeout_seconds}s timeout")
 
         # Set up the timeout signal

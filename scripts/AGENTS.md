@@ -7,9 +7,9 @@ Entry points and utilities for running the orchestrator.
 | Script                       | Purpose                                    | Model   |
 | ---------------------------- | ------------------------------------------ | ------- |
 | `autonomous_agent.sh`        | Orchestrate: coder → Tech Lead → PM verify | -       |
-| `coder_agent.sh`             | Run coder agent with 6-phase TDD           | Sonnet  |
-| `pm_agent.sh`                | Project management & roadmap sync          | Opus    |
-| `tech_lead.sh`               | Coder supervision & quality audits         | Opus    |
+| `agents/coder.py`            | Run coder agent with 6-phase TDD           | Sonnet  |
+| `agents/pm.py`               | Project management & roadmap sync          | Opus    |
+| `agents/tech_lead.py`        | Coder supervision & quality audits         | Opus    |
 | `agent_common.sh`            | Shared utilities (colors, logging, etc.)   | -       |
 | `orchestrator.py`            | Run orchestrator with multiple modes       | -       |
 | `dashboard.py`               | Monitor running agents                     | -       |
@@ -21,9 +21,11 @@ Entry points and utilities for running the orchestrator.
 
 Orchestration wrapper that runs the full development cycle:
 
-1. **Step 1**: Run `coder_agent.sh` (6-phase TDD workflow)
-2. **Step 2**: Handle commit cleanup if working tree is dirty
-3. **Step 3**: Run PM verification for roadmap sync
+1. **Step 1**: Run coder agent (6-phase TDD workflow) via `scripts.agents.coder`
+2. **Step 2**: Verify clean worktree (Tech Lead investigates if dirty)
+3. **Step 3**: Run Tech Lead quality audit via `scripts.agents.tech_lead`
+4. **Step 4**: Run PM documentation update via `scripts.agents.pm`
+5. **Step 5**: Requirements compliance check (periodic)
 
 ```bash
 # Run on the orchestrator's own codebase
@@ -36,6 +38,9 @@ TARGET_NAME=aurora \
 
 # Skip PM verification
 SKIP_PM_VERIFY=true ./scripts/autonomous_agent.sh
+
+# Force requirements check
+RUN_REQUIREMENTS_CHECK=true ./scripts/autonomous_agent.sh
 ```
 
 Signal handling:
@@ -43,22 +48,27 @@ Signal handling:
 - `SIGTERM/SIGINT` - Graceful stop (finish current operation)
 - `SIGUSR1` - Immediate stop
 
-### coder_agent.sh
+### Python Agent Modules (scripts/agents/)
 
-Flexible coder agent with 6-phase TDD workflow. Can work from roadmap OR accept ad-hoc tasks:
+Agent launchers are Python modules for better maintainability:
+
+```bash
+# Run agents directly (or via autonomous_agent.sh)
+PYTHONPATH=. python -m scripts.agents.coder
+PYTHONPATH=. python -m scripts.agents.tech_lead
+PYTHONPATH=. python -m scripts.agents.pm
+```
+
+#### agents/coder.py
+
+6-phase TDD workflow for implementing roadmap items:
 
 ```bash
 # Work on next roadmap item
-./scripts/coder_agent.sh
-
-# Ad-hoc task (overrides roadmap)
-TASK="raise test coverage to 80%" ./scripts/coder_agent.sh
+PYTHONPATH=. python -m scripts.agents.coder
 
 # On external repository
-TARGET_PATH=/path/to/repo ./scripts/coder_agent.sh
-
-# Ad-hoc task on external repo
-TASK="fix the login bug" TARGET_PATH=/path/to/repo ./scripts/coder_agent.sh
+TARGET_PATH=/path/to/repo PYTHONPATH=. python -m scripts.agents.coder
 ```
 
 **The 6 Phases:**
@@ -73,12 +83,12 @@ TASK="fix the login bug" TARGET_PATH=/path/to/repo ./scripts/coder_agent.sh
 | 5     | Document   | Update roadmap, write devlog              |
 | 6     | Commit     | Stage specific files, commit with message |
 
-### pm_agent.sh
+#### agents/pm.py
 
 Project management agent for roadmap maintenance:
 
 ```bash
-./scripts/pm_agent.sh
+PYTHONPATH=. python -m scripts.agents.pm
 ```
 
 Tasks:
@@ -87,29 +97,41 @@ Tasks:
 - Review agent status
 - Verify roadmap synchronization
 - Generate status report
-- Update documentation
+- Update all AGENTS.md documentation files
 
-### tech_lead.sh
+#### agents/tech_lead.py
 
 Tech Lead agent for coder supervision and quality assurance:
 
 ```bash
-./scripts/tech_lead.sh
+PYTHONPATH=. python -m scripts.agents.tech_lead
+
+# With dead code analysis
+DEAD_CODE_ANALYSIS=true PYTHONPATH=. python -m scripts.agents.tech_lead
 ```
 
 Tasks:
 
 - Supervise coder agents (investigate failures, call back to fix)
 - Run all quality gates (tests, coverage, lint, types)
-- Generate audit report
+- Generate audit report (docs/qa-audit.md)
 - Identify violations and remediation
+
+#### agents/base.py
+
+Base class for all agent launchers providing:
+
+- `AgentLauncher` - Base class with logging, prompt building, execution
+- `AgentConfig` - Configuration dataclass
+- Memory system prompts (no more bash escape hell!)
+- Claude CLI invocation
 
 ### agent_common.sh
 
-Shared library sourced by all agent scripts:
+Shared library sourced by the orchestrator:
 
 ```bash
-# In agent scripts:
+# In autonomous_agent.sh:
 source "$SCRIPT_DIR/agent_common.sh"
 ```
 
@@ -120,25 +142,6 @@ source "$SCRIPT_DIR/agent_common.sh"
 - Common checks (`require_claude_cli`, `require_file`)
 - Setup helpers (`setup_logging`, `resolve_project_paths`)
 - Worktree checks (`require_clean_worktree`, `investigate_dirty_worktree`)
-
-**require_clean_worktree:**
-
-Checks if working tree is clean. Returns 1 if dirty.
-
-**investigate_dirty_worktree:**
-
-When coder leaves uncommitted changes, the Tech Lead (Opus) investigates:
-
-- Reads coder's log for context
-- Examines dirty files
-- Runs quality gates
-- Either commits (if complete), calls coder back (if fixable), or escalates to PM
-
-```bash
-if ! require_clean_worktree; then
-    investigate_dirty_worktree "$CODER_LOG"
-fi
-```
 
 ## Environment Variables
 
@@ -151,6 +154,9 @@ fi
 | `TARGET_CODER_AGENT`      | Coder workflow             | .claude/agents/coder_agent.md  |
 | `TARGET_IDENTITY_CONTEXT` | Identity file to inject    | None                           |
 | `SKIP_PM_VERIFY`          | Skip PM verification step  | false                          |
+| `SKIP_TL_AUDIT`           | Skip Tech Lead audit       | false                          |
+| `RUN_REQUIREMENTS_CHECK`  | Force requirements check   | false (auto on Mondays)        |
+| `DEAD_CODE_ANALYSIS`      | Run dead code analysis     | false                          |
 
 ## Model Configuration
 
@@ -161,7 +167,6 @@ Agents use different Claude models based on task complexity:
 | Coder            | Sonnet 4.5  | Cost efficiency for TDD      |
 | Tech Lead        | Opus 4.5    | Thorough analysis, reasoning |
 | PM               | Opus 4.5    | Complex reasoning            |
-| PM Verification  | Opus 4.5    | Cross-referencing            |
 
 ## orchestrator.py
 
@@ -248,7 +253,7 @@ agent-logs/
     ├── autonomous-agent-20251205-103000.log
     ├── coder-agent-20251205-103000.log
     ├── pm-agent-20251205-140000.log
-    ├── tech-lead-agent-20251205-150000.log
+    ├── tech_lead-agent-20251205-150000.log
     └── ...
 ```
 

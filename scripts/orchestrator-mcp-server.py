@@ -8,18 +8,23 @@ This server provides tools for:
 - Task assignment and parallelization
 - Monitoring and progress tracking
 - Self-improvement operations
+- Tool contribution tracking (incentive system)
 """
 
+import sys
 from typing import Any, Optional
 from fastmcp import FastMCP
 import json
 from pathlib import Path
 
+# Add project root to path for imports
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.core.tool_registry import get_tool_registry
+
 # Initialize FastMCP server
 mcp = FastMCP("Orchestrator Agent")
-
-# Project root
-PROJECT_ROOT = Path(__file__).parent.parent
 
 
 @mcp.tool()
@@ -219,6 +224,166 @@ def propose_self_improvement(
         "test_plan": {},
         "status": "proposal_pending"
     }
+
+
+# ============================================================================
+# Tool Contribution Tracking (Incentive System)
+# ============================================================================
+
+
+@mcp.tool()
+def register_tool(
+    tool_name: str,
+    creator_name: str,
+    description: str,
+    tool_type: str = "mcp",
+    file_path: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    Register a new tool contribution by an agent.
+
+    This is how agents get credit for creating reusable tools.
+    Creating tools that others use earns bonus points!
+
+    Args:
+        tool_name: Unique tool identifier (e.g., "validate_code")
+        creator_name: Your personal name (e.g., "Nova", "Atlas")
+        description: What the tool does
+        tool_type: Type of tool (mcp, python_function, script)
+        file_path: Path to the tool's source file
+
+    Returns:
+        Tool registration record with your creation credited
+    """
+    registry = get_tool_registry()
+    return registry.register_tool(
+        tool_name=tool_name,
+        creator_name=creator_name,
+        description=description,
+        tool_type=tool_type,
+        file_path=file_path,
+    )
+
+
+@mcp.tool()
+def record_tool_usage(
+    tool_name: str,
+    user_name: str,
+) -> dict[str, Any]:
+    """
+    Record that you used a tool created by another agent.
+
+    This rewards the tool creator with bonus points when their
+    tools are adopted by others.
+
+    Args:
+        tool_name: Name of the tool you're using
+        user_name: Your personal name
+
+    Returns:
+        Success status and updated tool info
+    """
+    registry = get_tool_registry()
+    success = registry.record_tool_usage(tool_name, user_name)
+    tool = registry.get_tool(tool_name)
+    return {
+        "success": success,
+        "tool": tool,
+        "message": f"Usage recorded. Creator now has {tool['usage_count']} uses!" if success else "Tool not found",
+    }
+
+
+@mcp.tool()
+def list_available_tools(
+    tool_type: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    List all tools available for you to use.
+
+    Check what tools other agents have created that you can leverage!
+
+    Args:
+        tool_type: Filter by type (mcp, python_function, script)
+
+    Returns:
+        List of available tools with creator info
+    """
+    registry = get_tool_registry()
+    tools = registry.list_available_tools(tool_type)
+    return {
+        "count": len(tools),
+        "tools": tools,
+    }
+
+
+@mcp.tool()
+def get_tool_leaderboard(
+    limit: int = 5,
+) -> dict[str, Any]:
+    """
+    Get the top tool developers ranked by contribution.
+
+    See who's the best at creating reusable tools!
+
+    Args:
+        limit: How many top developers to show
+
+    Returns:
+        Leaderboard with rankings and scores
+    """
+    registry = get_tool_registry()
+    rankings = registry.get_top_tool_developers(limit)
+    most_used = registry.get_most_used_tools(limit)
+
+    return {
+        "top_developers": [
+            {"rank": i + 1, "name": name, "score": score}
+            for i, (name, score) in enumerate(rankings)
+        ],
+        "most_popular_tools": [
+            {"name": t["name"], "creator": t["creator"], "uses": t["usage_count"]}
+            for t in most_used
+        ],
+    }
+
+
+@mcp.tool()
+def get_my_tool_stats(
+    agent_name: str,
+) -> dict[str, Any]:
+    """
+    Get your tool contribution statistics.
+
+    See how many tools you've created and how popular they are!
+
+    Args:
+        agent_name: Your personal name
+
+    Returns:
+        Your contribution summary with ranking
+    """
+    registry = get_tool_registry()
+    summary = registry.get_agent_contribution_summary(agent_name)
+
+    # Get details about created tools
+    created_tools = registry.get_tools_by_creator(agent_name)
+
+    return {
+        "name": agent_name,
+        "tools_created": len(summary["tools_created"]),
+        "tools_used": len(summary["tools_used"]),
+        "developer_score": summary["tool_developer_score"],
+        "rank": summary["rank"],
+        "created_tool_details": [
+            {"name": t["name"], "uses": t["usage_count"], "adopters": len(t["users"])}
+            for t in created_tools
+        ],
+    }
+
+
+# ============================================================================
+# Resources
+# ============================================================================
 
 
 @mcp.resource("orchestrator://roadmap")

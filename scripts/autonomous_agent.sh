@@ -3,12 +3,16 @@ set -euo pipefail
 
 # Autonomous Agent - Orchestrated Workflow
 # This script orchestrates the full autonomous development cycle:
-#   1. Run coder agent (6-phase TDD workflow)
+#   1. Run coder agent (6-phase TDD workflow) - Python: scripts.agents.coder
 #   2. Verify clean worktree (Tech Lead investigates if dirty)
-#   3. Run Tech Lead quality audit (tests, coverage, lint, types)
-#   4. Run PM for full documentation update (devlog, roadmap, status)
+#   3. Run Tech Lead quality audit - Python: scripts.agents.tech_lead
+#   4. Run PM documentation update - Python: scripts.agents.pm
+#   5. Requirements compliance check (periodic - Mondays or RUN_REQUIREMENTS_CHECK=true)
 #
-# Hierarchy: Orchestrator → PM → Tech Lead → Coders
+# The orchestrator is responsible for requirements.md governance.
+# Agent launchers are Python modules in scripts/agents/ for maintainability.
+#
+# Hierarchy: Orchestrator (bash) → PM → Tech Lead → Coders (all Python)
 #
 # Signal Handling:
 #   SIGTERM - Graceful stop: finish current operation, save state, exit
@@ -107,7 +111,7 @@ log_to_file ""
 # ==============================================================================
 # STEP 1: Run Coder Agent
 # ==============================================================================
-log_info "Step 1/3: Running Coder Agent..."
+log_info "Step 1/5: Running Coder Agent..."
 log_to_file "=== STEP 1: Coder Agent ==="
 log_to_file "Starting: $(date)"
 log_to_file ""
@@ -115,8 +119,8 @@ log_to_file ""
 # Export environment for child script
 export TARGET_PATH TARGET_NAME TARGET_ROADMAP TARGET_CODER_AGENT TARGET_IDENTITY_CONTEXT
 
-# Run coder agent in background to capture PID
-"$SCRIPT_DIR/coder_agent.sh" 2>&1 | tee -a "$LOG_FILE" &
+# Run coder agent (Python version)
+PYTHONPATH="$ORCHESTRATOR_ROOT" "$ORCHESTRATOR_ROOT/.venv/bin/python" -m scripts.agents.coder 2>&1 | tee -a "$LOG_FILE" &
 CHILD_PID=$!
 
 # Wait for coder to complete
@@ -140,7 +144,7 @@ log_success "Coder Agent completed"
 # ==============================================================================
 # STEP 2: Verify Clean Worktree (or investigate if dirty)
 # ==============================================================================
-log_info "Step 2/4: Verifying coder committed all changes..."
+log_info "Step 2/5: Verifying coder committed all changes..."
 
 if ! require_clean_worktree; then
     log_info "Handing off to Tech Lead to investigate dirty worktree..."
@@ -157,16 +161,16 @@ fi
 # STEP 3: Tech Lead Quality Audit (ALWAYS runs)
 # ==============================================================================
 if [[ "${SKIP_TL_AUDIT:-}" == "true" ]]; then
-    log_info "Step 3/4: Skipping TL audit (SKIP_TL_AUDIT=true)"
+    log_info "Step 3/5: Skipping TL audit (SKIP_TL_AUDIT=true)"
 else
-    log_info "Step 3/4: Running Tech Lead quality audit..."
+    log_info "Step 3/5: Running Tech Lead quality audit..."
     log_to_file "=== STEP 3: Tech Lead Quality Audit ==="
     log_to_file "Starting: $(date)"
     log_to_file ""
 
-    # Run the full Tech Lead script for comprehensive audit
-    if [[ -x "$SCRIPT_DIR/tech_lead.sh" ]]; then
-        "$SCRIPT_DIR/tech_lead.sh" 2>&1 | tee -a "$LOG_FILE" &
+    # Run the full Tech Lead agent (Python version)
+    if [[ -f "$ORCHESTRATOR_ROOT/scripts/agents/tech_lead.py" ]]; then
+        PYTHONPATH="$ORCHESTRATOR_ROOT" "$ORCHESTRATOR_ROOT/.venv/bin/python" -m scripts.agents.tech_lead 2>&1 | tee -a "$LOG_FILE" &
         CHILD_PID=$!
         wait $CHILD_PID
         TL_EXIT_CODE=$?
@@ -184,7 +188,7 @@ else
             log_success "Tech Lead audit completed"
         fi
     else
-        log_warning "Tech Lead script not found at $SCRIPT_DIR/tech_lead.sh"
+        log_warning "Tech Lead agent not found"
     fi
 fi
 
@@ -192,16 +196,16 @@ fi
 # STEP 4: PM Full Documentation Update (ALWAYS runs)
 # ==============================================================================
 if [[ "${SKIP_PM_VERIFY:-}" == "true" ]]; then
-    log_info "Step 4/4: Skipping PM update (SKIP_PM_VERIFY=true)"
+    log_info "Step 4/5: Skipping PM update (SKIP_PM_VERIFY=true)"
 else
-    log_info "Step 4/4: Running PM for full documentation update..."
+    log_info "Step 4/5: Running PM for full documentation update..."
     log_to_file "=== STEP 4: PM Documentation Update ==="
     log_to_file "Starting: $(date)"
     log_to_file ""
 
-    # Run the full PM script for comprehensive documentation
-    if [[ -x "$SCRIPT_DIR/pm_agent.sh" ]]; then
-        "$SCRIPT_DIR/pm_agent.sh" 2>&1 | tee -a "$LOG_FILE" &
+    # Run the full PM agent (Python version)
+    if [[ -f "$ORCHESTRATOR_ROOT/scripts/agents/pm.py" ]]; then
+        PYTHONPATH="$ORCHESTRATOR_ROOT" "$ORCHESTRATOR_ROOT/.venv/bin/python" -m scripts.agents.pm 2>&1 | tee -a "$LOG_FILE" &
         CHILD_PID=$!
         wait $CHILD_PID
         PM_EXIT_CODE=$?
@@ -219,8 +223,30 @@ else
             log_success "PM documentation update completed"
         fi
     else
-        log_warning "PM script not found at $SCRIPT_DIR/pm_agent.sh"
+        log_warning "PM agent not found"
     fi
+fi
+
+# ==============================================================================
+# STEP 5: Orchestrator Requirements Compliance (periodic)
+# ==============================================================================
+if [[ "${RUN_REQUIREMENTS_CHECK:-}" == "true" ]] || [[ $(date +%u) == "1" ]]; then
+    # Run on Mondays or when explicitly requested
+    log_info "Step 5/5: Running requirements compliance check..."
+    log_to_file "=== STEP 5: Requirements Compliance Check ==="
+    log_to_file "Starting: $(date)"
+    log_to_file ""
+
+    # Generate requirements compliance report
+    if PYTHONPATH="$PROJECT_ROOT" "$PROJECT_ROOT/.venv/bin/python" -c "from src.orchestrator.requirements_compliance import generate_compliance_report, save_compliance_report; report = generate_compliance_report(); save_compliance_report(report)" 2>&1 | tee -a "$LOG_FILE"; then
+        log_success "Requirements compliance report generated"
+        log_info "Check docs/requirements-compliance.md for the compliance report."
+    else
+        log_warning "Requirements compliance check had issues"
+    fi
+    log_to_file ""
+else
+    log_info "Step 5/5: Skipping requirements check (run on Mondays or set RUN_REQUIREMENTS_CHECK=true)"
 fi
 
 # ==============================================================================

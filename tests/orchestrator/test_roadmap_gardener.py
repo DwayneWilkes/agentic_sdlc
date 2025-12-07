@@ -1,7 +1,6 @@
 """Tests for the RoadmapGardener module."""
 
 import pytest
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from src.orchestrator.roadmap_gardener import (
@@ -11,8 +10,6 @@ from src.orchestrator.roadmap_gardener import (
     check_roadmap_health,
 )
 from src.orchestrator.work_stream import (
-    WorkStream,
-    WorkStreamStatus,
     clear_roadmap_cache,
 )
 
@@ -524,7 +521,7 @@ class TestSingletonAndConvenienceFunctions:
         mock_gardener.garden.return_value = {"unblocked": [], "still_blocked": [], "errors": []}
 
         with patch.object(module, '_gardener', mock_gardener):
-            result = garden_roadmap()
+            garden_roadmap()  # Result intentionally unused - testing side effect
 
         mock_gardener.garden.assert_called_once()
 
