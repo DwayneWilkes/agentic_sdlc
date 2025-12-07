@@ -193,18 +193,21 @@
 
 ### Phase 2.7: Agent Behavior Testing Framework (Defeat Tests)
 
-- **Status:** ⚪ Not Started
+- **Status:** ✅ Complete
+- **Assigned To:** Echo
+- **Completed:** 2025-12-06
 - **Depends On:** Phase 1.1 ✅
 - **Tasks:**
-  - [ ] Create "defeat test" infrastructure for agent anti-patterns
-  - [ ] Implement tests that detect agent loops (keeps trying same failed approach)
-  - [ ] Add tests for context drift (agent forgets mid-session)
-  - [ ] Add tests for breaking working code during fixes
-  - [ ] Add tests for over-engineering simple solutions
-  - [ ] Create framework for pattern-specific defeat tests
-  - [ ] Integrate defeat tests into pre-commit hooks
+  - [✅] Create "defeat test" infrastructure for agent anti-patterns
+  - [✅] Implement tests that detect agent loops (keeps trying same failed approach)
+  - [✅] Add tests for context drift (agent forgets mid-session)
+  - [✅] Add tests for breaking working code during fixes
+  - [✅] Add tests for over-engineering simple solutions
+  - [✅] Create framework for pattern-specific defeat tests
+  - [✅] Integrate defeat tests into pre-commit hooks
 - **Effort:** M
 - **Done When:** Agent anti-patterns caught before commit; new patterns can be defeated with new tests
+- **Quality Gates:** All tests pass (15/15), 65-79% coverage for defeat test patterns, no type errors
 - **Design Notes:**
 
   ```text

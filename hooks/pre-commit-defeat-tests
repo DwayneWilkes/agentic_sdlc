@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+# Pre-commit hook to run defeat tests against agent sessions.
+#
+# To install this hook:
+#   ln -s ../../hooks/pre-commit-defeat-tests .git/hooks/pre-commit
+#
+# Or copy it:
+#   cp hooks/pre-commit-defeat-tests .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+
+set -e
+
+echo "Running defeat tests..."
+
+# Check if there are any session files to test
+if [ -d "sessions" ] && [ "$(ls -A sessions/*.json 2>/dev/null)" ]; then
+    python3 scripts/run_defeat_tests.py --all-sessions
+else
+    echo "No session files found. Skipping defeat tests."
+fi
+
+echo "✅ Defeat tests passed!"

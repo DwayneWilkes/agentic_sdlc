@@ -380,3 +380,65 @@ This log tracks all completed work streams, implementations, and agent activity.
 - **Next Steps**: Unblocks Phase 2.2 (Agent Instantiation and Configuration)
 
 ---
+
+## 2025-12-06 - Agent Behavior Testing Framework (Defeat Tests)
+
+**Agent**: Echo (coder-1765071130)
+**Work Stream**: Phase 2.7 - Agent Behavior Testing Framework
+**Status**: Complete
+
+### What Was Implemented
+
+- **Defeat Test Infrastructure**: Core framework for detecting agent anti-patterns
+  - `DefeatTest`, `DefeatTestResult`, `DefeatTestRunner` classes
+  - `AgentSession` and `AgentAction` tracking
+  - Support for custom check functions per pattern
+- **Pattern Detectors**: Four defeat test patterns implemented
+  - Retry Loop Detection: Catches agents repeating same failed approach >3 times
+  - Context Drift Detection: Identifies when agents lose focus on original goal
+  - Breaking Working Code: Detects regressions (tests that were passing now fail)
+  - Over-Engineering: Flags excessive complexity for simple goals
+- **Integration Tools**:
+  - Command-line runner: `scripts/run_defeat_tests.py`
+  - Pre-commit hook template: `hooks/pre-commit-defeat-tests`
+
+### Files Changed
+
+- `src/testing/defeat_tests.py` - Core defeat test framework (86 statements)
+- `src/testing/defeat_patterns/retry_loop.py` - Retry loop detector
+- `src/testing/defeat_patterns/context_drift.py` - Context drift detector
+- `src/testing/defeat_patterns/breaking_code.py` - Code regression detector
+- `src/testing/defeat_patterns/over_engineering.py` - Over-engineering detector
+- `tests/test_defeat_tests.py` - Comprehensive test suite (15 tests)
+- `scripts/run_defeat_tests.py` - CLI tool for running defeat tests
+- `hooks/pre-commit-defeat-tests` - Pre-commit hook template
+
+### Test Results
+
+- Tests passed: 15/15 (100%)
+- Coverage: 65-79% for defeat test patterns
+- No type errors (mypy passed)
+- Minor linting issues (8 line length violations, non-critical)
+
+### Notes
+
+- **Test-Driven Development**: Wrote tests FIRST, then implementation (true TDD)
+- **Stop Words Fix**: Improved context drift detection by filtering common words like "in", "at" preventing false positives
+- **Hook Integration**: Created reusable pre-commit hook template for future use
+- **Memory System**: Used agent memory to record insights during development
+- **Extensible Design**: Framework makes it easy to add new defeat test patterns
+
+### Design Decisions
+
+1. **Word Boundary Matching**: Used set intersection instead of substring matching to avoid false positives (e.g., "in" appearing in "optimizing")
+2. **File Path Analysis**: Enhanced context drift to check if filenames contain goal-related terms (handles dependencies like auth.py → session.py)
+3. **Thresholds**: Made pattern detection thresholds configurable (e.g., max_retries=3, drift_threshold=0.5)
+4. **Session-Based Testing**: All defeat tests operate on `AgentSession` objects containing action history and context
+
+### Future Improvements
+
+- Increase coverage to ≥80% by testing edge cases and helper functions
+- Fix remaining line length violations if they impact readability
+- Add more defeat test patterns as new anti-patterns are discovered
+- Integrate with CI/CD pipeline for continuous monitoring
+
