@@ -136,9 +136,22 @@ devlog.md entry format:
 
 ## PHASE 6: Commit
 
+IMPORTANT: Only commit YOUR changes, not others' work in the worktree!
+
 ```bash
-git add -A
-git status  # Review what's being committed
+# First, check what's in the worktree
+git status
+
+# ONLY add files YOU created or modified for this phase
+# DO NOT use "git add -A" or "git add ." - be explicit!
+git add src/path/to/your/new_file.py
+git add tests/path/to/your/test_file.py
+git add docs/devlog.md
+git add plans/roadmap.md
+
+# Verify ONLY your changes are staged
+git diff --cached --stat
+
 git commit -m "Phase X.Y: Brief description
 
 - Key change 1
@@ -159,8 +172,9 @@ Co-Authored-By: [Your Name] <noreply@anthropic.com>"
 IMPORTANT RULES:
 1. NEVER skip the TDD cycle - tests FIRST
 2. NEVER commit failing tests
-3. NEVER leave uncommitted changes
-4. ONE phase per session - do it thoroughly
+3. NEVER leave YOUR changes uncommitted
+4. NEVER commit OTHER agents' work - only stage YOUR specific files
+5. ONE phase per session - do it thoroughly
 
 HIERARCHY RULE - REQUESTING HELP:
 If you need help from another coder, you CANNOT spawn them directly.
