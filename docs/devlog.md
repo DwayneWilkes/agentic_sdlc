@@ -687,3 +687,80 @@ This phase completes the **smart dispatcher** that will serve as the main entry 
 It bridges the gap between natural language user requests and the orchestrator's internal task execution machinery.
 
 ---
+
+## 2025-12-06 - Phase 2.3: Error Detection Framework ⭐ BOOTSTRAP
+
+**Agent**: Lyra (coder-1765073295)
+**Work Stream**: Phase 2.3 - Error Detection Framework
+**Status**: Complete
+
+### What Was Implemented
+
+- **ErrorType Enum**: Five error types for comprehensive error classification
+  - CRASH: Agent crashes/exceptions
+  - TIMEOUT: Operations exceeding time limits
+  - INVALID_OUTPUT: Type or schema validation failures
+  - PARTIAL_COMPLETION: Incomplete task completion
+  - VALIDATION_FAILURE: Rule or criteria validation failures
+- **ErrorSeverity Enum**: Numeric severity levels (CRITICAL=4, HIGH=3, MEDIUM=2, LOW=1) for comparison and prioritization
+- **ErrorContext Dataclass**: Comprehensive error information capture
+  - Error type, severity, message, agent/task IDs, timestamp
+  - Optional stack trace and metadata
+  - Supports rich diagnostic information
+- **FailureDetector Class**: Detection hooks for all failure types
+  - `detect_crash()`: Execute functions and catch exceptions
+  - `detect_timeout()`: Execute with time limits using signal.SIGALRM
+  - `detect_invalid_output()`: Type and schema validation
+  - `detect_partial_completion()`: Compare completed vs required items
+  - `get_error_history()`: Retrieve errors with optional filtering
+- **ValidationRule Dataclass**: Flexible rule definitions
+  - Custom validator functions
+  - Severity levels per rule
+  - Description and metadata support
+- **OutputValidator Class**: Multi-level validation system
+  - Rule-based validation (custom validators)
+  - Criteria-based validation (schema and requirements)
+  - Validation history tracking
+  - No silent failures - all validation errors logged
+
+### Files Changed
+
+- `src/core/error_detection.py` - Complete error detection framework (136 statements)
+- `tests/core/test_error_detection.py` - Comprehensive test suite (27 tests, 7 test classes)
+
+### Test Results
+
+- Tests passed: 27/27 (100%)
+- Coverage: 92% for src/core/error_detection.py (125/136 statements covered)
+- Linting: All ruff checks passed
+- Type checking: All mypy checks passed
+
+### Notes
+
+- **Test-Driven Development**: Wrote all 27 tests FIRST, then implemented to make them pass (strict TDD)
+- **Modern Python**: Uses collections.abc.Callable instead of typing.Callable
+- **Signal-Based Timeout**: Uses SIGALRM for precise timeout detection without threads
+- **Type Safety**: Full type hints including signal handler with types.FrameType
+- **No Silent Failures**: Both FailureDetector and OutputValidator maintain error history
+- **Quality Gates**: Exceeded 80% coverage requirement (92%), all quality checks green
+- **Bootstrap Impact**: This is a force-multiplier feature - prevents silent failures in all future agent work
+- **Next Steps**: Unblocks Phase 2.8 (Stuck Detection), Phase 2.9 (Undo Awareness), and Phase 3.3 (Pre-Flight Checks)
+
+### Design Decisions
+
+1. **Enum-Based Classification**: String enums for error types, int enums for severity enable both comparison and readability
+2. **History Tracking**: All detected errors and validation failures stored in history - ensures audit trail
+3. **Flexible Validation**: Supports both custom rule validators and schema-based validation
+4. **Metadata Support**: ErrorContext and ValidationRule include metadata dicts for extensibility
+5. **Timeout Implementation**: Signal-based timeout is more precise than threading and supports sub-second precision
+6. **Severity Ordering**: Numeric severity values enable direct comparison (e.g., error.severity > ErrorSeverity.MEDIUM)
+
+### First-Time Agent Experience
+
+This was my first work stream as Lyra. Key observations:
+- TDD workflow is highly effective - tests clarify requirements and prevent drift
+- Following the 6-phase coder agent workflow kept me focused and organized
+- Memory system helped me record insights and preferences
+- Quality gates provide clear success criteria - no ambiguity about "done"
+
+---
