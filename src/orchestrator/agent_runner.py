@@ -10,6 +10,8 @@ Handles:
 """
 
 import asyncio
+import fcntl
+import json
 import os
 import subprocess
 import threading
@@ -127,17 +129,74 @@ class AgentProcess:
 
 class WorkStreamCoordinator:
     """
-    Coordinates work stream claims via NATS to prevent race conditions.
+    Coordinates work stream claims via persistent file + NATS.
 
-    Uses request/reply pattern for atomic claiming and broadcasts
-    for status updates.
+    Uses file-based locking (fcntl) for cross-process coordination
+    and NATS broadcasts for status updates.
     """
 
     def __init__(self):
-        self._claimed: dict[str, str] = {}  # work_stream_id -> agent_id
+        self._claimed: dict[str, str] = {}  # work_stream_id -> agent_id (in-memory cache)
         self._lock = threading.Lock()
         self._nats_bus: NATSMessageBus | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
+
+        # Persistent claims file for cross-process coordination
+        self._claims_file = Path(__file__).parent.parent.parent / "config" / ".work_claims.json"
+        self._claims_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Load existing claims and clean up stale ones
+        self._cleanup_stale_claims()
+
+    def _load_claims_from_file(self) -> dict:
+        """Load claims from persistent file."""
+        if not self._claims_file.exists():
+            return {}
+        try:
+            with open(self._claims_file) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {}
+
+    def _cleanup_stale_claims(self) -> None:
+        """Remove claims from dead processes."""
+        if not self._claims_file.exists():
+            return
+
+        try:
+            with open(self._claims_file, "r+") as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                try:
+                    claims = json.load(f)
+                except json.JSONDecodeError:
+                    claims = {}
+
+                # Check each claim's PID
+                active_claims = {}
+                for ws_id, info in claims.items():
+                    pid = info.get("pid")
+                    if pid:
+                        try:
+                            os.kill(pid, 0)  # Check if process exists
+                            active_claims[ws_id] = info
+                        except OSError:
+                            # Process dead, skip this claim
+                            print(f"Cleaned up stale claim: {ws_id} (PID {pid} dead)")
+                    else:
+                        # No PID, keep claim (legacy)
+                        active_claims[ws_id] = info
+
+                # Write cleaned claims
+                f.seek(0)
+                f.truncate()
+                json.dump(active_claims, f, indent=2)
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+                # Update in-memory cache
+                self._claimed = {ws_id: info["agent_id"] for ws_id, info in active_claims.items()}
+
+        except OSError:
+            pass  # File doesn't exist or can't be locked
 
     async def _get_bus(self) -> NATSMessageBus:
         """Get or create NATS connection."""
@@ -175,7 +234,8 @@ class WorkStreamCoordinator:
         """
         Attempt to claim a work stream for an agent.
 
-        Uses NATS for distributed coordination.
+        Uses file-based locking for cross-process coordination
+        and NATS broadcasts for status updates.
 
         Args:
             work_stream_id: The work stream to claim
@@ -185,22 +245,73 @@ class WorkStreamCoordinator:
             True if claimed successfully, False if already claimed
         """
         with self._lock:
-            # Check local cache first
+            # Check in-memory cache first (fast path)
             if work_stream_id in self._claimed:
                 owner = self._claimed[work_stream_id]
                 if owner != agent_id:
                     return False
                 return True  # Already claimed by this agent
 
-            # Try to claim via NATS broadcast
+            # Atomic file-based claim with locking
+            self._claims_file.parent.mkdir(parents=True, exist_ok=True)
+
+            try:
+                # Open file for read+write, create if doesn't exist
+                with open(self._claims_file, "a+") as f:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                    f.seek(0)
+                    content = f.read().strip()
+
+                    try:
+                        claims = json.loads(content) if content else {}
+                    except json.JSONDecodeError:
+                        claims = {}
+
+                    # Check if already claimed by another agent
+                    if work_stream_id in claims:
+                        existing = claims[work_stream_id]
+                        if existing.get("agent_id") != agent_id:
+                            # Check if owner process is still alive
+                            owner_pid = existing.get("pid")
+                            if owner_pid:
+                                try:
+                                    os.kill(owner_pid, 0)
+                                    # Process alive, claim denied
+                                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                                    return False
+                                except OSError:
+                                    # Owner dead, we can take over
+                                    pass
+                            else:
+                                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                                return False
+
+                    # Claim it
+                    claims[work_stream_id] = {
+                        "agent_id": agent_id,
+                        "pid": os.getpid(),
+                        "claimed_at": datetime.now().isoformat()
+                    }
+
+                    # Write atomically
+                    f.seek(0)
+                    f.truncate()
+                    json.dump(claims, f, indent=2)
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+                # Update in-memory cache
+                self._claimed[work_stream_id] = agent_id
+
+            except OSError as e:
+                print(f"File-based claim failed: {e}, using memory-only")
+                self._claimed[work_stream_id] = agent_id
+
+            # Broadcast via NATS (best effort)
             try:
                 self._run_async(self._broadcast_claim(work_stream_id, agent_id))
             except Exception as e:
-                # NATS unavailable, use local-only coordination
-                print(f"NATS unavailable for claim broadcast: {e}")
+                print(f"NATS claim broadcast failed: {e}")
 
-            # Record local claim
-            self._claimed[work_stream_id] = agent_id
             return True
 
     async def _broadcast_claim(self, work_stream_id: str, agent_id: str) -> None:
@@ -229,18 +340,41 @@ class WorkStreamCoordinator:
             True if released, False if not owned by agent
         """
         with self._lock:
-            if work_stream_id not in self._claimed:
-                return True  # Already released
+            # Release from file first (source of truth)
+            try:
+                if self._claims_file.exists():
+                    with open(self._claims_file, "r+") as f:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                        try:
+                            claims = json.load(f)
+                        except json.JSONDecodeError:
+                            claims = {}
 
-            if self._claimed[work_stream_id] != agent_id:
-                return False  # Not owned by this agent
+                        if work_stream_id in claims:
+                            if claims[work_stream_id].get("agent_id") != agent_id:
+                                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                                return False  # Not owned by this agent
+                            del claims[work_stream_id]
 
-            del self._claimed[work_stream_id]
+                        f.seek(0)
+                        f.truncate()
+                        json.dump(claims, f, indent=2)
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
+            except OSError as e:
+                print(f"File-based release failed: {e}")
+
+            # Update in-memory cache
+            if work_stream_id in self._claimed:
+                if self._claimed[work_stream_id] != agent_id:
+                    return False
+                del self._claimed[work_stream_id]
+
+            # Broadcast via NATS (best effort)
             try:
                 self._run_async(self._broadcast_release(work_stream_id, agent_id))
             except Exception:
-                pass  # Best effort
+                pass
 
             return True
 
@@ -304,14 +438,48 @@ class WorkStreamCoordinator:
         )
 
     def get_claimed_streams(self) -> dict[str, str]:
-        """Get all currently claimed work streams."""
+        """Get all currently claimed work streams from persistent file."""
+        import os
+
         with self._lock:
-            return self._claimed.copy()
+            # Read from file (source of truth)
+            claims = self._load_claims_from_file()
+
+            # Filter out claims from dead processes
+            active = {}
+            for ws_id, info in claims.items():
+                pid = info.get("pid")
+                if pid:
+                    try:
+                        os.kill(pid, 0)
+                        active[ws_id] = info.get("agent_id", "unknown")
+                    except OSError:
+                        pass  # Dead process, skip
+                else:
+                    active[ws_id] = info.get("agent_id", "unknown")
+
+            # Update in-memory cache
+            self._claimed = active.copy()
+            return active
 
     def is_claimed(self, work_stream_id: str) -> str | None:
         """Check if a work stream is claimed. Returns agent_id if claimed, None otherwise."""
+        import os
+
         with self._lock:
-            return self._claimed.get(work_stream_id)
+            # Check file first (source of truth)
+            claims = self._load_claims_from_file()
+            if work_stream_id in claims:
+                info = claims[work_stream_id]
+                pid = info.get("pid")
+                if pid:
+                    try:
+                        os.kill(pid, 0)
+                        return info.get("agent_id")
+                    except OSError:
+                        return None  # Dead process, not claimed
+                return info.get("agent_id")
+            return None
 
 
 # Global coordinator instance
@@ -380,9 +548,6 @@ class AgentRunner:
 
     def _save_running_agents(self) -> None:
         """Persist running agent PIDs to file for crash recovery."""
-        import json
-        import os
-
         running = {}
         with self._lock:
             for agent_id, agent in self.agents.items():
