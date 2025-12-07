@@ -11,10 +11,10 @@
 ├── 2.6  QA Verifier Agent        ✅ Complete (infrastructure)
 ├── 2.8  Stuck Detection          ✅ Complete (Forge)
 ├── 2.9  Undo Awareness           ✅ Complete (Ember)
-└── 3.3  Pre-Flight Checks        ⚪ Claimable (deps met)
+└── 3.3  Pre-Flight Checks        🔄 In Progress (Cascade)
 ```
 
-**Progress:** 5/6 BOOTSTRAP phases complete. Next: 3.3 Pre-Flight Checks.
+**Progress:** 5/6 BOOTSTRAP phases complete. In Progress: 3.3 Pre-Flight Checks (Cascade).
 
 **Why these first?** If agents can detect errors (2.3), verify quality (2.6), catch when they're stuck (2.8), know how to undo (2.9), think before acting (3.3), and deeply understand tasks (10.5), they'll make fewer mistakes on everything else.
 
