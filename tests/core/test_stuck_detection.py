@@ -364,7 +364,7 @@ class TestStuckDetector:
 class TestEscapeStrategyEngine:
     """Test the EscapeStrategyEngine class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test EscapeStrategyEngine initializes correctly."""
         engine = EscapeStrategyEngine()
         strategies = engine.get_available_strategies()
@@ -375,7 +375,7 @@ class TestEscapeStrategyEngine:
         assert EscapeStrategy.ESCALATE in strategies
         assert EscapeStrategy.HANDOFF in strategies
 
-    def test_recommend_strategy_for_retry_loop(self):
+    def test_recommend_strategy_for_retry_loop(self) -> None:
         """Test strategy recommendation for retry loop."""
         engine = EscapeStrategyEngine()
         signal = StuckSignal(
@@ -389,7 +389,7 @@ class TestEscapeStrategyEngine:
         strategy = engine.recommend_strategy(signal)
         assert strategy == EscapeStrategy.REFRAME
 
-    def test_recommend_strategy_for_thrashing(self):
+    def test_recommend_strategy_for_thrashing(self) -> None:
         """Test strategy recommendation for thrashing."""
         engine = EscapeStrategyEngine()
         signal = StuckSignal(
@@ -403,7 +403,7 @@ class TestEscapeStrategyEngine:
         strategy = engine.recommend_strategy(signal)
         assert strategy == EscapeStrategy.REDUCE
 
-    def test_recommend_strategy_for_no_progress(self):
+    def test_recommend_strategy_for_no_progress(self) -> None:
         """Test strategy recommendation for no progress."""
         engine = EscapeStrategyEngine()
         signal = StuckSignal(
@@ -420,7 +420,7 @@ class TestEscapeStrategyEngine:
             EscapeStrategy.REFRAME,
         ]
 
-    def test_generate_reframe_action(self):
+    def test_generate_reframe_action(self) -> None:
         """Test generating REFRAME action plan."""
         engine = EscapeStrategyEngine()
         signal = StuckSignal(
@@ -436,7 +436,7 @@ class TestEscapeStrategyEngine:
         assert "agent-1" in action
         assert "task-1" in action
 
-    def test_generate_reduce_action(self):
+    def test_generate_reduce_action(self) -> None:
         """Test generating REDUCE action plan."""
         engine = EscapeStrategyEngine()
         signal = StuckSignal(
@@ -450,7 +450,7 @@ class TestEscapeStrategyEngine:
         action = engine.generate_action_plan(signal, EscapeStrategy.REDUCE)
         assert "minimal reproducing case" in action.lower()
 
-    def test_generate_research_action(self):
+    def test_generate_research_action(self) -> None:
         """Test generating RESEARCH action plan."""
         engine = EscapeStrategyEngine()
         signal = StuckSignal(
@@ -464,7 +464,7 @@ class TestEscapeStrategyEngine:
         action = engine.generate_action_plan(signal, EscapeStrategy.RESEARCH)
         assert "search" in action.lower() or "research" in action.lower()
 
-    def test_generate_escalate_action(self):
+    def test_generate_escalate_action(self) -> None:
         """Test generating ESCALATE action plan."""
         engine = EscapeStrategyEngine()
         signal = StuckSignal(
@@ -478,7 +478,7 @@ class TestEscapeStrategyEngine:
         action = engine.generate_action_plan(signal, EscapeStrategy.ESCALATE)
         assert "human" in action.lower() or "help" in action.lower()
 
-    def test_generate_handoff_action(self):
+    def test_generate_handoff_action(self) -> None:
         """Test generating HANDOFF action plan."""
         engine = EscapeStrategyEngine()
         signal = StuckSignal(
@@ -492,7 +492,7 @@ class TestEscapeStrategyEngine:
         action = engine.generate_action_plan(signal, EscapeStrategy.HANDOFF)
         assert "different agent" in action.lower() or "handoff" in action.lower()
 
-    def test_execute_escape_strategy(self):
+    def test_execute_escape_strategy(self) -> None:
         """Test executing an escape strategy."""
         engine = EscapeStrategyEngine()
         signal = StuckSignal(
