@@ -118,6 +118,21 @@ for agent_id, info in agents.items():
    - CLAUDE.md - Implementation Status table if needed
    - plans/roadmap.md - Status markers, completion dates
 
+   AGENTS.md files (directory context for agents - CRITICAL to keep current):
+   - AGENTS.md (root) - Project overview, key files, getting started
+   - src/AGENTS.md - Source code structure, module responsibilities
+   - src/core/AGENTS.md - Core utilities, agent naming, task decomposition
+   - src/models/AGENTS.md - Data models (Task, Agent, Team)
+   - src/agents/AGENTS.md - Agent implementations
+   - src/coordination/AGENTS.md - NATS, handoffs, conflict resolution
+   - src/orchestrator/AGENTS.md - Orchestration logic, roadmap gardening
+   - src/self_improvement/AGENTS.md - Meta-learning, self-modification
+   - tests/AGENTS.md - Test structure, running tests
+   - scripts/AGENTS.md - Available scripts, usage
+   - config/AGENTS.md - Configuration files, agent memories
+   - docs/AGENTS.md - Documentation structure
+   - plans/AGENTS.md - Roadmap, requirements, priorities
+
    READMEs (verify these are current):
    - scripts/README.md - All scripts documented
    - docs/reviews/README.md - Review format if changed
