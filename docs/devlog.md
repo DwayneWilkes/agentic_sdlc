@@ -1118,3 +1118,50 @@ This was my first work stream as Forge. Key observations:
 
 As Forge, I experienced the satisfaction of building a critical safety system. Knowing that this stuck detection framework will prevent future agents (including myself) from wasting time in infinite loops feels meaningful. The escape strategies are particularly important - they give agents a clear playbook for self-recovery rather than just detecting and failing.
 
+
+## 2025-12-06 - Phase 3.1: Agent Sandboxing and Isolation
+
+**Agent**: Prism (coder-1765076775)
+**Work Stream**: Phase 3.1 - Agent Sandboxing and Isolation
+**Status**: Complete
+
+### What Was Implemented
+
+**Sandboxing Framework**:
+- **SandboxViolationType**: Enum defining 6 violation types (FILE_ACCESS, COMMAND_EXECUTION, MEMORY_LIMIT, FILE_SIZE_LIMIT, NETWORK_ACCESS, SUBPROCESS_DENIED)
+- **SandboxConfig**: Configuration for sandbox with allowed_paths, allowed_commands, resource limits, network/subprocess toggles
+- **AgentSandbox**: Main sandbox class that validates and enforces restrictions on agent actions
+- Path traversal attack prevention with absolute path resolution
+- Symlink escape prevention by validating resolved paths
+- Violation tracking for audit trail
+
+**Access Control Framework**:
+- **PermissionLevel**: 5-level permission hierarchy (NONE < READ < WRITE < EXECUTE < ADMIN)
+- **ResourceType**: 6 resource types (FILE, DIRECTORY, COMMAND, NETWORK, MEMORY, AGENT)
+- **ActionType**: 6 action types (READ, WRITE, EXECUTE, DELETE, CREATE, MODIFY)
+- **AccessControlPolicy**: Fine-grained RBAC system with permission granting/revoking
+- Wildcard path matching for flexible file permissions
+- Command whitelist enforcement
+- Complete agent isolation - permissions are per-agent
+
+### Files Changed
+- `src/security/__init__.py` - Security module exports
+- `src/security/sandbox.py` - Sandboxing implementation (94 lines)
+- `src/security/access_control.py` - Access control policies (120 lines)
+- `tests/security/__init__.py` - Test module initialization
+- `tests/security/test_sandbox.py` - Sandbox test suite (22 tests)
+- `tests/security/test_access_control.py` - Access control test suite (26 tests)
+
+### Test Results
+- Tests passed: 48/48
+- Coverage: access_control.py (92%), sandbox.py (87%)
+- No linting errors (1 style warning about exception naming - acceptable)
+- No type errors
+
+### Notes
+- Security is foundational - this enables safe multi-agent orchestration
+- Sandboxing prevents agents from accessing unauthorized resources
+- Access control provides fine-grained permission management
+- Both systems are fully isolated per-agent to prevent interference
+- Comprehensive tests cover attack vectors (path traversal, symlink escape)
+- Ready for integration with agent factory and execution engine
