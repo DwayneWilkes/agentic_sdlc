@@ -7,14 +7,14 @@
 ```text
 ⭐ BOOTSTRAP (Do first - improves all subsequent work)
 ├── 10.5 Recurrent Refinement     ✅ Complete (Sage)
-├── 2.3  Error Detection          ⚪ Claimable (deps met)
+├── 2.3  Error Detection          ✅ Complete (Lyra)
 ├── 2.6  QA Verifier Agent        ✅ Complete (infrastructure)
-├── 2.8  Stuck Detection          🔴 Blocked (needs 2.3)
-├── 2.9  Undo Awareness           🔴 Blocked (needs 2.3)
-└── 3.3  Pre-Flight Checks        🔴 Blocked (needs 2.3, 2.8)
+├── 2.8  Stuck Detection          ✅ Complete (Forge)
+├── 2.9  Undo Awareness           ⚪ Claimable (deps met)
+└── 3.3  Pre-Flight Checks        🔴 Blocked (needs 2.9)
 ```
 
-**Progress:** 2/6 BOOTSTRAP phases complete. Next: 2.3 Error Detection.
+**Progress:** 4/6 BOOTSTRAP phases complete. Next: 2.9 Undo Awareness.
 
 **Why these first?** If agents can detect errors (2.3), verify quality (2.6), catch when they're stuck (2.8), know how to undo (2.9), think before acting (3.3), and deeply understand tasks (10.5), they'll make fewer mistakes on everything else.
 
@@ -276,22 +276,34 @@
 
 ### Phase 2.8: Stuck Detection & Escape Strategies ⭐ BOOTSTRAP
 
-- **Status:** 🔄 In Progress
+- **Status:** ✅ Complete
 - **Assigned To:** Forge
+- **Completed:** 2025-12-06
 - **Depends On:** Phase 2.3 ✅
 - **Tasks:**
-  - [ ] Detect retry loops (same error 3+ times without progress)
-  - [ ] Recognize "thrashing" patterns (changing approach repeatedly without advancement)
-  - [ ] Implement automatic escalation triggers ("stuck for X minutes, asking for help")
-  - [ ] Create escape hatch strategies:
-    - [ ] Try fundamentally different approach
-    - [ ] Reduce scope to minimal failing case
-    - [ ] Ask for human guidance with context summary
-    - [ ] Hand off to different agent with fresh perspective
-  - [ ] Add progress metrics (lines changed, tests passing, goals met)
-  - [ ] Implement "no progress" timeout with graceful state save
+  - [✅] Detect retry loops (same error 3+ times without progress)
+  - [✅] Recognize "thrashing" patterns (changing approach repeatedly without advancement)
+  - [✅] Implement automatic escalation triggers ("stuck for X minutes, asking for help")
+  - [✅] Create escape hatch strategies:
+    - [✅] Try fundamentally different approach (REFRAME)
+    - [✅] Reduce scope to minimal failing case (REDUCE)
+    - [✅] Ask for human guidance with context summary (ESCALATE)
+    - [✅] Hand off to different agent with fresh perspective (HANDOFF)
+    - [✅] Search for similar issues/solutions (RESEARCH)
+  - [✅] Add progress metrics (lines changed, tests passing, goals met)
+  - [✅] Implement "no progress" timeout with graceful state save
 - **Effort:** M
 - **Done When:** Agents detect when they're stuck; escape strategies prevent infinite loops; escalation works
+- **Quality Gates:** All tests pass (28/28), 93% coverage for stuck_detection.py, no linting errors, no type errors
+- **Implementation Notes:**
+  - src/core/stuck_detection.py - Complete stuck detection and escape framework
+  - tests/core/test_stuck_detection.py - Comprehensive test suite (28 tests)
+  - StuckPattern enum: RETRY_LOOP, THRASHING, NO_PROGRESS
+  - EscapeStrategy enum: REFRAME, REDUCE, RESEARCH, ESCALATE, HANDOFF
+  - ProgressMetrics class tracks progress snapshots over time
+  - StuckDetector class with detection methods for all stuck patterns
+  - EscapeStrategyEngine recommends and generates action plans for escape strategies
+  - All components fully typed and documented
 - **Design Notes:**
 
   ```text
