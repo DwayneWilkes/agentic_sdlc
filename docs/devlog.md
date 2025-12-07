@@ -42,9 +42,9 @@ This log tracks all completed work streams, implementations, and agent activity.
 - **CycleCheckpoint**: State snapshot mechanism for preserving progress between cycles with JSON serialization
 - **CycleBudgetTracker**: Resource usage tracking for tokens, time, and API calls with configurable limits and warnings
 - **ExecutionCycleManager**: Lifecycle manager for starting, checkpointing, terminating, and resuming cycles
-- **CycleStatus enum**: PENDING, RUNNING, COMPLETED, PREEMPTED, FAILED
-- **CycleTerminationReason enum**: TASK_COMPLETED, TIME_EXPIRED, BUDGET_EXCEEDED, PREEMPTED, ERROR, USER_REQUESTED
-- **ExecutionDecision enum**: CONTINUE, CONTINUE_WITH_WARNING, TERMINATE_TIMEOUT, TERMINATE_BUDGET, SAVE_AND_HANDOFF
+- **CycleStatus enum**: PENDING, RUNNING, COMPLETED, PREEMPTED, TIMEOUT
+- **CycleTerminationReason enum**: TASK_COMPLETED, TIMEOUT, PREEMPTED, BUDGET_EXCEEDED, ERROR
+- **ExecutionDecision enum**: CONTINUE, CONTINUE_WITH_WARNING, TERMINATE_TIMEOUT, TERMINATE_BUDGET
 
 **Key Features**:
 1. **Configurable Cycles**: Default 30-minute cycles with customizable duration

@@ -703,18 +703,18 @@
   - [x] Implement preemption for higher-priority work
 - **Effort:** M
 - **Done When:** Agents work in bounded cycles; state preserved between cycles; can resume after interruption
-- **Quality Gates:** All tests pass (29/29), 90% coverage for execution_cycle.py, no linting errors, no type errors
+- **Quality Gates:** All tests pass (29/29), 91% coverage for execution_cycle.py, no linting errors, no type errors
 - **Implementation Notes:**
-  - src/coordination/execution_cycle.py - Complete execution cycle management
+  - src/coordination/execution_cycle.py - Complete execution cycle management (225 lines)
   - tests/coordination/test_execution_cycle.py - Comprehensive test suite (29 tests)
-  - CycleStatus enum: PENDING, RUNNING, COMPLETED, PREEMPTED, FAILED
-  - CycleTerminationReason enum: TASK_COMPLETED, TIME_EXPIRED, BUDGET_EXCEEDED, PREEMPTED, ERROR, USER_REQUESTED
-  - ExecutionDecision enum for cycle status checks
-  - CycleBudgetTracker class: tracks tokens, time, API calls with configurable limits
-  - CycleCheckpoint class: JSON-serializable state snapshots with progress metrics
-  - ExecutionCycle class: bounded execution with configurable duration (default 30 min)
-  - ExecutionCycleManager class: manages cycle lifecycle, checkpointing, budget tracking, preemption
-  - All components fully typed and documented
+  - CycleStatus enum: PENDING, RUNNING, COMPLETED, PREEMPTED, TIMEOUT
+  - CycleTerminationReason enum: TASK_COMPLETED, TIMEOUT, PREEMPTED, BUDGET_EXCEEDED, ERROR
+  - ExecutionDecision enum: CONTINUE, CONTINUE_WITH_WARNING, TERMINATE_TIMEOUT, TERMINATE_BUDGET
+  - CycleBudgetTracker class: tracks tokens (max_tokens), time (max_time_seconds), API calls (max_api_calls) with configurable limits
+  - CycleCheckpoint class: JSON-serializable state snapshots with progress_metrics, files_changed
+  - ExecutionCycle class: bounded execution with configurable duration_seconds (default 1800 = 30 min)
+  - ExecutionCycleManager class: manages cycle lifecycle, checkpointing, budget tracking, preemption, history
+  - All components fully typed and documented with docstrings
 - **Design Notes:**
 
   ```text
