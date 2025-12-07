@@ -49,6 +49,35 @@ class ErrorContext:
     stack_trace: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    def format_diagnostic_report(self) -> str:
+        """
+        Format a detailed diagnostic report for debugging.
+
+        Returns:
+            Human-readable diagnostic information
+        """
+        lines = ["# Error Diagnostic Report\n"]
+        lines.append(f"**Error Type:** {self.error_type.value}")
+        lines.append(f"**Severity:** {self.severity.name} ({self.severity.value})")
+        lines.append(f"**Time:** {self.timestamp.isoformat()}")
+        lines.append(f"**Agent:** {self.agent_id}")
+        lines.append(f"**Task:** {self.task_id}\n")
+
+        lines.append(f"**Message:** {self.message}\n")
+
+        if self.stack_trace:
+            lines.append("**Stack Trace:**")
+            lines.append("```")
+            lines.append(self.stack_trace)
+            lines.append("```\n")
+
+        if self.metadata:
+            lines.append("**Additional Context:**")
+            for key, value in self.metadata.items():
+                lines.append(f"- {key}: {value}")
+
+        return "\n".join(lines)
+
 
 class FailureDetector:
     """

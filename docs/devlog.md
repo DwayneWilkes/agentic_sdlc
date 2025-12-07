@@ -1,3 +1,63 @@
+## 2025-12-07 - Phase 7.4: Resource Management and Token Conservation - Nexus
+
+**Status:** Complete
+
+### What was implemented
+
+- **Budget Data Models** (`src/models/budget.py`): Token budget tracking with conservation modes
+  - **ConservationMode** enum: NORMAL (0-79%), CONSERVATION (80-95%), EMERGENCY (95-100%)
+  - **BudgetConstraints**: Configurable session budget and mode transition thresholds
+  - **TokenBudget**: Real-time budget tracking with automatic mode transitions
+  - **TokenUsageSnapshot**: Immutable snapshots for reporting
+  - 19 comprehensive tests, 99% coverage
+
+- **TokenManager** (`src/coordination/token_manager.py`): Session and per-agent token management
+  - **Session budget tracking**: Enforce budget limits across all agents
+  - **Per-agent tracking**: Monitor individual agent token consumption
+  - **Automatic mode transitions**: NORMAL → CONSERVATION → EMERGENCY based on usage %
+  - **Burn rate calculation**: Track tokens/hour consumption rate
+  - **Runway estimation**: Calculate remaining time before budget exhaustion
+  - **Mode change callbacks**: External integration for conservation behavior
+  - **Thread-safe**: Concurrent agent updates with RLock protection
+  - 23 comprehensive tests, 92% coverage
+
+- **TokenEstimator** (`src/coordination/token_estimator.py`): Pre-execution cost estimation
+  - **Task complexity assessment**: SIMPLE, MEDIUM, COMPLEX, VERY_COMPLEX levels
+  - **Multi-factor estimation**: Description length, subtask count, task type
+  - **Context overhead**: Account for large context windows
+  - **Batch estimation**: Estimate total cost for multiple tasks
+  - **Singleton pattern**: Consistent estimates across system
+  - 17 comprehensive tests, 92% coverage
+
+### Key decisions
+
+- **Three-tier conservation system**: Gradual degradation (NORMAL → CONSERVATION → EMERGENCY) prevents sudden shutdowns
+- **Burn rate over full history**: Uses all usage data for accurate trending
+- **Heuristic-based estimation**: Task complexity scored from description length + subtask count + task type
+- **Thread-safe singleton managers**: Consistent budget enforcement across concurrent agents
+- **Build on AgentResourceMetrics**: Integrates with existing Phase 6.1 monitoring for agent-level tracking
+
+### Tests added
+
+- `tests/models/test_budget.py`: 19 tests for budget models and conservation modes
+- `tests/coordination/test_token_manager.py`: 23 tests for budget management and enforcement
+- `tests/coordination/test_token_estimator.py`: 17 tests for cost estimation
+
+### Quality gates
+
+- **Tests**: 59 new tests, all passing (1267 total suite passing)
+- **Coverage**: 99% (budget.py), 92% (token_manager.py), 92% (token_estimator.py)
+- **Linting**: 0 errors (ruff check)
+- **Type checking**: 0 errors (mypy)
+
+### Integration points
+
+- **AgentStatusMonitor** (Phase 6.1): Per-agent token tracking via AgentResourceMetrics
+- **Future integration**: Conservation mode can trigger context reduction, concise responses
+- **Future integration**: Emergency mode can trigger checkpointing and graceful shutdown
+
+---
+
 ## 2025-12-07 - Phase 7.3: Transparency and Explainability - Ada
 
 **Status:** Complete
@@ -29,6 +89,13 @@
   - Comprehensive error reports with type, severity, timing, stack traces
   - Additional context metadata for debugging
 
+- **Centralized Explainability Module** (`src/core/explainability.py`):
+  - **ExplainabilityTracker**: Central repository for all transparency data
+  - **DecompositionExplanation**, **TeamDesignExplanation**, **AgentSelectionExplanation**: Dataclasses for decision rationale
+  - **InteractionLog**, **FailureDiagnostics**: Logging and diagnostic data structures
+  - JSON export, queryable storage, human-readable formatting
+  - 17 comprehensive tests, 100% coverage (90 statements, 0 missed)
+
 ### Key decisions
 
 1. **Interaction logging is read-only**: The logger observes NATS messages without modifying the bus
@@ -40,6 +107,7 @@
 
 - `tests/coordination/test_interaction_logger.py`: 12 tests covering logging, querying, filtering
 - `tests/core/test_decomposition_rationale.py`: 8 tests covering strategy, subtask, dependency explanations
+- `tests/core/test_explainability.py`: 17 tests covering all explanation types and ExplainabilityTracker
 
 ### Quality gates
 

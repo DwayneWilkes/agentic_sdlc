@@ -83,12 +83,66 @@ class TeamComposer:
         team_id = f"team-{uuid.uuid4().hex[:8]}"
         name = team_name or f"Team {team_id[:6]}"
 
+        # Add team design explanation to metadata for transparency
+        explanation = self._explain_team_design(subtasks, agents, ideal_size, role_requirements)
+        metadata = metadata or {}
+        metadata["design_explanation"] = explanation
+
         return Team(
             id=team_id,
             name=name,
             agents=agents,
-            metadata=metadata or {},
+            metadata=metadata,
         )
+
+    def _explain_team_design(
+        self,
+        subtasks: list[Subtask],
+        agents: list[Agent],
+        team_size: int,
+        role_requirements: dict[str, dict[str, Any]],
+    ) -> str:
+        """
+        Generate explanation of team design decisions.
+
+        Args:
+            subtasks: The subtasks requiring completion
+            agents: Selected agents
+            team_size: Calculated optimal team size
+            role_requirements: Role analysis results
+
+        Returns:
+            Human-readable explanation of team composition
+        """
+        lines = ["# Team Design Explanation\n"]
+
+        # Explain team size
+        lines.append(f"**Team Size:** {len(agents)} agents")
+        lines.append(
+            f"Calculated from {len(subtasks)} subtasks "
+            f"(~{self._tasks_per_agent:.1f} tasks per agent)\n"
+        )
+
+        # Explain role selection
+        lines.append("**Role Selection:**")
+        role_counts: dict[str, int] = {}
+        for agent in agents:
+            role_counts[agent.role] = role_counts.get(agent.role, 0) + 1
+
+        for role, count in role_counts.items():
+            priority = role_requirements.get(role, {}).get("priority", 0.0)
+            lines.append(
+                f"- {count}x {role} (priority: {priority:.2f}, "
+                f"needed for {role_requirements.get(role, {}).get('count', 0)} tasks)"
+            )
+
+        # Explain task distribution
+        lines.append("\n**Task Distribution:**")
+        for agent in agents:
+            task_count = len(agent.assigned_tasks)
+            lines.append(f"- {agent.id} ({agent.role}): {task_count} tasks assigned")
+
+        return "\n".join(lines)
 
     def _calculate_team_size(self, subtasks: list[Subtask], max_size: int) -> int:
         """

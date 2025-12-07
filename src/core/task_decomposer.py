@@ -213,16 +213,55 @@ class DependencyGraph:
 
 
 @dataclass
+class DecompositionRationale:
+    """
+    Explains the rationale behind task decomposition decisions.
+
+    Provides transparency into WHY tasks were decomposed in a specific way,
+    including strategy selection, subtask creation, and dependency reasoning.
+    """
+
+    strategy: str
+    subtask_explanations: dict[str, str] = field(default_factory=dict)
+    dependency_explanations: dict[str, str] = field(default_factory=dict)
+
+    def format_as_text(self) -> str:
+        """
+        Format the rationale as human-readable text.
+
+        Returns:
+            Formatted explanation string
+        """
+        lines = ["# Task Decomposition Rationale\n"]
+
+        lines.append(f"**Strategy:** {self.strategy}\n")
+
+        if self.subtask_explanations:
+            lines.append("## Subtasks\n")
+            for task_id, explanation in self.subtask_explanations.items():
+                lines.append(f"- **{task_id}:** {explanation}")
+
+        if self.dependency_explanations:
+            lines.append("\n## Dependencies\n")
+            for dep_key, explanation in self.dependency_explanations.items():
+                lines.append(f"- **{dep_key}:** {explanation}")
+
+        return "\n".join(lines)
+
+
+@dataclass
 class DecompositionResult:
     """
     Result of task decomposition.
 
-    Contains the original task, generated subtasks, and dependency graph.
+    Contains the original task, generated subtasks, dependency graph,
+    and rationale explaining the decomposition decisions.
     """
 
     task: ParsedTask
     subtasks: list[SubtaskNode]
     dependency_graph: DependencyGraph
+    rationale: DecompositionRationale | None = None
 
     def get_execution_order(self) -> list[str]:
         """
@@ -283,14 +322,19 @@ class TaskDecomposer:
             task: ParsedTask to decompose
 
         Returns:
-            DecompositionResult with subtasks and dependency graph
+            DecompositionResult with subtasks, dependency graph, and rationale
         """
         self._task_counter = 0
         graph = DependencyGraph()
 
         # Handle empty task
         if not task.goal or not task.goal.strip():
-            return DecompositionResult(task=task, subtasks=[], dependency_graph=graph)
+            rationale = DecompositionRationale(
+                strategy="No decomposition needed for empty task"
+            )
+            return DecompositionResult(
+                task=task, subtasks=[], dependency_graph=graph, rationale=rationale
+            )
 
         # Generate subtasks based on task type
         subtasks = self._decompose_recursive(task, depth=0, parent_id=None)
@@ -302,9 +346,77 @@ class TaskDecomposer:
                 if graph.has_node(dep):
                     graph.add_dependency(subtask.id, dep)
 
+        # Generate rationale
+        rationale = self._generate_rationale(task, subtasks)
+
         return DecompositionResult(
-            task=task, subtasks=subtasks, dependency_graph=graph
+            task=task, subtasks=subtasks, dependency_graph=graph, rationale=rationale
         )
+
+    def _generate_rationale(
+        self, task: ParsedTask, subtasks: list[SubtaskNode]
+    ) -> DecompositionRationale:
+        """
+        Generate explanation for decomposition decisions.
+
+        Args:
+            task: Original task
+            subtasks: Generated subtasks
+
+        Returns:
+            DecompositionRationale explaining the decomposition
+        """
+        # Explain strategy selection
+        strategy_explanation = self._explain_strategy(task)
+
+        # Explain each subtask
+        subtask_explanations = {}
+        for subtask in subtasks:
+            subtask_explanations[subtask.id] = self._explain_subtask(subtask, task)
+
+        # Explain dependencies
+        dependency_explanations = {}
+        for subtask in subtasks:
+            for dep_id in subtask.dependencies:
+                dep_key = f"{subtask.id}->{dep_id}"
+                dependency_explanations[dep_key] = self._explain_dependency(
+                    subtask, dep_id, subtasks
+                )
+
+        return DecompositionRationale(
+            strategy=strategy_explanation,
+            subtask_explanations=subtask_explanations,
+            dependency_explanations=dependency_explanations,
+        )
+
+    def _explain_strategy(self, task: ParsedTask) -> str:
+        """Explain why a particular decomposition strategy was chosen."""
+        task_type_name = task.task_type.value if task.task_type else "unknown"
+        return (
+            f"Used {task_type_name} decomposition strategy based on task type. "
+            f"This strategy breaks down {task_type_name} tasks into standard phases "
+            f"that are well-understood and commonly used."
+        )
+
+    def _explain_subtask(self, subtask: SubtaskNode, task: ParsedTask) -> str:
+        """Explain why a specific subtask was created."""
+        return (
+            f"Created '{subtask.description}' as a {subtask.estimated_complexity} "
+            f"complexity subtask at depth {subtask.depth}. This subtask addresses "
+            f"a key component of the overall goal."
+        )
+
+    def _explain_dependency(
+        self, subtask: SubtaskNode, dep_id: str, all_subtasks: list[SubtaskNode]
+    ) -> str:
+        """Explain why a dependency exists."""
+        dep_subtask = next((s for s in all_subtasks if s.id == dep_id), None)
+        if dep_subtask:
+            return (
+                f"'{subtask.description}' depends on '{dep_subtask.description}' "
+                f"because it requires the outputs or setup from that earlier phase."
+            )
+        return f"'{subtask.description}' depends on {dep_id} (prerequisite task)"
 
     def _decompose_recursive(
         self, task: ParsedTask, depth: int, parent_id: str | None
