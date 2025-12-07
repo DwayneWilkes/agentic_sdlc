@@ -159,15 +159,15 @@ from src.core.metrics import get_team_summary, get_leaderboard, MetricType
 # Get team summary
 summary = get_team_summary()
 print(f"\\nTeam Metrics:")
-print(f"  Total agents: {summary['total_agents']}")
-print(f"  Phases completed: {summary['velocity']['total_phases_completed']}")
-print(f"  Avg coverage: {summary['quality']['average_coverage']}")
-print(f"  Coffee breaks: {summary['collaboration']['total_coffee_breaks']}")
+print(f"  Total agents: {{summary['total_agents']}}")
+print(f"  Phases completed: {{summary['velocity']['total_phases_completed']}}")
+print(f"  Avg coverage: {{summary['quality']['average_coverage']}}")
+print(f"  Coffee breaks: {{summary['collaboration']['total_coffee_breaks']}}")
 
 # Top performers
 print("\\nTop performers (phases completed):")
 for entry in get_leaderboard(MetricType.PHASE_COMPLETED)[:3]:
-    print(f"  {entry['agent_name']}: {entry['score']} phases")
+    print(f"  {{entry['agent_name']}}: {{entry['score']}} phases")
 ```
 
 Include these metrics in the Team Performance section of your report.

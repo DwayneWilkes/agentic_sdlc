@@ -86,9 +86,9 @@ from src.orchestrator.agent_spawner import spawn_tech_lead
 print("Spawning Tech Lead for quality audit...")
 result = spawn_tech_lead(wait=False)
 if result.success:
-    print(f"Tech Lead spawned! Log: {result.log_file}")
+    print(f"Tech Lead spawned! Log: {{result.log_file}}")
 else:
-    print(f"Failed to spawn: {result.error}")
+    print(f"Failed to spawn: {{result.error}}")
 ```
 
 ## 6. Create Status Report - Write to docs/pm-status.md:
