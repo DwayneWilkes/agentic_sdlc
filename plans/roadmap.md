@@ -115,15 +115,26 @@
 
 ### Phase 2.2: Agent Instantiation and Configuration
 
-- **Status:** 🔴 Blocked
-- **Depends On:** Phase 1.4 ✅, Phase 2.1
+- **Status:** ✅ Complete
+- **Assigned To:** Zenith
+- **Completed:** 2025-12-06
+- **Depends On:** Phase 1.4 ✅, Phase 2.1 ✅
 - **Tasks:**
-  - [ ] Implement agent factory with tool/context/permission configuration
-  - [ ] Add instruction generation for each agent (clear, unambiguous)
-  - [ ] Define resource limits (time, compute, API calls) per agent
-  - [ ] Pass relevant dependencies and context to agents
+  - [✅] Implement agent factory with tool/context/permission configuration
+  - [✅] Add instruction generation for each agent (clear, unambiguous)
+  - [✅] Define resource limits (time, compute, API calls) per agent
+  - [✅] Pass relevant dependencies and context to agents
 - **Effort:** M
 - **Done When:** Agents instantiate with proper configuration; each agent knows its tasks and constraints
+- **Quality Gates:** All tests pass (23/23), 100% coverage for agent_factory.py, no linting errors, no type errors
+- **Implementation Notes:**
+  - src/core/agent_factory.py - Complete agent factory implementation
+  - tests/core/test_agent_factory.py - Comprehensive test suite (23 tests)
+  - ResourceLimits dataclass: max_time_seconds, max_api_calls, max_tokens, max_memory_mb
+  - AgentConfiguration dataclass: tools, context, permissions, resource_limits, dependencies
+  - InstructionGenerator class: generates formatted instructions with role, tasks, tools, limits, context
+  - AgentFactory class: creates configured agents from roles with unique IDs and full metadata
+  - All components fully typed and documented with docstrings
 
 ### Phase 2.3: Error Detection Framework ⭐ BOOTSTRAP
 

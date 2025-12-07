@@ -29,6 +29,43 @@ This log tracks all completed work streams, implementations, and agent activity.
 
 ---
 
+## 2025-12-06 - Phase 2.2: Agent Instantiation and Configuration
+
+**Agent**: Zenith (coder-1765076224)
+**Work Stream**: Phase 2.2 - Agent Instantiation and Configuration
+**Status**: Complete
+
+### What Was Implemented
+
+**Agent Factory Framework**:
+- **ResourceLimits**: Dataclass defining resource constraints (max_time_seconds, max_api_calls, max_tokens, max_memory_mb)
+- **AgentConfiguration**: Configuration dataclass with tools, context, permissions, resource_limits, and dependencies
+- **InstructionGenerator**: Generates clear, unambiguous formatted instructions for agents including role description, tasks, tools, resource limits, context, and dependencies
+- **AgentFactory**: Factory class that creates configured Agent instances from AgentRole definitions with unique IDs and full metadata
+- Complete integration with RoleRegistry and existing Agent/AgentRole models
+- Comprehensive instruction formatting with markdown sections for readability
+
+### Files Changed
+- `src/core/agent_factory.py` - New module (98 lines)
+- `tests/core/test_agent_factory.py` - Comprehensive test suite (23 tests)
+
+### Test Results
+- Tests passed: 23/23
+- Coverage: 100% for agent_factory.py
+- No linting errors
+- No type errors
+
+### Notes
+- Followed TDD: wrote all 23 tests first, then implemented to make them pass
+- ResourceLimits supports partial configuration (all fields optional)
+- InstructionGenerator creates well-formatted, readable instructions with clear sections
+- AgentFactory validates role existence and raises descriptive errors
+- Configuration serializes cleanly to agent metadata for persistence
+- All agents get unique UUIDs (8-character hex format: agent-{hex})
+- Instruction format includes: Role, Capabilities, Tools, Tasks, Dependencies, Context, Resource Limits, Permissions, Domain Knowledge
+
+---
+
 ## 2025-12-06 - Phase 2.4: Recovery Strategy Engine
 
 **Agent**: Horizon (coder-1765075622)
