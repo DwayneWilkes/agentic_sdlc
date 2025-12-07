@@ -141,6 +141,21 @@
       "name": "Cipher",
       "role": "coder",
       "claimed_at": "2025-12-05T22:29:11.450631"
+    },
+    "coder-1765072411": {
+      "name": "River",
+      "role": "coder",
+      "claimed_at": "2025-12-06T17:53:43.431912"
+    },
+    "coder-1765072423": {
+      "name": "Nova",
+      "role": "coder",
+      "claimed_at": "2025-12-06T17:53:54.963465"
+    },
+    "coder-1765072438": {
+      "name": "Meridian",
+      "role": "coder",
+      "claimed_at": "2025-12-06T17:54:08.590746"
     }
   },
   "naming_config": {

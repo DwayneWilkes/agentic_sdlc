@@ -578,3 +578,112 @@ This log tracks all completed work streams, implementations, and agent activity.
 7. **Timestamp Precision**: ISO 8601 format with timezone awareness for distributed systems
 
 ---
+
+## 2025-12-06 - Phase 2.5: Orchestrator Wrapper (Smart Dispatcher) - Meridian
+
+### Summary
+
+Implemented the Orchestrator Wrapper, a smart dispatcher that accepts natural language requests and routes them appropriately based on task complexity. This is a critical **PRIORITY** phase that serves as the entry point for the orchestrator system.
+
+### What Was Built
+
+**Core Functionality:**
+- `src/orchestrator/wrapper.py` - OrchestratorWrapper class with smart task routing
+- `tests/orchestrator/test_wrapper.py` - Comprehensive test suite (18 tests)
+
+**Key Components:**
+
+1. **ComplexityAssessment** - Analyzes task complexity using heuristics:
+   - SIMPLE (score ≤2): Single straightforward action
+   - MEDIUM (score ≤6): A few related steps
+   - COMPLEX (score >6): Multiple subtasks with dependencies
+   - Scoring factors: success criteria (×2), constraints, context, keywords (×2)
+
+2. **ExecutionMode Selection** - Routes based on complexity:
+   - SINGLE_AGENT: For simple, straightforward tasks
+   - COORDINATED_TEAM: For complex tasks requiring decomposition
+
+3. **ExecutionResult** - Comprehensive result dataclass capturing:
+   - Original request and parsed task
+   - Execution mode and success status
+   - Task decomposition (for complex tasks)
+   - Clarification requests (for ambiguous tasks)
+   - Execution metadata
+
+4. **Integration Points:**
+   - TaskParser: Extract goal, constraints, context, detect ambiguities
+   - TaskDecomposer: Break complex tasks into subtask DAG
+   - RoleRegistry: Access standard agent roles
+   - Dry-run mode: Test without spawning agents
+
+### Test-Driven Development
+
+Followed strict TDD discipline:
+1. Wrote all 18 tests FIRST
+2. Watched them FAIL (no implementation)
+3. Implemented to make tests GREEN
+4. Refactored complexity scoring based on test results
+
+### Quality Metrics
+
+- **Tests**: 18/18 passing
+- **Coverage**: 97% for wrapper.py (only 2 TODO lines uncovered)
+- **Linting**: Zero errors (ruff check)
+- **Type Checking**: Zero errors (mypy)
+
+### Design Decisions
+
+1. **Complexity Scoring Heuristics**: Weighted scoring system balances multiple factors
+   - Success criteria weighted ×2 (strong indicator of complexity)
+   - Complex keywords weighted ×2 ("build", "implement", "system")
+   - Simple keywords reduce score ("fix", "update", "change")
+   - Adjustable thresholds (≤2 simple, ≤6 medium, >6 complex)
+
+2. **Dry-Run Mode**: Essential for testing without side effects
+   - Returns ExecutionResult with metadata
+   - Allows unit testing of routing logic
+   - Enables validation before actual execution
+
+3. **Clarification Integration**: Surfaces ambiguities early
+   - Leverages TaskParser's ambiguity detection
+   - Returns clarifications in ExecutionResult
+   - Prevents proceeding with unclear requirements
+
+4. **TODO Placeholders**: Actual agent spawning deferred
+   - Core routing logic complete
+   - Agent spawning depends on implementation details
+   - NATS coordination will be added in future phases
+
+### Technical Highlights
+
+- **Type Safety**: Full type hints with proper imports (DecompositionResult not DependencyGraph)
+- **Enum Usage**: ComplexityLevel and ExecutionMode as string enums
+- **Dataclasses**: Clean, immutable data structures with defaults
+- **Separation of Concerns**: Assessment, selection, and execution clearly separated
+
+### Future Work (Marked as TODO)
+
+- [ ] Implement actual agent spawning (line 272)
+- [ ] Add NATS coordination for team execution (line 324)
+- [ ] Integrate with existing Orchestrator.run() for roadmap-based execution
+- [ ] Add CLI wrapper for direct user interaction
+- [ ] Implement output integration/synthesis for coordinated teams
+
+### Lessons Learned
+
+1. **TDD is Effective**: Writing tests first clarified requirements and prevented over-engineering
+2. **Iterative Refinement**: Complexity thresholds needed adjustment after initial testing
+3. **Type Precision Matters**: Using correct types (DecompositionResult vs DependencyGraph) prevents runtime errors
+4. **Dry-Run Design Pattern**: Invaluable for testing complex coordination logic
+
+### Impact
+
+This phase completes the **smart dispatcher** that will serve as the main entry point for:
+- CLI-driven orchestration
+- API-based task submission
+- Interactive orchestrator mode
+- Future integration with external systems
+
+It bridges the gap between natural language user requests and the orchestrator's internal task execution machinery.
+
+---
