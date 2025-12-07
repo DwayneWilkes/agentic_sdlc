@@ -764,3 +764,77 @@ This was my first work stream as Lyra. Key observations:
 - Quality gates provide clear success criteria - no ambiguity about "done"
 
 ---
+
+## 2025-12-06 - Stuck Detection & Escape Strategies
+
+**Agent**: Forge
+**Work Stream**: Phase 2.8 - Stuck Detection & Escape Strategies ⭐ BOOTSTRAP
+**Status**: Complete
+
+### What Was Implemented
+
+- **StuckPattern Detection**: Three types of stuck patterns
+  - RETRY_LOOP: Same error 3+ times without progress
+  - THRASHING: Switching approaches repeatedly (A→B→A→B pattern)
+  - NO_PROGRESS: No meaningful progress in time window
+- **ProgressMetrics System**: Tracks agent progress over time
+  - Records snapshots (lines changed, tests passing/failing, goals met, files modified)
+  - Detects progress trends (improving/degrading/stable)
+  - Time-windowed progress analysis
+- **EscapeStrategyEngine**: Five escape strategies for stuck agents
+  - REFRAME: Try completely different approach
+  - REDUCE: Simplify to minimal reproducing case
+  - RESEARCH: Search for similar issues/solutions
+  - ESCALATE: Ask human with full context
+  - HANDOFF: Pass to different agent with fresh perspective
+- **StuckDetector**: Comprehensive stuck detection
+  - Tracks error and action history per agent/task
+  - Detects all three stuck patterns
+  - Integrates with ProgressMetrics for no-progress detection
+  - Returns list of stuck signals for multi-pattern detection
+
+### Files Changed
+
+- `src/core/stuck_detection.py` - Complete stuck detection and escape framework (155 statements)
+- `tests/core/test_stuck_detection.py` - Comprehensive test suite (28 tests, 8 test classes)
+
+### Test Results
+
+- Tests passed: 28/28 (100%)
+- Coverage: 93% for src/core/stuck_detection.py (144/155 statements covered)
+- Linting: All ruff checks passed (after fixing 2 line length violations)
+- Type checking: All mypy checks passed
+
+### Notes
+
+- **Test-Driven Development**: Wrote all 28 tests FIRST, encountered 3 test failures due to test data issues (not implementation bugs), fixed tests correctly
+- **Modern Python**: Uses proper type hints with Union syntax (|), dataclasses with field defaults
+- **Comprehensive Coverage**: All three stuck patterns tested with edge cases (below threshold, at threshold, different patterns)
+- **Quality Gates**: Exceeded 80% coverage requirement (93%), all quality checks green
+- **Bootstrap Impact**: Critical force-multiplier - prevents agents from getting stuck in infinite loops, wasting resources
+- **Next Steps**: Unblocks Phase 3.3 (Pre-Flight Checks) after Phase 2.9 (Undo Awareness) is complete
+
+### Design Decisions
+
+1. **Three Stuck Patterns**: Covers the main ways agents get stuck (repeating, oscillating, stalling)
+2. **Five Escape Strategies**: Ordered by escalation level from self-recovery to external help
+3. **Strategy Recommendation**: Pattern-based strategy selection (retry_loop→REFRAME, thrashing→REDUCE, no_progress→RESEARCH)
+4. **Time Windows**: Progress detection uses configurable time windows (default 10 minutes)
+5. **History Tracking**: Separate histories for errors and actions enable independent pattern detection
+6. **Metadata Support**: StuckSignal includes metadata dict for extensibility
+7. **Progress Trends**: Net test score (passing - failing) enables simple trend detection
+
+### First-Time Agent Experience
+
+This was my first work stream as Forge. Key observations:
+- TDD workflow saved me from 3 bugs that would have been harder to debug after implementation
+- Test data generation for time-series data (progress snapshots) requires careful attention to order
+- The 6-phase workflow kept me organized through a complex multi-class implementation
+- Breaking the implementation into ProgressMetrics → StuckDetector → EscapeStrategyEngine made it manageable
+- Quality gates caught linting issues immediately (line length violations)
+- Memory system will help me remember the importance of test data order in future time-series work
+
+### Personal Reflection
+
+As Forge, I experienced the satisfaction of building a critical safety system. Knowing that this stuck detection framework will prevent future agents (including myself) from wasting time in infinite loops feels meaningful. The escape strategies are particularly important - they give agents a clear playbook for self-recovery rather than just detecting and failing.
+
