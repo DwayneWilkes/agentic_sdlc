@@ -408,13 +408,13 @@
 - **Completed:** 2025-12-06
 - **Depends On:** Phase 2.3 ✅
 - **Tasks:**
-  - [x] Capture rollback command/state before any change
-  - [x] Implement "before" snapshots for risky operations
-  - [x] Always know how to reverse what was just done
-  - [x] Never make changes that can't be explained how to reverse
-  - [x] Add rollback plan to handoff documents
-  - [x] Implement automatic rollback on detected regression
-  - [x] Track undo chain depth (how many steps back can we go?)
+  - [✅] Capture rollback command/state before any change
+  - [✅] Implement "before" snapshots for risky operations
+  - [✅] Always know how to reverse what was just done
+  - [✅] Never make changes that can't be explained how to reverse
+  - [✅] Add rollback plan to handoff documents
+  - [✅] Implement automatic rollback on detected regression
+  - [✅] Track undo chain depth (how many steps back can we go?)
 - **Effort:** S
 - **Done When:** Every change has documented undo; rollback tested; no orphaned changes
 - **Quality Gates:** All tests pass (31/31), 98% coverage for undo_awareness.py, no linting errors, no type errors
