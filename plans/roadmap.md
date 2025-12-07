@@ -1828,8 +1828,8 @@
 
 ### Phase 10.3: Attention Schema (AST-1)
 
-- **Status:** ⚪ Not Started
-- **Depends On:** Phase 6.1
+- **Status:** 🟢 Ready
+- **Depends On:** Phase 6.1 ✅
 - **Tasks:**
   - [ ] Model current attention state (what am I focusing on?)
   - [ ] Track attention history within task (where has focus been?)
