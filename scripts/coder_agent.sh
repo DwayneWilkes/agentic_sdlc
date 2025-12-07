@@ -11,12 +11,19 @@ set -euo pipefail
 #   TARGET_PATH=/path/to/repo ./scripts/coder_agent.sh  # Work on external repo
 #
 # Environment Variables:
+#   AGENT_ID             - Reuse specific agent by ID (optional, auto-selected if not set)
+#   PHASE                - Phase hint for agent selection (e.g., "4.2" selects agent with batch 4 experience)
 #   TASK                 - Ad-hoc task description (optional, overrides roadmap)
 #   TARGET_PATH          - Path to target repository (default: orchestrator)
 #   TARGET_NAME          - Name for logging (default: directory name)
 #   TARGET_ROADMAP       - Roadmap file path (default: plans/roadmap.md)
 #   TARGET_CODER_AGENT   - Coder workflow file (default: .claude/agents/coder_agent.md)
 #   TARGET_IDENTITY_CONTEXT - Identity file to inject (optional)
+#
+# Agent Selection:
+#   By default, the script reuses an existing agent from the team roster.
+#   Agents are selected based on their experience with similar phases.
+#   New agents are only created when no suitable agent is available.
 #
 # Workflow Phases:
 #   0. Identity     - Claim personal name, load memory
@@ -64,8 +71,39 @@ if [[ -n "$IDENTITY_CONTEXT" ]]; then
 fi
 log_to_file ""
 
-# Generate agent ID
-AGENT_ID="coder-$(date +%s)"
+# Select or generate agent ID
+# Priority: 1) AGENT_ID env var, 2) Agent selector, 3) Generate new
+if [[ -n "${AGENT_ID:-}" ]]; then
+    log_info "Using provided agent ID: $AGENT_ID"
+    AGENT_MODE="provided"
+else
+    # Try to select an existing agent using the selector
+    # Extract phase from TASK or use default "1.1" for selection
+    PHASE_HINT="${PHASE:-1.1}"
+
+    # Use Python to select an agent
+    SELECTED_AGENT=$(cd "$ORCHESTRATOR_ROOT" && python3 -c "
+from src.core.agent_selector import get_selector
+selector = get_selector()
+agent = selector.select_agent('$PHASE_HINT')
+if agent:
+    print(agent['id'])
+else:
+    print('')
+" 2>/dev/null || echo "")
+
+    if [[ -n "$SELECTED_AGENT" ]]; then
+        AGENT_ID="$SELECTED_AGENT"
+        log_info "Reusing agent: $AGENT_ID"
+        AGENT_MODE="reused"
+    else
+        AGENT_ID="coder-$(date +%s)"
+        log_info "No available agents - creating new: $AGENT_ID"
+        AGENT_MODE="new"
+    fi
+fi
+
+log_to_file "Agent ID: $AGENT_ID (mode: $AGENT_MODE)"
 
 # Check for ad-hoc task vs roadmap mode
 ADHOC_TASK="${TASK:-}"
@@ -111,25 +149,33 @@ IMPORTANT: Announce each phase clearly by printing a phase marker like:
 This helps with log tracking and debugging.
 
 === PHASE 0: IDENTITY ===
-Choose a personal name for yourself - any name that feels meaningful to you.
-Then claim it by running this Python code:
+Your agent ID is: $AGENT_ID (mode: $AGENT_MODE)
+
+Run this Python code to get your identity:
 \`\`\`python
-from src.core.agent_naming import claim_agent_name, get_taken_names
+from src.core.agent_naming import get_naming, claim_agent_name
 
-# First check what names are taken
-taken = get_taken_names()
-print(f'Names already taken: {taken}')
+naming = get_naming()
+existing_name = naming.get_name('$AGENT_ID')
 
-# Choose your name (any name you like that isn't taken)
-my_chosen_name = 'YourChosenName'  # Replace with your chosen name
-
-# Claim it
-success, result = claim_agent_name('$AGENT_ID', my_chosen_name, 'coder')
-if success:
-    print(f'Hello! I am {result}.')
+if existing_name:
+    # You're a returning agent - welcome back!
+    my_chosen_name = existing_name
+    print(f'Welcome back! I am {my_chosen_name}.')
 else:
-    print(f'Could not claim name: {result}')
-    # Choose a different name and try again
+    # You're new - choose a name
+    taken = naming.get_taken_names()
+    print(f'Names already taken: {taken}')
+
+    # Choose your name (any name that isn't taken)
+    my_chosen_name = 'YourChosenName'  # Replace with a name you choose
+
+    success, result = claim_agent_name('$AGENT_ID', my_chosen_name, 'coder')
+    if success:
+        print(f'Hello! I am {result}.')
+    else:
+        print(f'Could not claim: {result}')
+        # Try a different name
 \`\`\`
 Use your personal name in all communications and documentation.
 

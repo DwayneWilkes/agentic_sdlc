@@ -113,9 +113,11 @@
   },
   "assigned_names": {
     "coder-autonomous-1764981103": {
-      "name": "Aria",
+      "name": "Nova",
       "role": "coder",
-      "claimed_at": "2025-12-05T16:31:54.116293"
+      "claimed_at": "2025-12-05T16:31:54.116293",
+      "renamed_from": "Aria",
+      "renamed_at": "2025-12-07"
     },
     "coder-autonomous-1764981707": {
       "name": "Atlas",
@@ -131,86 +133,6 @@
       "name": "Sage",
       "role": "coder",
       "claimed_at": "2025-12-05T21:27:38.039539"
-    },
-    "coder-autonomous-1765002334": {
-      "name": "Axiom",
-      "role": "coder",
-      "claimed_at": "2025-12-05T22:25:51.423028"
-    },
-    "coder-autonomous-1765002535": {
-      "name": "Cipher",
-      "role": "coder",
-      "claimed_at": "2025-12-05T22:29:11.450631"
-    },
-    "coder-1765072411": {
-      "name": "River",
-      "role": "coder",
-      "claimed_at": "2025-12-06T17:53:43.431912"
-    },
-    "coder-1765072423": {
-      "name": "Nova",
-      "role": "coder",
-      "claimed_at": "2025-12-06T17:53:54.963465"
-    },
-    "coder-1765072438": {
-      "name": "Meridian",
-      "role": "coder",
-      "claimed_at": "2025-12-06T17:54:08.590746"
-    },
-    "coder-1765073295": {
-      "name": "Lyra",
-      "role": "coder",
-      "claimed_at": "2025-12-06T18:08:29.013284"
-    },
-    "coder-1765073566": {
-      "name": "Forge",
-      "role": "coder",
-      "claimed_at": "2025-12-06T18:13:03.503172"
-    },
-    "coder-1765074067": {
-      "name": "Ember",
-      "role": "coder",
-      "claimed_at": "2025-12-06T18:21:19.167392"
-    },
-    "coder-1765074388": {
-      "name": "Cascade",
-      "role": "coder",
-      "claimed_at": "2025-12-06T18:26:38.779772"
-    },
-    "coder-1765074980": {
-      "name": "Kestrel",
-      "role": "coder",
-      "claimed_at": "2025-12-06T18:36:36.924187"
-    },
-    "coder-1765075622": {
-      "name": "Horizon",
-      "role": "coder",
-      "claimed_at": "2025-12-06T18:47:16.451195"
-    },
-    "coder-1765076224": {
-      "name": "Zenith",
-      "role": "coder",
-      "claimed_at": "2025-12-06T18:57:19.062312"
-    },
-    "coder-1765076775": {
-      "name": "Prism",
-      "role": "coder",
-      "claimed_at": "2025-12-06T19:06:31.500800"
-    },
-    "coder-1765077447": {
-      "name": "Vertex",
-      "role": "coder",
-      "claimed_at": "2025-12-06T19:17:45.123062"
-    },
-    "coder-1765078300": {
-      "name": "Axis",
-      "role": "coder",
-      "claimed_at": "2025-12-06T19:31:52.239314"
-    },
-    "coder-1765078380": {
-      "name": "Beacon",
-      "role": "coder",
-      "claimed_at": "2025-12-06T19:33:16.196664"
     }
   },
   "naming_config": {

@@ -1,0 +1,105 @@
+{
+  "description": "Institutional knowledge from all agents - preserved when agents are released",
+  "last_updated": "2025-12-07",
+  "alumni": {
+    "Axiom": {
+      "tenure": "2025-12-05",
+      "contributions": ["Early infrastructure work"],
+      "agent_id": "coder-autonomous-1765002334"
+    },
+    "Cipher": {
+      "tenure": "2025-12-05",
+      "contributions": ["Early infrastructure work"],
+      "agent_id": "coder-autonomous-1765002535"
+    },
+    "River": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 5.3: Conflict Detection and Resolution"],
+      "agent_id": "coder-1765072411"
+    },
+    "Nova_v1": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 5.4: Agent Handoff Protocol"],
+      "agent_id": "coder-1765072423",
+      "note": "Name reused for Aria's rename"
+    },
+    "Meridian": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 2.5: Orchestrator Wrapper (Smart Dispatcher)"],
+      "agent_id": "coder-1765072438"
+    },
+    "Lyra": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 2.3: Error Detection Framework"],
+      "agent_id": "coder-1765073295"
+    },
+    "Forge": {
+      "tenure": "2025-12-06",
+      "contributions": ["Documentation and review work"],
+      "agent_id": "coder-1765073566"
+    },
+    "Ember": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase work"],
+      "agent_id": "coder-1765074067"
+    },
+    "Cascade": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase work"],
+      "agent_id": "coder-1765074388"
+    },
+    "Kestrel": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 2.4: Recovery Strategy Engine"],
+      "agent_id": "coder-1765074980"
+    },
+    "Horizon": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 2.2: Agent Instantiation and Configuration"],
+      "agent_id": "coder-1765075622"
+    },
+    "Zenith": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 3.1: Agent Sandboxing and Isolation"],
+      "agent_id": "coder-1765076224"
+    },
+    "Prism": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 3.2: Safety Constraints and Kill Switches"],
+      "agent_id": "coder-1765076775"
+    },
+    "Vertex": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 4.1: Task Assignment Optimizer"],
+      "agent_id": "coder-1765077447"
+    },
+    "Axis": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 9.1: Self-Modification Safety Framework"],
+      "agent_id": "coder-1765078300"
+    },
+    "Beacon": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 9.4: Agent Coffee Breaks and Peer Learning"],
+      "agent_id": "coder-1765078380"
+    },
+    "Echo": {
+      "tenure": "2025-12-06",
+      "contributions": ["Phase 2.7: Agent Behavior Testing Framework (Defeat Tests)"],
+      "agent_id": "coder-1765071130"
+    }
+  },
+  "patterns_learned": [
+    "TDD workflow: Write tests first, then implementation",
+    "Quality gates: pytest, mypy, ruff before commit",
+    "Roadmap gardening: Auto-unblock phases when dependencies complete",
+    "Agent memory: Persistent journal for context across sessions",
+    "Work history: Track phase completions separately from identity"
+  ],
+  "architectural_decisions": [
+    "NATS for inter-agent communication (high performance pub/sub)",
+    "Separate agent naming from work history (separation of concerns)",
+    "Error detection framework with severity levels for triage",
+    "Recovery strategies: RETRY, FALLBACK_AGENT, GRACEFUL_DEGRADATION, CIRCUIT_BREAKER"
+  ]
+}
