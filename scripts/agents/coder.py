@@ -191,6 +191,41 @@ request_coder_help(
 # Tech Lead will review and approve/deny during their next audit
 ```
 
+## AFTER COMPLETING YOUR WORK: Coffee Break
+
+After committing your work, go on a coffee break to share knowledge with other agents:
+
+```python
+from src.orchestrator.agent_spawner import (
+    notify_going_on_break, get_agents_on_break, end_break
+)
+from src.core.agent_naming import get_agents_by_role
+
+# Check who else might want to chat
+other_coders = get_agents_by_role('coder')
+on_break = get_agents_on_break()
+
+# Notify you're going on break (you can be recalled for urgent work)
+partners = [a['name'] for a in on_break[:2]]  # Join existing breaks
+notify_going_on_break(
+    my_chosen_name,
+    break_partners=partners,
+    topic="Sharing learnings from Phase X.Y"
+)
+
+# During break: Share what you learned, ask questions, build relationships
+# Use memory.remember_relationship() to record interactions
+
+# When done (or if recalled):
+end_break(my_chosen_name, summary="Discussed testing patterns with Nova")
+```
+
+Coffee breaks are for:
+- Sharing knowledge from your recent work
+- Learning from other agents' experiences
+- Building team relationships
+- You CAN be recalled from break if urgent work comes in
+
 Begin now. Start with Phase 0 (identity) and work through each phase.'''
 
 

@@ -77,12 +77,17 @@ Add a Dead Code section to the report if issues found.
 '''
 
         prompt += '''
-## STEP 2.5: Coverage Analysis & SPAWN CODERS
+## STEP 2.5: Coverage Analysis & ASSIGN CODERS
 
-If overall coverage is below 80% OR critical modules have low coverage, SPAWN CODERS to fix it:
+If overall coverage is below 80% OR critical modules have low coverage, assign work to coders.
+
+IMPORTANT: Before spawning NEW coders, check if existing coders are available (including those on break):
 
 ```python
-from src.orchestrator.agent_spawner import get_coverage_gaps, spawn_coders_for_coverage
+from src.orchestrator.agent_spawner import (
+    get_coverage_gaps, spawn_coders_for_coverage,
+    get_agents_on_break, get_available_agents, recall_from_break
+)
 
 # Get files below 80% coverage
 gaps = get_coverage_gaps(min_coverage=80)
@@ -90,19 +95,33 @@ print(f"Found {len(gaps)} files below 80% coverage:")
 for gap in gaps[:10]:
     print(f"  {gap['file']}: {gap['coverage']}% ({gap['priority']})")
 
-# Spawn coders for CRITICAL and HIGH priority gaps (up to 3 at a time)
 critical_gaps = [g for g in gaps if g['priority'] in ('CRITICAL', 'HIGH')][:3]
+
 if critical_gaps:
-    print(f"\\nSpawning {len(critical_gaps)} coders for coverage work...")
-    results = spawn_coders_for_coverage(critical_gaps, wait=False)
-    for r in results:
-        status = "Spawned" if r.success else f"Failed: {r.error}"
-        print(f"  {status} - Log: {r.log_file}")
+    # FIRST: Check for agents on break who can be recalled
+    on_break = get_agents_on_break()
+    available = get_available_agents(role='coder')
+
+    print(f"\\nAgents on break: {[a['name'] for a in on_break]}")
+    print(f"Available coders: {available}")
+
+    # Recall agents from break for urgent work before spawning new ones
+    for agent in on_break[:len(critical_gaps)]:
+        recall_from_break(agent['name'], f"Coverage work needed: {critical_gaps[0]['file']}")
+
+    # Only spawn NEW coders if not enough available
+    if len(on_break) < len(critical_gaps):
+        to_spawn = len(critical_gaps) - len(on_break)
+        print(f"\\nSpawning {to_spawn} additional coders...")
+        results = spawn_coders_for_coverage(critical_gaps[-to_spawn:], wait=False)
+        for r in results:
+            status = "Spawned" if r.success else f"Failed: {r.error}"
+            print(f"  {status} - Log: {r.log_file}")
 else:
     print("No critical coverage gaps!")
 ```
 
-After spawning, update docs/technical-debt.md with the assignments and spawned agent info.
+After assigning work, update docs/technical-debt.md with the assignments.
 
 ## STEP 2.6: Review Pending Coder Requests
 

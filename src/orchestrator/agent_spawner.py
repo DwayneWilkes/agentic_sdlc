@@ -7,6 +7,12 @@ STRICT HIERARCHY:
 - Tech Lead can spawn Coders
 - Coders CANNOT spawn other Coders (must request from TL)
 
+COFFEE BREAKS:
+- Agents notify TL when going on break after completing work
+- Agents on break are "available" not "busy" - can be recalled
+- Breaks are for knowledge sharing and relationship building
+- No need to spawn new agents if existing ones are on break
+
 This enables orchestration patterns where agents delegate work
 while maintaining proper chain of command.
 """
@@ -17,8 +23,16 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Literal
+
+
+class AgentStatus(str, Enum):
+    """Agent availability status."""
+    WORKING = "working"      # Currently executing a task
+    ON_BREAK = "on_break"    # On coffee break (can be recalled)
+    AVAILABLE = "available"  # Ready for new work
 
 
 @dataclass
@@ -515,3 +529,267 @@ def run_full_cycle(wait: bool = True, project_root: Path | None = None) -> dict:
     )
 
     return results
+
+
+# =============================================================================
+# Coffee Break System - Agent Status & Availability
+# =============================================================================
+
+
+def _get_status_file(project_root: Path | None = None) -> Path:
+    """Get the path to the agent status file."""
+    if project_root is None:
+        project_root = Path(__file__).parent.parent.parent
+    status_file = project_root / "config" / "agent_status.json"
+    status_file.parent.mkdir(parents=True, exist_ok=True)
+    return status_file
+
+
+def _load_status(project_root: Path | None = None) -> dict:
+    """Load agent status from file."""
+    status_file = _get_status_file(project_root)
+    if status_file.exists():
+        with open(status_file) as f:
+            return json.load(f)
+    return {"agents": {}, "breaks": []}
+
+
+def _save_status(status: dict, project_root: Path | None = None) -> None:
+    """Save agent status to file."""
+    status_file = _get_status_file(project_root)
+    with open(status_file, "w") as f:
+        json.dump(status, f, indent=2)
+        f.write("\n")
+
+
+def notify_going_on_break(
+    agent_name: str,
+    break_partners: list[str] | None = None,
+    topic: str | None = None,
+    project_root: Path | None = None,
+) -> dict:
+    """
+    Notify that an agent is going on a coffee break.
+
+    Agents on break are AVAILABLE, not busy - they can be recalled for new work.
+    Breaks are for knowledge sharing and relationship building.
+
+    Args:
+        agent_name: Name of the agent going on break
+        break_partners: Other agents joining the break (optional)
+        topic: Topic for discussion (optional)
+        project_root: Project root directory
+
+    Returns:
+        Dict with break_id and status
+    """
+    status = _load_status(project_root)
+    break_id = f"break-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{agent_name}"
+
+    # Update agent status
+    status["agents"][agent_name] = {
+        "status": AgentStatus.ON_BREAK.value,
+        "break_id": break_id,
+        "started_at": datetime.now().isoformat(),
+    }
+
+    # Update partners' status too
+    partners = break_partners or []
+    for partner in partners:
+        status["agents"][partner] = {
+            "status": AgentStatus.ON_BREAK.value,
+            "break_id": break_id,
+            "started_at": datetime.now().isoformat(),
+        }
+
+    # Record the break session
+    break_record = {
+        "break_id": break_id,
+        "initiator": agent_name,
+        "participants": [agent_name] + partners,
+        "topic": topic or "General knowledge sharing",
+        "started_at": datetime.now().isoformat(),
+        "ended_at": None,
+        "recalled": False,
+    }
+    status["breaks"].append(break_record)
+
+    _save_status(status, project_root)
+
+    print(f"☕ {agent_name} is going on break" + (f" with {', '.join(partners)}" if partners else ""))
+    if topic:
+        print(f"   Topic: {topic}")
+
+    return {"break_id": break_id, "participants": break_record["participants"]}
+
+
+def recall_from_break(
+    agent_name: str,
+    task_description: str,
+    project_root: Path | None = None,
+) -> bool:
+    """
+    Recall an agent from their coffee break for a new task.
+
+    The agent can finish their current conversation but should wrap up promptly.
+
+    Args:
+        agent_name: Name of the agent to recall
+        task_description: Brief description of why they're needed
+        project_root: Project root directory
+
+    Returns:
+        True if agent was on break and recalled, False otherwise
+    """
+    status = _load_status(project_root)
+
+    agent_status = status["agents"].get(agent_name, {})
+    if agent_status.get("status") != AgentStatus.ON_BREAK.value:
+        return False
+
+    # Find and update the break record
+    break_id = agent_status.get("break_id")
+    for break_record in status["breaks"]:
+        if break_record["break_id"] == break_id and not break_record["ended_at"]:
+            break_record["recalled"] = True
+            break_record["recall_reason"] = task_description
+            break_record["recall_time"] = datetime.now().isoformat()
+            break
+
+    # Update agent status to available
+    status["agents"][agent_name] = {
+        "status": AgentStatus.AVAILABLE.value,
+        "updated_at": datetime.now().isoformat(),
+        "last_break_id": break_id,
+    }
+
+    _save_status(status, project_root)
+
+    print(f"📢 Recalling {agent_name} from break: {task_description}")
+    return True
+
+
+def end_break(
+    agent_name: str,
+    summary: str | None = None,
+    project_root: Path | None = None,
+) -> None:
+    """
+    End a coffee break naturally (not recalled).
+
+    Args:
+        agent_name: Name of the agent ending their break
+        summary: Optional summary of what was discussed
+        project_root: Project root directory
+    """
+    status = _load_status(project_root)
+
+    agent_status = status["agents"].get(agent_name, {})
+    break_id = agent_status.get("break_id")
+
+    # Find and update the break record
+    for break_record in status["breaks"]:
+        if break_record["break_id"] == break_id and not break_record["ended_at"]:
+            break_record["ended_at"] = datetime.now().isoformat()
+            if summary:
+                break_record["summary"] = summary
+            break
+
+    # Update agent status
+    status["agents"][agent_name] = {
+        "status": AgentStatus.AVAILABLE.value,
+        "updated_at": datetime.now().isoformat(),
+        "last_break_id": break_id,
+    }
+
+    _save_status(status, project_root)
+    print(f"✅ {agent_name} is back from break")
+
+
+def get_agents_on_break(project_root: Path | None = None) -> list[dict]:
+    """
+    Get list of agents currently on break.
+
+    Returns:
+        List of dicts with agent info and break details
+    """
+    status = _load_status(project_root)
+    on_break = []
+
+    for name, info in status["agents"].items():
+        if info.get("status") == AgentStatus.ON_BREAK.value:
+            on_break.append({
+                "name": name,
+                "break_id": info.get("break_id"),
+                "started_at": info.get("started_at"),
+            })
+
+    return on_break
+
+
+def get_available_agents(role: str | None = None, project_root: Path | None = None) -> list[str]:
+    """
+    Get list of available agents (not working, including those on break).
+
+    Agents on break ARE available - they can be recalled for work.
+
+    Args:
+        role: Optional role filter (uses agent_naming to check)
+        project_root: Project root directory
+
+    Returns:
+        List of agent names that are available
+    """
+    status = _load_status(project_root)
+
+    # Get all agents not marked as WORKING
+    available = []
+    for name, info in status["agents"].items():
+        if info.get("status") != AgentStatus.WORKING.value:
+            available.append(name)
+
+    # If role filter specified, check against agent_naming
+    if role:
+        from src.core.agent_naming import get_agents_by_role
+        role_agents = {a["name"] for a in get_agents_by_role(role)}
+        available = [a for a in available if a in role_agents]
+
+    return available
+
+
+def set_agent_working(agent_name: str, task: str, project_root: Path | None = None) -> None:
+    """
+    Mark an agent as working on a task.
+
+    Args:
+        agent_name: Name of the agent
+        task: Description of the task
+        project_root: Project root directory
+    """
+    status = _load_status(project_root)
+
+    status["agents"][agent_name] = {
+        "status": AgentStatus.WORKING.value,
+        "task": task,
+        "started_at": datetime.now().isoformat(),
+    }
+
+    _save_status(status, project_root)
+
+
+def set_agent_available(agent_name: str, project_root: Path | None = None) -> None:
+    """
+    Mark an agent as available for new work.
+
+    Args:
+        agent_name: Name of the agent
+        project_root: Project root directory
+    """
+    status = _load_status(project_root)
+
+    status["agents"][agent_name] = {
+        "status": AgentStatus.AVAILABLE.value,
+        "updated_at": datetime.now().isoformat(),
+    }
+
+    _save_status(status, project_root)
