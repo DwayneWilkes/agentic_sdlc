@@ -663,7 +663,8 @@
 
 ### Phase 4.3: Execution Plan Generator
 
-- **Status:** ⚪ Not Started
+- **Status:** 🔄 In Progress
+- **Assigned To:** Nexus
 - **Depends On:** Phase 4.2
 - **Tasks:**
   - [ ] Generate visual/textual execution plan
@@ -861,19 +862,20 @@
 
 ### Phase 6.1: Agent Status Monitoring
 
-- **Status:** ⚪ Not Started
-- **Depends On:** Phase 4.2
+- **Status:** ✅ Complete
+- **Assigned To:** Nova
+- **Depends On:** Phase 4.2 ✅
 - **Tasks:**
-  - [ ] Track agent states (idle, working, blocked, completed, failed)
-  - [ ] Monitor resource consumption (time, tokens, API calls)
-  - [ ] Detect stuck agents (no progress detection)
+  - [x] Track agent states (idle, working, blocked, completed, failed)
+  - [x] Monitor resource consumption (time, tokens, API calls)
+  - [x] Detect stuck agents (no progress detection)
 - **Effort:** S
 - **Done When:** Real-time agent status visible; resource metrics accurate; stuck detection works
 
 ### Phase 6.2: Progress Tracking and Reporting
 
-- **Status:** 🔴 Blocked
-- **Depends On:** Phase 6.1
+- **Status:** ⚪ Not Started
+- **Depends On:** Phase 6.1 ✅
 - **Tasks:**
   - [ ] Implement overall task progress calculation
   - [ ] Add blocker/delay/risk reporting

@@ -2,6 +2,47 @@
 
 This log tracks all completed work streams, implementations, and agent activity.
 
+## 2025-12-07 - Phase 6.1: Agent Status Monitoring - Nova
+
+**Status:** Complete
+
+### What was implemented
+
+- **AgentStatusMonitor** (`src/coordination/agent_status_monitor.py`): Real-time agent monitoring system
+  - Track agent states (IDLE, WORKING, BLOCKED, COMPLETED, FAILED)
+  - Monitor resource consumption (time, tokens, API calls, memory)
+  - Detect stuck agents (no progress for configurable threshold)
+  - Status snapshots with complete resource metrics
+  - Status history tracking (limited to 100 entries per agent)
+  - Thread-safe for concurrent updates
+  - Singleton pattern with convenience functions
+
+### Key decisions
+
+- **Thread-safety first**: Used `threading.RLock()` for all state mutations to support concurrent agent updates
+- **Time tracking approach**: Track elapsed time per state by storing state start times and calculating delta on query
+- **Progress tracking**: Separate `record_progress()` method to reset stuck detection timer without changing state
+- **History management**: Fixed-size history (100 entries) to prevent unbounded memory growth
+- **Resource accumulation**: Resources accumulate across all states (not reset on state transitions)
+- **Snapshot pattern**: All queries return immutable snapshots to avoid race conditions
+
+### Tests added
+
+- `tests/coordination/test_agent_status_monitor.py`: 26 tests (all passing)
+  - Agent state tracking (basic transitions, multiple agents, filtering)
+  - Resource consumption (time, tokens, API calls, accumulation)
+  - Stuck agent detection (with progress updates, state filtering)
+  - Status snapshots and history
+  - Edge cases (rapid changes, concurrent updates, reset)
+  - Data class creation
+
+### Quality gates
+
+- ✅ Tests: 26/26 passing (100%)
+- ✅ Coverage: 91% on agent_status_monitor.py
+- ✅ Linting: All ruff checks passed
+- ✅ Type checking: All mypy checks passed
+
 ## 2025-12-07 - Phase 4.2: Parallel Execution Scheduler (Async Alternative) - Ada
 
 **Status:** Complete (Alternative implementation)
