@@ -554,3 +554,369 @@ def get_team_summary() -> dict[str, Any]:
 def get_leaderboard(metric_type: MetricType) -> list[dict[str, Any]]:
     """Get leaderboard for a specific metric type."""
     return get_metrics().get_leaderboard(metric_type)
+
+
+# -----------------------------------------------------------------------------
+# Metrics Dashboard - Phase 7.5
+# -----------------------------------------------------------------------------
+
+
+class MetricsDashboard:
+    """
+    Metrics Dashboard for reporting and trend analysis.
+
+    Provides formatted reports, trend analysis, completion rates,
+    and efficiency metrics.
+
+    Usage:
+        dashboard = MetricsDashboard(tracker)
+        print(dashboard.format_agent_report("Nova"))
+        print(dashboard.format_team_report())
+        trend = dashboard.get_trend_data(MetricType.PHASE_COMPLETED, "Nova")
+    """
+
+    def __init__(self, tracker: MetricsTracker):
+        """
+        Initialize dashboard.
+
+        Args:
+            tracker: The MetricsTracker instance to use
+        """
+        self.tracker = tracker
+
+    # -------------------------------------------------------------------------
+    # Report Formatting
+    # -------------------------------------------------------------------------
+
+    def format_agent_report(self, agent_name: str) -> str:
+        """
+        Format a detailed report for an individual agent.
+
+        Args:
+            agent_name: Name of the agent
+
+        Returns:
+            Formatted text report
+        """
+        summary = self.tracker.get_agent_summary(agent_name)
+
+        if summary["total_entries"] == 0:
+            return f"Agent: {agent_name}\nNo data available."
+
+        report_lines = [
+            f"=== Agent Report: {agent_name} ===",
+            "",
+            "Velocity:",
+            f"  Phases Completed: {summary['velocity']['phases_completed']}",
+            f"  Tasks Completed: {summary['velocity']['tasks_completed']}",
+            "",
+            "Quality:",
+            f"  Latest Coverage: {summary['quality']['latest_coverage']}%"
+            if summary["quality"]["latest_coverage"] is not None
+            else "  Latest Coverage: N/A",
+            f"  Latest Lint Errors: {summary['quality']['latest_lint_errors']}"
+            if summary["quality"]["latest_lint_errors"] is not None
+            else "  Latest Lint Errors: N/A",
+            "",
+            "Collaboration:",
+            f"  Coffee Breaks: {summary['collaboration']['coffee_breaks']}",
+            f"  Help Given: {summary['collaboration']['help_given']}",
+            f"  Help Received: {summary['collaboration']['help_received']}",
+            f"  Knowledge Shares: {summary['collaboration']['knowledge_shares']}",
+            "",
+            f"Total Entries: {summary['total_entries']}",
+        ]
+
+        return "\n".join(report_lines)
+
+    def format_team_report(self) -> str:
+        """
+        Format a team-wide summary report.
+
+        Returns:
+            Formatted text report
+        """
+        summary = self.tracker.get_team_summary()
+
+        report_lines = [
+            "=== Team Overview ===",
+            "",
+            f"Total Agents: {summary['total_agents']}",
+            f"Agents: {', '.join(summary['agents'])}",
+            "",
+            "Velocity:",
+            f"  Total Phases Completed: {summary['velocity']['total_phases_completed']}",
+            f"  Total Tasks Completed: {summary['velocity']['total_tasks_completed']}",
+            "",
+            "Quality:",
+            f"  Average Coverage: {summary['quality']['average_coverage']:.1f}%"
+            if summary["quality"]["average_coverage"] is not None
+            else "  Average Coverage: N/A",
+            "",
+            "Collaboration:",
+            f"  Total Coffee Breaks: {summary['collaboration']['total_coffee_breaks']}",
+            f"  Collaboration Ratio: {summary['collaboration']['collaboration_ratio']:.2f}",
+        ]
+
+        return "\n".join(report_lines)
+
+    # -------------------------------------------------------------------------
+    # Trend Analysis
+    # -------------------------------------------------------------------------
+
+    def get_trend_data(
+        self, metric_type: MetricType, agent_name: str | None = None
+    ) -> list[dict[str, Any]]:
+        """
+        Get time series data for a metric.
+
+        Args:
+            metric_type: The type of metric to get
+            agent_name: Optional agent name filter
+
+        Returns:
+            List of {timestamp, value} dicts ordered by time
+        """
+        entries = self.tracker.get_entries(agent_name=agent_name, metric_type=metric_type)
+
+        trend_data = [{"timestamp": e.timestamp, "value": e.value} for e in entries]
+
+        # Sort by timestamp
+        return sorted(trend_data, key=lambda x: x["timestamp"])
+
+    def calculate_velocity_trend(self, agent_name: str) -> dict[str, Any]:
+        """
+        Calculate velocity trend over time.
+
+        Args:
+            agent_name: Name of the agent
+
+        Returns:
+            Dict with velocity trend metrics
+        """
+        phase_entries = self.tracker.get_entries(
+            agent_name=agent_name, metric_type=MetricType.PHASE_COMPLETED
+        )
+
+        if not phase_entries:
+            return {"phases_per_day": 0, "trend": "no data"}
+
+        # Calculate phases per day
+        if len(phase_entries) == 1:
+            return {"phases_per_day": 1, "trend": "single data point"}
+
+        # Get time span
+        timestamps = [datetime.fromisoformat(e.timestamp) for e in phase_entries]
+        time_span = (max(timestamps) - min(timestamps)).total_seconds() / 86400  # days
+
+        if time_span == 0:
+            phases_per_day: float = float(len(phase_entries))  # All in one day
+        else:
+            phases_per_day = len(phase_entries) / time_span
+
+        return {"phases_per_day": round(phases_per_day, 2), "trend": "calculated"}
+
+    def calculate_quality_trend(self, agent_name: str) -> dict[str, Any]:
+        """
+        Calculate quality trend over time.
+
+        Args:
+            agent_name: Name of the agent
+
+        Returns:
+            Dict with quality trend metrics
+        """
+        coverage_entries = self.tracker.get_entries(
+            agent_name=agent_name, metric_type=MetricType.TEST_COVERAGE
+        )
+
+        if not coverage_entries:
+            return {"avg_coverage": None, "coverage_trend": "no data"}
+
+        # Calculate average coverage
+        values = [float(e.value) for e in coverage_entries]
+        avg_coverage = sum(values) / len(values)
+
+        return {
+            "avg_coverage": round(avg_coverage, 2),
+            "coverage_trend": "calculated",
+            "data_points": len(coverage_entries),
+        }
+
+    def calculate_collaboration_trend(self, agent_name: str) -> dict[str, Any]:
+        """
+        Calculate collaboration trend.
+
+        Args:
+            agent_name: Name of the agent
+
+        Returns:
+            Dict with collaboration metrics
+        """
+        coffee_entries = self.tracker.get_entries(
+            agent_name=agent_name, metric_type=MetricType.COFFEE_BREAK
+        )
+        help_given_entries = self.tracker.get_entries(
+            agent_name=agent_name, metric_type=MetricType.HELP_PROVIDED
+        )
+        help_received_entries = self.tracker.get_entries(
+            agent_name=agent_name, metric_type=MetricType.HELP_REQUESTED
+        )
+
+        return {
+            "coffee_breaks": len(coffee_entries),
+            "help_given": len(help_given_entries),
+            "help_received": len(help_received_entries),
+            "collaboration_count": len(coffee_entries)
+            + len(help_given_entries)
+            + len(help_received_entries),
+        }
+
+    # -------------------------------------------------------------------------
+    # Completion Rates
+    # -------------------------------------------------------------------------
+
+    def get_completion_rates(self) -> dict[str, float]:
+        """
+        Get overall completion rates.
+
+        Returns:
+            Dict with phase and task completion rates
+        """
+        return {
+            "phase_completion_rate": self.get_phase_completion_rate(),
+            "task_completion_rate": self.get_task_completion_rate(),
+        }
+
+    def get_phase_completion_rate(self) -> float:
+        """
+        Calculate phase completion rate.
+
+        Returns:
+            Percentage of phases completed (0-100)
+        """
+        # Get all phase completions
+        all_entries = self.tracker._data["entries"]
+        completed = sum(1 for e in all_entries if e["metric_type"] == "phase_completed")
+
+        # Get total phases from roadmap (if available)
+        try:
+            from src.orchestrator.work_stream import parse_roadmap
+
+            all_streams = parse_roadmap()
+            total_phases = len(all_streams)
+
+            if total_phases > 0:
+                return round((completed / total_phases) * 100, 2)
+        except (ImportError, FileNotFoundError):
+            pass
+
+        # Fallback: just return completed count as percentage
+        # (assumes completed is out of 100, or return count if < 100)
+        return min(completed, 100)
+
+    def get_task_completion_rate(self) -> float:
+        """
+        Calculate task completion rate.
+
+        Returns:
+            Percentage of tasks completed vs started (0-100)
+        """
+        all_entries = self.tracker._data["entries"]
+        started = sum(1 for e in all_entries if e["metric_type"] == "task_started")
+        completed = sum(1 for e in all_entries if e["metric_type"] == "task_completed")
+
+        if started == 0:
+            return 100.0 if completed > 0 else 0.0
+
+        return round((completed / started) * 100, 2)
+
+    def get_success_rate(self, agent_name: str) -> float:
+        """
+        Calculate test success rate for an agent.
+
+        Args:
+            agent_name: Name of the agent
+
+        Returns:
+            Percentage of tests passed (0-100)
+        """
+        passed_entries = self.tracker.get_entries(
+            agent_name=agent_name, metric_type=MetricType.TESTS_PASSED
+        )
+        failed_entries = self.tracker.get_entries(
+            agent_name=agent_name, metric_type=MetricType.TESTS_FAILED
+        )
+
+        if not passed_entries and not failed_entries:
+            return 100.0  # No test data = assume success
+
+        # Get latest values (cast to int for arithmetic)
+        total_passed = int(passed_entries[-1].value) if passed_entries else 0
+        total_failed = int(failed_entries[-1].value) if failed_entries else 0
+
+        total_tests = total_passed + total_failed
+        if total_tests == 0:
+            return 100.0
+
+        return round((total_passed / total_tests) * 100, 2)
+
+    # -------------------------------------------------------------------------
+    # Efficiency Metrics
+    # -------------------------------------------------------------------------
+
+    def get_efficiency_metrics(self, agent_name: str) -> dict[str, Any]:
+        """
+        Get efficiency metrics for an agent.
+
+        Args:
+            agent_name: Name of the agent
+
+        Returns:
+            Dict with efficiency metrics
+        """
+        return {
+            "avg_time_per_phase": self.get_avg_time_per_phase(agent_name),
+            "avg_time_per_task": self.get_avg_time_per_task(agent_name),
+            "time_efficiency": "calculated",
+        }
+
+    def get_avg_time_per_phase(self, agent_name: str) -> float | None:
+        """
+        Calculate average time per phase.
+
+        Args:
+            agent_name: Name of the agent
+
+        Returns:
+            Average minutes per phase, or None if no timing data
+        """
+        # Currently we don't track phase duration directly
+        # This could be added in the future
+        return None
+
+    def get_avg_time_per_task(self, agent_name: str) -> float | None:
+        """
+        Calculate average time per task.
+
+        Args:
+            agent_name: Name of the agent
+
+        Returns:
+            Average minutes per task, or None if no timing data
+        """
+        task_entries = self.tracker.get_entries(
+            agent_name=agent_name, metric_type=MetricType.TASK_COMPLETED
+        )
+
+        # Filter to entries with duration
+        durations: list[float] = [
+            float(e.context["duration_minutes"])
+            for e in task_entries
+            if "duration_minutes" in e.context
+        ]
+
+        if not durations:
+            return None
+
+        return round(sum(durations) / len(durations), 2)

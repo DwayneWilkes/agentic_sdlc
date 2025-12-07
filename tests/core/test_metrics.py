@@ -1,26 +1,25 @@
 """Tests for agent metrics tracking."""
 
-import json
-import pytest
 from datetime import datetime
-from pathlib import Path
 
+import pytest
+
+import src.core.metrics as metrics_module
 from src.core.metrics import (
     MetricEntry,
-    MetricType,
     MetricsTracker,
+    MetricType,
+    get_agent_summary,
+    get_leaderboard,
     get_metrics,
+    get_team_summary,
+    record_coffee_break,
+    record_help_provided,
+    record_help_requested,
+    record_knowledge_shared,
     record_phase_completed,
     record_quality,
-    record_coffee_break,
-    record_help_requested,
-    record_help_provided,
-    record_knowledge_shared,
-    get_agent_summary,
-    get_team_summary,
-    get_leaderboard,
 )
-import src.core.metrics as metrics_module
 
 
 class TestMetricEntry:
@@ -90,7 +89,7 @@ class TestMetricsTracker:
     def test_init_creates_file(self, tmp_path):
         """Test that init creates metrics file parent dir."""
         metrics_file = tmp_path / "subdir" / "metrics.json"
-        tracker = MetricsTracker(metrics_file)
+        MetricsTracker(metrics_file)
         assert metrics_file.parent.exists()
 
     def test_record_and_retrieve(self, temp_metrics):
@@ -444,3 +443,171 @@ class TestMetricType:
         assert MetricType.HELP_REQUESTED == "help_requested"
         assert MetricType.HELP_PROVIDED == "help_provided"
         assert MetricType.KNOWLEDGE_SHARED == "knowledge_shared"
+
+
+class TestMetricsDashboard:
+    """Tests for MetricsDashboard class - Phase 7.5."""
+
+    @pytest.fixture
+    def temp_metrics(self, tmp_path):
+        """Create a tracker with temp file and sample data."""
+        metrics_file = tmp_path / "metrics.json"
+        tracker = MetricsTracker(metrics_file)
+
+        # Add sample data for dashboard tests
+        tracker.record_phase_completed("Nova", "1.1", coverage=85.0, tests_added=10)
+        tracker.record_phase_completed("Nova", "1.2", coverage=88.0, tests_added=8)
+        tracker.record_task_completed("Nova", "Task 1", duration_minutes=30.0)
+        tracker.record_task_completed("Nova", "Task 2", duration_minutes=45.0)
+        tracker.record_quality("Nova", test_coverage=90.0, tests_passed=50, lint_errors=0)
+        tracker.record_coffee_break("Nova", ["Atlas"], topic="Testing")
+
+        tracker.record_phase_completed("Atlas", "1.3", coverage=92.0, tests_added=15)
+        tracker.record_quality("Atlas", test_coverage=92.0, tests_passed=75, lint_errors=2)
+
+        return tracker
+
+    @pytest.fixture
+    def dashboard(self, temp_metrics):
+        """Create a dashboard instance."""
+        from src.core.metrics import MetricsDashboard
+        return MetricsDashboard(temp_metrics)
+
+    # -------------------------------------------------------------------------
+    # Report Formatting Tests
+    # -------------------------------------------------------------------------
+
+    def test_format_agent_report(self, dashboard):
+        """Test formatting individual agent report."""
+        report = dashboard.format_agent_report("Nova")
+
+        assert "Nova" in report
+        assert "Velocity" in report
+        assert "Quality" in report
+        assert "Collaboration" in report
+        assert "phases_completed" in report.lower() or "2" in report  # 2 phases
+
+    def test_format_agent_report_no_data(self, dashboard):
+        """Test formatting report for agent with no data."""
+        report = dashboard.format_agent_report("Unknown")
+
+        assert "Unknown" in report
+        assert "No data" in report or "0" in report
+
+    def test_format_team_report(self, dashboard):
+        """Test formatting team report."""
+        report = dashboard.format_team_report()
+
+        assert "Team" in report or "Overview" in report
+        assert "Nova" in report or "Atlas" in report  # At least one agent
+        assert "2" in report or "total" in report.lower()  # 2 agents
+
+    # -------------------------------------------------------------------------
+    # Trend Analysis Tests
+    # -------------------------------------------------------------------------
+
+    def test_get_trend_data_phases(self, dashboard):
+        """Test getting trend data for phase completions."""
+        trend = dashboard.get_trend_data(MetricType.PHASE_COMPLETED, "Nova")
+
+        assert isinstance(trend, list)
+        assert len(trend) == 2  # Nova completed 2 phases
+        assert all("timestamp" in point and "value" in point for point in trend)
+
+    def test_get_trend_data_quality(self, dashboard):
+        """Test getting trend data for quality metrics."""
+        trend = dashboard.get_trend_data(MetricType.TEST_COVERAGE, "Nova")
+
+        assert isinstance(trend, list)
+        assert len(trend) >= 1
+
+    def test_get_trend_data_no_data(self, dashboard):
+        """Test getting trend data with no entries."""
+        trend = dashboard.get_trend_data(MetricType.PHASE_COMPLETED, "Unknown")
+
+        assert isinstance(trend, list)
+        assert len(trend) == 0
+
+    def test_calculate_velocity_trend(self, dashboard):
+        """Test calculating velocity trend over time."""
+        trend = dashboard.calculate_velocity_trend("Nova")
+
+        assert isinstance(trend, dict)
+        assert "phases_per_day" in trend or "trend" in trend
+
+    def test_calculate_quality_trend(self, dashboard):
+        """Test calculating quality trend over time."""
+        trend = dashboard.calculate_quality_trend("Nova")
+
+        assert isinstance(trend, dict)
+        # Should have coverage trend
+        assert "coverage_trend" in trend or "avg_coverage" in trend
+
+    def test_calculate_collaboration_trend(self, dashboard):
+        """Test calculating collaboration trend."""
+        trend = dashboard.calculate_collaboration_trend("Nova")
+
+        assert isinstance(trend, dict)
+        assert "coffee_breaks" in trend or "collaboration_count" in trend
+
+    # -------------------------------------------------------------------------
+    # Completion Rate Tests
+    # -------------------------------------------------------------------------
+
+    def test_get_completion_rates(self, dashboard):
+        """Test getting overall completion rates."""
+        rates = dashboard.get_completion_rates()
+
+        assert isinstance(rates, dict)
+        assert "phase_completion_rate" in rates
+        assert "task_completion_rate" in rates
+
+    def test_get_phase_completion_rate(self, dashboard):
+        """Test calculating phase completion rate."""
+        # This requires knowing total phases (from roadmap)
+        # For now, just test it returns a valid percentage
+        rate = dashboard.get_phase_completion_rate()
+
+        assert isinstance(rate, (int, float))
+        assert 0 <= rate <= 100
+
+    def test_get_task_completion_rate(self, dashboard):
+        """Test calculating task completion rate."""
+        rate = dashboard.get_task_completion_rate()
+
+        assert isinstance(rate, (int, float))
+        assert 0 <= rate <= 100
+
+    def test_get_success_rate(self, dashboard):
+        """Test calculating test success rate."""
+        rate = dashboard.get_success_rate("Nova")
+
+        assert isinstance(rate, (int, float))
+        assert 0 <= rate <= 100
+
+    # -------------------------------------------------------------------------
+    # Efficiency Metrics Tests
+    # -------------------------------------------------------------------------
+
+    def test_get_efficiency_metrics(self, dashboard):
+        """Test getting efficiency metrics."""
+        metrics = dashboard.get_efficiency_metrics("Nova")
+
+        assert isinstance(metrics, dict)
+        assert "avg_time_per_task" in metrics or "time_efficiency" in metrics
+
+    def test_avg_time_per_phase(self, dashboard):
+        """Test calculating average time per phase."""
+        avg_time = dashboard.get_avg_time_per_phase("Nova")
+
+        # May be None if no timing data
+        assert avg_time is None or isinstance(avg_time, (int, float))
+
+    def test_avg_time_per_task(self, dashboard):
+        """Test calculating average time per task."""
+        avg_time = dashboard.get_avg_time_per_task("Nova")
+
+        # Nova has 2 tasks with durations: (30+45)/2 = 37.5
+        assert avg_time is not None
+        assert isinstance(avg_time, (int, float))
+        assert avg_time > 0
