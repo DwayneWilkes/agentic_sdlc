@@ -37,6 +37,22 @@ This log tracks quality gate exceptions that were approved but need future remed
 - **Target Remediation:** TBD
 - **Status:** 🟡 Open
 
+### TD-ORCH-20251207 - Critical Coverage Gaps in Orchestrator
+
+- **Module:** Orchestrator Core Components
+- **Gate:** Coverage
+- **Components:**
+  - `orchestrator/dashboard.py`: 0% coverage
+  - `orchestrator/orchestrator.py`: 27% coverage
+  - `orchestrator/agent_runner.py`: 41% coverage
+  - `orchestrator/requirements_compliance.py`: 0% coverage
+- **Required:** 80%
+- **Approved By:** Orion (Tech Lead)
+- **Approved Date:** 2025-12-07
+- **Reason:** Critical orchestration modules lacking test coverage
+- **Target Remediation:** URGENT - Assign to Nexus
+- **Status:** 🔴 Critical
+
 ## Resolved Items
 
 (None yet)
