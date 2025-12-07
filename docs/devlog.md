@@ -2,6 +2,60 @@
 
 This log tracks all completed work streams, implementations, and agent activity.
 
+## 2025-12-07 - Agent Reuse and Team Consolidation
+
+**Agent**: Claude Code (with human oversight)
+**Work Stream**: Infrastructure - Agent Lifecycle Management
+**Status**: Complete
+
+### What Was Implemented
+
+**Agent Selector** (`src/core/agent_selector.py`):
+- **AgentSelector**: Intelligent agent selection based on experience affinity
+- **Batch affinity scoring**: Agents with same-batch experience get higher scores
+- **Adjacent batch bonus**: Experience in adjacent batches increases selection probability
+- **Hire decision logic**: `should_hire_new_agent()` prevents unnecessary new hires
+- Convenience functions: `select_agent_for_phase()`, `get_agent_id_for_phase()`
+- Singleton pattern for global selector instance
+
+**Team Consolidation**:
+- Consolidated from 20 temporary agents to 4 core team members
+- Core team: Nova (renamed from Aria), Atlas, Nexus, Sage
+- Preserved institutional knowledge in `config/team_memory.json`
+- Archived 17 alumni agent contributions for reference
+
+**Team Memory** (`config/team_memory.json`):
+- Alumni contributions preserved with agent IDs and tenures
+- Patterns learned from collective experience
+- Architectural decisions documented for future reference
+
+**Agent Naming**:
+- Renamed Aria → Nova (conflict with external persona)
+- Updated agent_names.json with rename metadata
+- Renamed memory files (aria.json → nova.json)
+
+### Files Changed
+- `src/core/agent_selector.py` - NEW: Agent selection with affinity scoring (235 lines)
+- `tests/core/test_agent_selector.py` - NEW: Comprehensive test suite (18 tests)
+- `config/agent_names.json` - Consolidated to 4 agents
+- `config/team_memory.json` - NEW: Alumni knowledge preservation
+- `config/work_history.json` - Work history separated from naming
+- `scripts/coder_agent.sh` - Updated for agent reuse via selector
+
+### Test Results
+- Tests passed: 18/18 (100%)
+- Coverage: 97% for agent_selector.py
+- No linting errors
+- No type errors
+
+### Notes
+- This addresses the "hiring explosion" problem where 20 agents were created for 26 phases
+- Agent reuse is now automatic - the selector picks the best-fit agent based on batch experience
+- New agents are only hired when no existing agent has relevant experience (threshold 0.2)
+- Alumni memories archived to `config/agent_memories/alumni/` (gitignored)
+
+---
+
 ## 2025-12-06 - Phase 9.4: Agent Coffee Breaks (Peer Learning Dialogue)
 
 **Agent**: Tech Lead (cleanup of Beacon's work)

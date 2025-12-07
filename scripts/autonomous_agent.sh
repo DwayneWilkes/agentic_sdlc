@@ -4,8 +4,11 @@ set -euo pipefail
 # Autonomous Agent - Orchestrated Workflow
 # This script orchestrates the full autonomous development cycle:
 #   1. Run coder agent (6-phase TDD workflow)
-#   2. Handle commit cleanup if working tree is dirty
-#   3. Verify roadmap synchronization via PM agent
+#   2. Verify clean worktree (Tech Lead investigates if dirty)
+#   3. Run Tech Lead quality audit (tests, coverage, lint, types)
+#   4. Run PM for full documentation update (devlog, roadmap, status)
+#
+# Hierarchy: Orchestrator → PM → Tech Lead → Coders
 #
 # Signal Handling:
 #   SIGTERM - Graceful stop: finish current operation, save state, exit
@@ -137,10 +140,10 @@ log_success "Coder Agent completed"
 # ==============================================================================
 # STEP 2: Verify Clean Worktree (or investigate if dirty)
 # ==============================================================================
-log_info "Step 2/3: Verifying coder committed all changes..."
+log_info "Step 2/4: Verifying coder committed all changes..."
 
 if ! require_clean_worktree; then
-    log_info "Handing off to Tech Lead to investigate..."
+    log_info "Handing off to Tech Lead to investigate dirty worktree..."
 
     # Pass the coder's log file for context
     CODER_LOG="$LOG_DIR/coder-agent-$TIMESTAMP.log"
@@ -151,49 +154,72 @@ if ! require_clean_worktree; then
 fi
 
 # ==============================================================================
-# STEP 3: PM Verification (roadmap sync)
+# STEP 3: Tech Lead Quality Audit (ALWAYS runs)
 # ==============================================================================
-if [[ "${SKIP_PM_VERIFY:-}" == "true" ]]; then
-    log_info "Step 3/3: Skipping PM verification (SKIP_PM_VERIFY=true)"
+if [[ "${SKIP_TL_AUDIT:-}" == "true" ]]; then
+    log_info "Step 3/4: Skipping TL audit (SKIP_TL_AUDIT=true)"
 else
-    log_info "Step 3/3: Verifying roadmap synchronization..."
-    log_to_file "=== STEP 3: PM Verification ==="
+    log_info "Step 3/4: Running Tech Lead quality audit..."
+    log_to_file "=== STEP 3: Tech Lead Quality Audit ==="
     log_to_file "Starting: $(date)"
     log_to_file ""
 
-    PM_PROMPT="You are operating as a Project Manager Agent. Follow the workflow defined in .claude/agents/project_manager.md exactly.
+    # Run the full Tech Lead script for comprehensive audit
+    if [[ -x "$SCRIPT_DIR/tech_lead.sh" ]]; then
+        "$SCRIPT_DIR/tech_lead.sh" 2>&1 | tee -a "$LOG_FILE" &
+        CHILD_PID=$!
+        wait $CHILD_PID
+        TL_EXIT_CODE=$?
+        CHILD_PID=""
 
-Your task:
-1. Read docs/devlog.md and identify the most recent work stream completed
-2. Read plans/roadmap.md and find that work stream
-3. Verify the roadmap status is correctly updated:
-   - Status should be: ✅ Complete (if work is done)
-   - All subtasks should be marked [✅]
-   - \"Assigned To\" should show the agent that completed it
-4. If roadmap is NOT synchronized:
-   - Update Status to: ✅ Complete
-   - Mark all subtasks as [✅]
-   - Update \"Assigned To\" with completion info
-5. Generate a verification report showing what was checked and updated
+        log_to_file ""
+        log_to_file "Tech Lead audit completed: $(date)"
+        log_to_file "Exit code: $TL_EXIT_CODE"
+        log_to_file ""
 
-If no work was completed in the recent devlog, respond with: \"No recent work to verify.\"
-
-Begin now."
-
-    # PM agents use Opus 4.5 for complex reasoning
-    claude -p --model opus --dangerously-skip-permissions "$PM_PROMPT" 2>&1 | tee -a "$LOG_FILE"
-    PM_EXIT_CODE=${PIPESTATUS[0]}
-
-    log_to_file ""
-    log_to_file "PM verification completed: $(date)"
-    log_to_file "Exit code: $PM_EXIT_CODE"
-    log_to_file ""
-
-    if [[ $PM_EXIT_CODE -ne 0 ]]; then
-        log_warning "Roadmap verification had issues (exit code $PM_EXIT_CODE)"
-        log_to_file "WARNING: Roadmap verification failed with exit code $PM_EXIT_CODE"
+        if [[ $TL_EXIT_CODE -ne 0 ]]; then
+            log_warning "Tech Lead audit had issues (exit code $TL_EXIT_CODE)"
+            log_to_file "WARNING: Tech Lead audit failed with exit code $TL_EXIT_CODE"
+        else
+            log_success "Tech Lead audit completed"
+        fi
     else
-        log_success "Roadmap verification completed"
+        log_warning "Tech Lead script not found at $SCRIPT_DIR/tech_lead.sh"
+    fi
+fi
+
+# ==============================================================================
+# STEP 4: PM Full Documentation Update (ALWAYS runs)
+# ==============================================================================
+if [[ "${SKIP_PM_VERIFY:-}" == "true" ]]; then
+    log_info "Step 4/4: Skipping PM update (SKIP_PM_VERIFY=true)"
+else
+    log_info "Step 4/4: Running PM for full documentation update..."
+    log_to_file "=== STEP 4: PM Documentation Update ==="
+    log_to_file "Starting: $(date)"
+    log_to_file ""
+
+    # Run the full PM script for comprehensive documentation
+    if [[ -x "$SCRIPT_DIR/pm_agent.sh" ]]; then
+        "$SCRIPT_DIR/pm_agent.sh" 2>&1 | tee -a "$LOG_FILE" &
+        CHILD_PID=$!
+        wait $CHILD_PID
+        PM_EXIT_CODE=$?
+        CHILD_PID=""
+
+        log_to_file ""
+        log_to_file "PM update completed: $(date)"
+        log_to_file "Exit code: $PM_EXIT_CODE"
+        log_to_file ""
+
+        if [[ $PM_EXIT_CODE -ne 0 ]]; then
+            log_warning "PM update had issues (exit code $PM_EXIT_CODE)"
+            log_to_file "WARNING: PM update failed with exit code $PM_EXIT_CODE"
+        else
+            log_success "PM documentation update completed"
+        fi
+    else
+        log_warning "PM script not found at $SCRIPT_DIR/pm_agent.sh"
     fi
 fi
 
