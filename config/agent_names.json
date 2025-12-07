@@ -133,6 +133,11 @@
       "name": "Sage",
       "role": "coder",
       "claimed_at": "2025-12-05T21:27:38.039539"
+    },
+    "tech-lead-1765104316": {
+      "name": "Sterling",
+      "role": "tech_lead",
+      "claimed_at": "2025-12-07T02:45:49.401923"
     }
   },
   "naming_config": {
