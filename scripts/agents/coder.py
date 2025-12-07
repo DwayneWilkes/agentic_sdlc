@@ -160,7 +160,7 @@ git commit -m "Phase X.Y: Brief description
 Tests: X new, Y total passing
 Coverage: Z%
 
-Co-Authored-By: [Your Name] <noreply@anthropic.com>"
+Co-Authored-By: [Your Name] <dwayne.wilkes+[YourName]@gmail.com>"
 ```
 
 ## Before Finishing: Reflect

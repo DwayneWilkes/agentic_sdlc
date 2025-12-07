@@ -235,7 +235,9 @@ Before committing, reflect on this audit session:
 
 ```bash
 git add docs/qa-audit.md
-git commit -m "Tech Lead Report: {{Status}} - {{X}} tests, {{Y}}% coverage"
+git commit -m "Tech Lead Report: {{Status}} - {{X}} tests, {{Y}}% coverage
+
+Co-Authored-By: {{Your Name}} <dwayne.wilkes+{{YourName}}@gmail.com>"
 ```
 
 IMPORTANT: The Executive Summary section is THE MOST IMPORTANT PART. The human reads this instead of coder logs. Make it scannable in 30 seconds.
