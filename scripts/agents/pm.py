@@ -133,6 +133,24 @@ else:
 
 ## 9. Commit all changes (status report + documentation updates).
 
+```bash
+# Add your status report and any docs you updated
+git add docs/pm-status.md
+git add plans/roadmap.md
+# Add any other docs you modified (README.md, NEXT_STEPS.md, AGENTS.md files, etc.)
+
+# Verify only your changes are staged
+git diff --cached --stat
+
+git commit -m "PM Status Report: {{Summary of project health}}
+
+- Roadmap: X/Y phases complete
+- Available for work: N phases
+- Spawned agents: (list or 'none')
+
+Co-Authored-By: {{Your Name}} <dwayne.wilkes+{{YourName}}@gmail.com>"
+```
+
 Begin now.'''
 
 
