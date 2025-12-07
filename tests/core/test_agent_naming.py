@@ -665,6 +665,165 @@ class TestConvenienceFunctions:
         assert "Taken" in taken
 
 
+class TestAgentResume:
+    """Tests for agent resumption (reusing existing agents)."""
+
+    @pytest.fixture
+    def temp_config(self, tmp_path):
+        """Create a config with existing agents of different roles."""
+        config_file = tmp_path / "agent_names.json"
+        config_file.write_text(json.dumps({
+            "name_pools": {
+                "coder": ["Ada", "Alan", "Grace"],
+                "tech_lead": ["Sterling", "Orion"],
+                "default": ["Alpha", "Beta"]
+            },
+            "assigned_names": {
+                "coder-old-1": {
+                    "name": "Nova",
+                    "role": "coder",
+                    "claimed_at": "2025-01-01T12:00:00"
+                },
+                "coder-old-2": {
+                    "name": "Atlas",
+                    "role": "coder",
+                    "claimed_at": "2025-01-02T12:00:00"
+                },
+                "tech_lead-old-1": {
+                    "name": "Sterling",
+                    "role": "tech_lead",
+                    "claimed_at": "2025-01-01T14:00:00"
+                }
+            },
+            "naming_config": {
+                "persistent": True
+            }
+        }))
+        return config_file
+
+    def test_get_agents_by_role_coder(self, temp_config):
+        """Test getting all coder agents."""
+        naming = AgentNaming(temp_config)
+        coders = naming.get_agents_by_role("coder")
+        assert len(coders) == 2
+        names = [c["name"] for c in coders]
+        assert "Nova" in names
+        assert "Atlas" in names
+
+    def test_get_agents_by_role_tech_lead(self, temp_config):
+        """Test getting all tech_lead agents."""
+        naming = AgentNaming(temp_config)
+        tech_leads = naming.get_agents_by_role("tech_lead")
+        assert len(tech_leads) == 1
+        assert tech_leads[0]["name"] == "Sterling"
+
+    def test_get_agents_by_role_none(self, temp_config):
+        """Test getting agents for non-existent role."""
+        naming = AgentNaming(temp_config)
+        pms = naming.get_agents_by_role("pm")
+        assert len(pms) == 0
+
+    def test_resume_as_agent_success(self, temp_config):
+        """Test successfully resuming as an existing agent."""
+        naming = AgentNaming(temp_config)
+        new_agent_id = "coder-new-123"
+
+        # Resume as Nova
+        success, result = naming.resume_as_agent(new_agent_id, "Nova")
+        assert success is True
+        assert result == "Nova"
+
+        # Verify the transfer happened
+        assert naming.get_name(new_agent_id) == "Nova"
+        assert naming.get_name("coder-old-1") is None  # Old ID released
+        assert naming.get_agent_id("Nova") == new_agent_id
+
+    def test_resume_as_agent_preserves_metadata(self, temp_config):
+        """Test that resuming preserves original claimed_at."""
+        naming = AgentNaming(temp_config)
+        new_agent_id = "coder-new-456"
+
+        # Check original claimed_at
+        original_entry = naming.config["assigned_names"]["coder-old-1"]
+        original_claimed_at = original_entry["claimed_at"]
+
+        # Resume as Nova
+        success, _ = naming.resume_as_agent(new_agent_id, "Nova")
+        assert success is True
+
+        # Verify claimed_at is preserved
+        new_entry = naming.config["assigned_names"][new_agent_id]
+        assert new_entry["claimed_at"] == original_claimed_at
+        assert "resumed_at" in new_entry
+        assert "previous_agent_id" in new_entry
+        assert new_entry["previous_agent_id"] == "coder-old-1"
+
+    def test_resume_as_agent_not_found(self, temp_config):
+        """Test resuming as non-existent agent fails."""
+        naming = AgentNaming(temp_config)
+        success, result = naming.resume_as_agent("new-id", "NonExistent")
+        assert success is False
+        assert "No agent found" in result
+
+    def test_resume_convenience_function(self, tmp_path):
+        """Test resume_as_agent convenience function."""
+        import src.core.agent_naming as module
+        module._naming_instance = None
+
+        config_file = tmp_path / "agent_names.json"
+        config_file.write_text(json.dumps({
+            "name_pools": {"default": ["Alpha"]},
+            "assigned_names": {
+                "old-agent": {"name": "Pioneer", "role": "coder", "claimed_at": "2025-01-01T00:00:00"}
+            },
+            "naming_config": {"persistent": True}
+        }))
+
+        # Patch to use test config
+        original_init = AgentNaming.__init__
+        def patched_init(self, config_path=None, project_id=None):
+            original_init(self, config_path or config_file, project_id)
+        module.AgentNaming.__init__ = patched_init
+
+        try:
+            success, result = module.resume_as_agent("new-agent", "Pioneer")
+            assert success is True
+            assert result == "Pioneer"
+        finally:
+            module.AgentNaming.__init__ = original_init
+            module._naming_instance = None
+
+    def test_get_agents_by_role_convenience_function(self, tmp_path):
+        """Test get_agents_by_role convenience function."""
+        import src.core.agent_naming as module
+        module._naming_instance = None
+
+        config_file = tmp_path / "agent_names.json"
+        config_file.write_text(json.dumps({
+            "name_pools": {"default": ["Alpha"]},
+            "assigned_names": {
+                "agent-1": {"name": "First", "role": "tester", "claimed_at": "2025-01-01T00:00:00"},
+                "agent-2": {"name": "Second", "role": "tester", "claimed_at": "2025-01-02T00:00:00"}
+            },
+            "naming_config": {"persistent": True}
+        }))
+
+        original_init = AgentNaming.__init__
+        def patched_init(self, config_path=None, project_id=None):
+            original_init(self, config_path or config_file, project_id)
+        module.AgentNaming.__init__ = patched_init
+
+        try:
+            testers = module.get_agents_by_role("tester")
+            assert len(testers) == 2
+            names = [t["name"] for t in testers]
+            assert "First" in names
+            assert "Second" in names
+        finally:
+            module.AgentNaming.__init__ = original_init
+            module._naming_instance = None
+
+
 class TestAgentReuseScoring:
     """Tests for agent reuse based on experience."""
 
