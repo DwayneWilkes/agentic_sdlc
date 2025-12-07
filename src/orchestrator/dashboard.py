@@ -60,8 +60,33 @@ class AgentInfo:
             "completed": "✅",
             "failed": "❌",
             "stopped": "⏹️",
+            "on_break": "☕",
+            "available": "🟢",
             "unknown": "❓",
         }.get(self.status, "❓")
+
+    @property
+    def break_time_remaining(self) -> int | None:
+        """
+        Get remaining break time in seconds.
+
+        Returns:
+            Seconds remaining (negative if overtime), or None if not on break
+            or no scheduled_end is set.
+        """
+        if self.status != "on_break":
+            return None
+
+        scheduled_end = self.details.get("scheduled_end")
+        if not scheduled_end:
+            return None
+
+        try:
+            end_time = datetime.fromisoformat(scheduled_end)
+            delta = end_time - datetime.now()
+            return int(delta.total_seconds())
+        except (ValueError, TypeError):
+            return None
 
 
 class AgentDashboard:
@@ -167,6 +192,130 @@ class AgentDashboard:
                 agent.status = process.state.value
                 agent.last_update = datetime.now()
 
+    def _sync_from_status_file(self) -> None:
+        """Sync agent info from agent_status.json (for cross-process visibility)."""
+        try:
+            from src.core.agent_naming import get_naming
+            from src.orchestrator.agent_spawner import _load_status
+
+            status_data = _load_status()
+            naming = get_naming()
+
+            with self._lock:
+                for agent_name, info in status_data.get("agents", {}).items():
+                    # Use name as agent_id if we don't have a real ID
+                    agent_id = naming.get_agent_id(agent_name) or f"agent-{agent_name}"
+
+                    if agent_id not in self.agents:
+                        self.agents[agent_id] = AgentInfo(agent_id=agent_id)
+
+                    agent = self.agents[agent_id]
+                    agent.personal_name = agent_name
+                    agent.status = info.get("status", "unknown")
+                    agent.last_update = datetime.now()
+
+                    # Parse started_at if available
+                    started_str = info.get("started_at")
+                    if started_str and not agent.started_at:
+                        try:
+                            agent.started_at = datetime.fromisoformat(started_str)
+                        except (ValueError, TypeError):
+                            pass
+
+                    # Store break info in details for break_time_remaining
+                    if info.get("scheduled_end"):
+                        agent.details["scheduled_end"] = info["scheduled_end"]
+
+        except Exception:
+            pass  # Silently fail if status file doesn't exist or can't be read
+
+    def _build_coffee_break_panel(self) -> Panel:
+        """Build the coffee break status panel."""
+        # Get agents on break
+        with self._lock:
+            on_break_agents = [
+                a for a in self.agents.values()
+                if a.status == "on_break"
+            ]
+
+        if not on_break_agents:
+            content = "[dim]No agents on break[/dim]"
+        else:
+            lines = []
+            for agent in on_break_agents:
+                name = agent.personal_name or agent.agent_id[:12]
+                remaining = agent.break_time_remaining
+                if remaining is not None:
+                    if remaining > 0:
+                        time_str = f"[green]{remaining}s left[/green]"
+                    else:
+                        time_str = f"[yellow]{abs(remaining)}s over[/yellow]"
+                else:
+                    time_str = "[dim]?[/dim]"
+                lines.append(f"☕ {name}: {time_str}")
+            content = "\n".join(lines)
+
+        return Panel(
+            Text.from_markup(content),
+            title="☕ Coffee Breaks",
+            border_style="yellow",
+        )
+
+    def _build_metrics_panel(self) -> Panel:
+        """Build the team metrics panel."""
+        try:
+            from src.core.metrics import MetricType, get_leaderboard, get_team_summary
+
+            summary = get_team_summary()
+
+            # Build metrics display
+            lines = []
+
+            # Velocity
+            phases = summary.get("velocity", {}).get("total_phases_completed", 0)
+            tasks = summary.get("velocity", {}).get("total_tasks_completed", 0)
+            lines.append(f"[bold]Velocity:[/bold] {phases} phases, {tasks} tasks")
+
+            # Quality
+            avg_coverage = summary.get("quality", {}).get("average_coverage")
+            if avg_coverage is not None:
+                if avg_coverage >= 80:
+                    cov_color = "green"
+                elif avg_coverage >= 60:
+                    cov_color = "yellow"
+                else:
+                    cov_color = "red"
+                cov_str = f"[{cov_color}]{avg_coverage:.1f}%[/{cov_color}]"
+                lines.append(f"[bold]Coverage:[/bold] {cov_str}")
+            else:
+                lines.append("[bold]Coverage:[/bold] [dim]N/A[/dim]")
+
+            # Collaboration
+            breaks = summary.get("collaboration", {}).get("total_coffee_breaks", 0)
+            lines.append(f"[bold]Collaboration:[/bold] {breaks} coffee breaks")
+
+            # Top performer
+            try:
+                leaderboard = get_leaderboard(MetricType.PHASE_COMPLETED)
+                if leaderboard:
+                    top = leaderboard[0]
+                    lines.append(f"[bold]Top:[/bold] {top['agent_name']} ({top['score']} phases)")
+            except Exception:
+                pass
+
+            content = "\n".join(lines)
+
+        except ImportError:
+            content = "[dim]Metrics unavailable[/dim]"
+        except Exception as e:
+            content = f"[dim]Error: {e}[/dim]"
+
+        return Panel(
+            Text.from_markup(content),
+            title="📊 Team Metrics",
+            border_style="cyan",
+        )
+
     def _build_display(self) -> Layout:
         """Build the dashboard display."""
         layout = Layout()
@@ -191,8 +340,9 @@ class AgentDashboard:
         table.add_column("Duration", justify="right")
         table.add_column("Last Update", style="dim")
 
-        # Sync from runner
+        # Sync from multiple sources
         self._sync_from_runner()
+        self._sync_from_status_file()
 
         # Add rows
         with self._lock:
@@ -246,15 +396,17 @@ class AgentDashboard:
             border_style="blue",
         )
 
-        # Stats
+        # Stats (with on_break count)
         with self._lock:
             running = sum(1 for a in self.agents.values() if a.status in ("started", "running"))
             completed = sum(1 for a in self.agents.values() if a.status == "completed")
             failed = sum(1 for a in self.agents.values() if a.status == "failed")
+            on_break = sum(1 for a in self.agents.values() if a.status == "on_break")
 
         stats = Panel(
             Text.from_markup(
                 f"[green]Running: {running}[/green]  "
+                f"[yellow]☕ Break: {on_break}[/yellow]  "
                 f"[blue]Completed: {completed}[/blue]  "
                 f"[red]Failed: {failed}[/red]  "
                 f"Total: {len(self.agents)}"
@@ -263,11 +415,31 @@ class AgentDashboard:
             border_style="green",
         )
 
+        # Build coffee break panel
+        coffee_panel = self._build_coffee_break_panel()
+
+        # Build metrics panel
+        metrics_panel = self._build_metrics_panel()
+
+        # Create right column for coffee breaks and metrics
+        right_column = Layout()
+        right_column.split_column(
+            Layout(coffee_panel, name="coffee"),
+            Layout(metrics_panel, name="metrics"),
+        )
+
+        # Create main content area (table + right column)
+        main_content = Layout()
+        main_content.split_row(
+            Layout(table, name="agents", ratio=2),
+            Layout(right_column, name="sidebar", ratio=1),
+        )
+
         # Compose layout
         layout.split_column(
             Layout(header, size=3),
             Layout(stats, size=3),
-            Layout(table, name="agents"),
+            Layout(main_content, name="main"),
             Layout(commands, size=12),
         )
 
@@ -276,7 +448,12 @@ class AgentDashboard:
     async def _run_live_display(self) -> None:
         """Run the live updating display."""
         try:
-            with Live(self._build_display(), console=self.console, refresh_per_second=2) as live:
+            with Live(
+                self._build_display(),
+                console=self.console,
+                refresh_per_second=2,
+                transient=False,
+            ) as live:
                 while self._running:
                     # Update display
                     self._last_refresh = datetime.now()
@@ -287,7 +464,7 @@ class AgentDashboard:
 
         except KeyboardInterrupt:
             self._running = False
-            self.console.print("\n[yellow]Dashboard stopped[/yellow]")
+            # Don't print here - let main() handle the exit message
 
     def stop_agent_interactive(self) -> None:
         """Interactive prompt to stop an agent."""
@@ -411,6 +588,8 @@ async def run_dashboard(runner: AgentRunner | None = None) -> None:
 def main():
     """Entry point for the dashboard."""
     import argparse
+    import signal
+    import sys
 
     parser = argparse.ArgumentParser(description="Live Agent Dashboard")
     parser.add_argument("--no-nats", action="store_true", help="Run without NATS")
@@ -419,10 +598,20 @@ def main():
     console = Console()
     console.print("[bold cyan]Starting Agent Dashboard...[/bold cyan]")
 
+    # Handle SIGINT cleanly without noise
+    def signal_handler(sig, frame):
+        console.print("\n[yellow]Dashboard stopped[/yellow]")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+
     try:
         asyncio.run(run_dashboard())
     except KeyboardInterrupt:
+        # This might still be reached in some cases
         console.print("\n[yellow]Dashboard stopped[/yellow]")
+    except SystemExit:
+        pass  # Clean exit from signal handler
 
 
 if __name__ == "__main__":

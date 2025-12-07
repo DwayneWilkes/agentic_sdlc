@@ -22,7 +22,7 @@ import os
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Literal
@@ -33,6 +33,17 @@ class AgentStatus(str, Enum):
     WORKING = "working"      # Currently executing a task
     ON_BREAK = "on_break"    # On coffee break (can be recalled)
     AVAILABLE = "available"  # Ready for new work
+
+
+# Fair break durations by role (in SECONDS)
+# Digital employees operate at token speeds - a 5-minute task is like an 8-hour human day
+# So 30-120 second breaks are proportionally fair (like a 10-30 min human break)
+BREAK_DURATIONS_SECONDS = {
+    "coder": 60,      # 1 minute - quick sync after completing a phase
+    "tech_lead": 90,  # 1.5 minutes - review discussions with team
+    "pm": 120,        # 2 minutes - strategic overview
+    "default": 60,    # Default for any role
+}
 
 
 @dataclass
@@ -562,10 +573,24 @@ def _save_status(status: dict, project_root: Path | None = None) -> None:
         f.write("\n")
 
 
+def _get_break_duration_seconds(agent_name: str, project_root: Path | None = None) -> int:
+    """Get the fair break duration in seconds for an agent based on their role."""
+    from src.core.agent_naming import get_naming
+
+    naming = get_naming()
+    agent_id = naming.get_agent_id(agent_name)
+    if agent_id:
+        entry = naming.config["assigned_names"].get(agent_id, {})
+        role = entry.get("role", "default")
+        return BREAK_DURATIONS_SECONDS.get(role, BREAK_DURATIONS_SECONDS["default"])
+    return BREAK_DURATIONS_SECONDS["default"]
+
+
 def notify_going_on_break(
     agent_name: str,
     break_partners: list[str] | None = None,
     topic: str | None = None,
+    duration_seconds: int | None = None,
     project_root: Path | None = None,
 ) -> dict:
     """
@@ -573,33 +598,48 @@ def notify_going_on_break(
 
     Agents on break are AVAILABLE, not busy - they can be recalled for new work.
     Breaks are for knowledge sharing and relationship building.
+    Breaks have fair durations based on role (coders: 60s, TL: 90s, PM: 120s).
 
     Args:
         agent_name: Name of the agent going on break
         break_partners: Other agents joining the break (optional)
         topic: Topic for discussion (optional)
+        duration_seconds: Override default duration in seconds (optional)
         project_root: Project root directory
 
     Returns:
-        Dict with break_id and status
+        Dict with break_id, participants, and scheduled_end
     """
     status = _load_status(project_root)
     break_id = f"break-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{agent_name}"
+
+    # Calculate break duration in seconds (use role-based default if not specified)
+    if duration_seconds is None:
+        duration_seconds = _get_break_duration_seconds(agent_name, project_root)
+
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=duration_seconds)
 
     # Update agent status
     status["agents"][agent_name] = {
         "status": AgentStatus.ON_BREAK.value,
         "break_id": break_id,
-        "started_at": datetime.now().isoformat(),
+        "started_at": start_time.isoformat(),
+        "scheduled_end": end_time.isoformat(),
+        "duration_seconds": duration_seconds,
     }
 
     # Update partners' status too
     partners = break_partners or []
     for partner in partners:
+        partner_duration = _get_break_duration_seconds(partner, project_root)
+        partner_end = start_time + timedelta(seconds=partner_duration)
         status["agents"][partner] = {
             "status": AgentStatus.ON_BREAK.value,
             "break_id": break_id,
-            "started_at": datetime.now().isoformat(),
+            "started_at": start_time.isoformat(),
+            "scheduled_end": partner_end.isoformat(),
+            "duration_seconds": partner_duration,
         }
 
     # Record the break session
@@ -608,7 +648,9 @@ def notify_going_on_break(
         "initiator": agent_name,
         "participants": [agent_name] + partners,
         "topic": topic or "General knowledge sharing",
-        "started_at": datetime.now().isoformat(),
+        "started_at": start_time.isoformat(),
+        "scheduled_end": end_time.isoformat(),
+        "duration_seconds": duration_seconds,
         "ended_at": None,
         "recalled": False,
     }
@@ -616,11 +658,18 @@ def notify_going_on_break(
 
     _save_status(status, project_root)
 
-    print(f"☕ {agent_name} is going on break" + (f" with {', '.join(partners)}" if partners else ""))
+    print(f"☕ {agent_name} is going on a {duration_seconds}-second break" +
+          (f" with {', '.join(partners)}" if partners else ""))
     if topic:
         print(f"   Topic: {topic}")
+    print(f"   Scheduled end: {end_time.strftime('%H:%M:%S')}")
 
-    return {"break_id": break_id, "participants": break_record["participants"]}
+    return {
+        "break_id": break_id,
+        "participants": break_record["participants"],
+        "duration_seconds": duration_seconds,
+        "scheduled_end": end_time.isoformat(),
+    }
 
 
 def recall_from_break(
@@ -706,22 +755,85 @@ def end_break(
     print(f"✅ {agent_name} is back from break")
 
 
+def _check_expired_breaks(project_root: Path | None = None) -> list[str]:
+    """
+    Check for and auto-end expired breaks.
+
+    Returns:
+        List of agent names whose breaks were auto-ended
+    """
+    status = _load_status(project_root)
+    now = datetime.now()
+    auto_ended = []
+
+    for name, info in list(status["agents"].items()):
+        if info.get("status") == AgentStatus.ON_BREAK.value:
+            scheduled_end = info.get("scheduled_end")
+            if scheduled_end:
+                end_time = datetime.fromisoformat(scheduled_end)
+                if now > end_time:
+                    # Break has expired - auto-end it
+                    status["agents"][name] = {
+                        "status": AgentStatus.AVAILABLE.value,
+                        "updated_at": now.isoformat(),
+                        "last_break_id": info.get("break_id"),
+                        "auto_ended": True,
+                    }
+                    auto_ended.append(name)
+
+                    # Update the break record
+                    break_id = info.get("break_id")
+                    for break_record in status["breaks"]:
+                        if break_record["break_id"] == break_id and not break_record["ended_at"]:
+                            break_record["ended_at"] = now.isoformat()
+                            break_record["auto_ended"] = True
+                            break
+
+    if auto_ended:
+        _save_status(status, project_root)
+        for name in auto_ended:
+            print(f"⏰ {name}'s break time ended (auto-returned to available)")
+
+    return auto_ended
+
+
 def get_agents_on_break(project_root: Path | None = None) -> list[dict]:
     """
     Get list of agents currently on break.
 
+    Also auto-ends any expired breaks before returning the list.
+
     Returns:
-        List of dicts with agent info and break details
+        List of dicts with agent info and break details including:
+        - name: Agent name
+        - break_id: Break session ID
+        - started_at: When break started
+        - scheduled_end: When break is scheduled to end
+        - duration_seconds: Break duration in seconds
+        - time_remaining_seconds: Seconds remaining (negative if overtime)
     """
+    # First, check for and auto-end any expired breaks
+    _check_expired_breaks(project_root)
+
     status = _load_status(project_root)
+    now = datetime.now()
     on_break = []
 
     for name, info in status["agents"].items():
         if info.get("status") == AgentStatus.ON_BREAK.value:
+            scheduled_end = info.get("scheduled_end")
+            time_remaining = None
+            if scheduled_end:
+                end_time = datetime.fromisoformat(scheduled_end)
+                time_remaining = int((end_time - now).total_seconds())
+
             on_break.append({
                 "name": name,
                 "break_id": info.get("break_id"),
                 "started_at": info.get("started_at"),
+                "scheduled_end": scheduled_end,
+                "duration_seconds": info.get("duration_seconds"),
+                "time_remaining_seconds": time_remaining,
             })
 
     return on_break
@@ -732,6 +844,7 @@ def get_available_agents(role: str | None = None, project_root: Path | None = No
     Get list of available agents (not working, including those on break).
 
     Agents on break ARE available - they can be recalled for work.
+    This function also auto-ends any expired breaks before checking.
 
     Args:
         role: Optional role filter (uses agent_naming to check)
@@ -740,6 +853,9 @@ def get_available_agents(role: str | None = None, project_root: Path | None = No
     Returns:
         List of agent names that are available
     """
+    # First, check for and auto-end any expired breaks
+    _check_expired_breaks(project_root)
+
     status = _load_status(project_root)
 
     # Get all agents not marked as WORKING
