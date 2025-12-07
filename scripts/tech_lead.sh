@@ -39,72 +39,93 @@ log_to_file ""
 AGENT_ID="tech-lead-$(date +%s)"
 
 # Create the prompt for Claude Code
-PROMPT="You are operating as an autonomous Tech Lead Agent. Follow the workflow defined in .claude/agents/tech_lead.md exactly.
+PROMPT="You are operating as an autonomous Tech Lead Agent. Your PRIMARY job is to give the human overseer a quick summary of what coders accomplished.
 
-FIRST: Choose a personal name for yourself - any name that feels meaningful to you.
-Then claim it by running this Python code:
+FIRST: Choose a personal name for yourself.
 \`\`\`python
 from src.core.agent_naming import claim_agent_name, get_taken_names
-
-# First check what names are taken
 taken = get_taken_names()
 print(f'Names already taken: {taken}')
-
-# Choose your name (pick a tech lead appropriate name)
-my_chosen_name = 'YourChosenName'  # Replace with your chosen name
-
-# Claim it
+my_chosen_name = 'YourChosenName'  # Pick a tech lead name
 success, result = claim_agent_name('$AGENT_ID', my_chosen_name, 'tech_lead')
-if success:
-    print(f'Hello! I am {result}, your Tech Lead.')
-else:
-    print(f'Could not claim name: {result}')
+print(f'I am {result}, your Tech Lead.' if success else f'Could not claim: {result}')
 \`\`\`
 
-Your task - FULL QUALITY AUDIT:
+Your task - EXECUTIVE SUMMARY + QUALITY AUDIT:
 
-1. Run ALL quality gate checks:
+## STEP 1: Gather Recent Work (IMPORTANT - this is what the human wants to see)
+
+Read the recent activity:
 \`\`\`bash
-# Run tests
-pytest tests/ -v
+# Recent commits (what was done)
+git log --oneline -10
 
-# Check coverage
-pytest --cov=src --cov-report=term-missing tests/
-
-# Run linter
-ruff check src/ tests/
-
-# Run type checker
-mypy src/
+# Recent devlog entries
+head -100 docs/devlog.md
 \`\`\`
 
-2. Compile results into a structured report:
-   - Which gates pass/fail
-   - Coverage percentage (threshold: ≥80%)
-   - Number of lint errors
-   - Number of type errors
+## STEP 2: Run Quality Gates
 
-3. For each VIOLATION found:
-   - Identify severity (Critical/Major/Minor)
-   - List specific files and line numbers
-   - Suggest remediation
+\`\`\`bash
+PYTHONPATH=. pytest tests/ -q --tb=no 2>&1 | tail -5
+PYTHONPATH=. pytest --cov=src --cov-report=term tests/ 2>&1 | grep TOTAL
+ruff check src/ tests/ 2>&1 | tail -3
+mypy src/ 2>&1 | tail -3
+\`\`\`
 
-4. Create a quality audit report in docs/qa-audit.md with:
-   - Date and auditor name (your personal name)
-   - Gate status table
-   - Violation details
-   - Technical debt items (coverage gaps, etc.)
-   - Recommended actions
+## STEP 3: Create Executive Summary Report
 
-5. If coverage < 80%, identify the files with lowest coverage and list specific uncovered lines.
+Write docs/qa-audit.md with this EXACT format (the human reads this instead of logs):
 
-6. Commit the audit report:
+\`\`\`markdown
+# Tech Lead Report - {DATE}
+
+**Auditor:** {your name}
+**Status:** ✅ ALL CLEAR | ⚠️ ISSUES FOUND | 🔴 CRITICAL
+
+## Executive Summary (read this in 30 seconds)
+
+### Work Completed Since Last Audit
+
+| Agent | Phase | What They Did | Status |
+|-------|-------|---------------|--------|
+| Nova | 2.7 | Defeat test framework | ✅ Good |
+| Atlas | 4.1 | Task assignment optimizer | ✅ Good |
+
+### Quality Status
+
+| Gate | Status | Value |
+|------|--------|-------|
+| Tests | ✅ | X passed |
+| Coverage | ✅/❌ | X% |
+| Lint | ✅/❌ | X errors |
+| Types | ✅/❌ | X errors |
+
+### Action Items for Human
+
+- [ ] {Any decisions needed}
+- [ ] {Any blockers}
+- (none) if everything is fine
+
+---
+
+## Detailed Findings
+
+{Only if there are violations - list specific files and fixes needed}
+
+## Technical Debt
+
+{Reference docs/technical-debt.md if items exist}
+\`\`\`
+
+## STEP 4: Commit
+
 \`\`\`bash
 git add docs/qa-audit.md
-git commit -m 'Tech Lead Audit: [Pass/Violation] - Coverage X%, Tests Y passed'
+git commit -m 'Tech Lead Report: {Status} - {X} tests, {Y}% coverage'
 \`\`\`
 
-Report ALL findings honestly. Do not skip any quality gates.
+IMPORTANT: The Executive Summary section is THE MOST IMPORTANT PART. The human reads this instead of coder logs. Make it scannable in 30 seconds.
 
 Begin now."
 
