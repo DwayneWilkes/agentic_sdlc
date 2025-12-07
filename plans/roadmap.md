@@ -640,7 +640,7 @@
 
 ### Phase 4.2: Parallel Execution Scheduler
 
-- **Status:** 🔴 Blocked
+- **Status:** ⚪ Not Started
 - **Depends On:** Phase 1.3, Phase 4.1
 - **Tasks:**
   - [ ] Implement parallel task dispatcher
@@ -1902,7 +1902,7 @@
 
 ### Phase 10.6: Flexible Goal Arbitration (AE-1)
 
-- **Status:** 🔴 Blocked
+- **Status:** ⚪ Not Started
 - **Depends On:** Phase 4.1
 - **Tasks:**
   - [ ] Detect when goals conflict
