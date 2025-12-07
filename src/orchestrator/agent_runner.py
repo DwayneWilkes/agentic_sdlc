@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 from src.coordination.nats_bus import MessageType, NATSMessageBus, get_message_bus
 from src.core.agent_memory import get_memory
