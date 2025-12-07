@@ -29,6 +29,55 @@ This log tracks all completed work streams, implementations, and agent activity.
 
 ---
 
+## 2025-12-06 - Phase 2.4: Recovery Strategy Engine
+
+**Agent**: Horizon (coder-1765075622)
+**Work Stream**: Phase 2.4 - Recovery Strategy Engine
+**Status**: Complete
+
+### What Was Implemented
+
+**Recovery Strategy Framework**:
+- **RecoveryStrategyEngine**: Main orchestrator for applying recovery strategies to failed tasks/agents
+- **RetryPolicy**: Configurable retry logic with exponential backoff (base_delay, backoff_multiplier, max_delay, max_attempts)
+- **CircuitBreaker**: Three-state circuit breaker (CLOSED→OPEN→HALF_OPEN) to prevent resource exhaustion
+- **FallbackStrategy**: Capability-based fallback agent selection when primary agent fails
+- **GracefulDegradation**: Partial result creation and acceptance threshold checking
+- **RecoveryStrategy enum**: RETRY, FALLBACK_AGENT, GRACEFUL_DEGRADATION, CIRCUIT_BREAKER, NONE
+- **CircuitState enum**: CLOSED, OPEN, HALF_OPEN
+- **PartialResult**: Captures completed/failed/pending subtasks with completion percentage
+- **RecoveryResult**: Captures recovery decision, actions taken, and outcome
+
+**Key Features**:
+1. **Retry Logic**: Exponential backoff with configurable policies, never retries CRITICAL errors
+2. **Circuit Breakers**: Prevents cascading failures with automatic state transitions
+3. **Fallback Agents**: Selects capable replacement agents when primary agent fails
+4. **Graceful Degradation**: Returns partial results when acceptable (configurable threshold)
+5. **Recovery History**: Tracks all recovery attempts per task for analysis
+6. **Strategy Selection**: Automatically selects appropriate recovery strategy based on error type/severity
+
+### Files Changed
+- `src/core/recovery_strategy.py` - Complete recovery strategy framework (197 lines)
+- `tests/core/test_recovery_strategy.py` - Comprehensive test suite (30 tests)
+
+### Test Results
+- Tests passed: 30/30 (100%)
+- Coverage: 92% for recovery_strategy.py (exceeds 80% requirement)
+- No linting errors (ruff check)
+- No type errors (mypy)
+- Full test suite: 647 tests passed
+
+### Notes
+- Implemented test-driven development: wrote all 30 tests before implementation
+- Integration with Phase 2.3 (Error Detection): uses ErrorContext for recovery decisions
+- Circuit breaker timeout-based state transitions with configurable thresholds
+- Fallback agent selection excludes failed agent and matches required capabilities
+- Partial result acceptance uses configurable threshold (default 50%)
+- All components fully typed and documented with comprehensive docstrings
+- Ready for integration with agent execution pipeline and orchestrator
+
+---
+
 ## 2025-12-06 - Phase 5.5: Turn-Based Execution Cadence
 
 **Agent**: Kestrel (coder-1765074980)

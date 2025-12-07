@@ -191,16 +191,73 @@
 
 ### Phase 2.4: Recovery Strategy Engine
 
-- **Status:** 🔴 Blocked
-- **Depends On:** Phase 2.3
+- **Status:** ✅ Complete
+- **Assigned To:** Horizon (coder-1765075622)
+- **Completed:** 2025-12-06
+- **Depends On:** Phase 2.3 ✅
 - **Tasks:**
-  - [ ] Implement retry logic with configurable policies
-  - [ ] Add fallback agent selection (different agent for failed task)
-  - [ ] Implement graceful degradation (partial results on failure)
-  - [ ] Add circuit breakers to prevent resource exhaustion
-  - [ ] Implement recovery patterns (timeout → NAK → retry, exponential backoff)
+  - [✅] Implement retry logic with configurable policies
+  - [✅] Add fallback agent selection (different agent for failed task)
+  - [✅] Implement graceful degradation (partial results on failure)
+  - [✅] Add circuit breakers to prevent resource exhaustion
+  - [✅] Implement recovery patterns (timeout → NAK → retry, exponential backoff)
 - **Effort:** M
 - **Done When:** Failed tasks retry appropriately; cascading failures prevented; system remains operational
+- **Quality Gates:** All tests pass (30/30), 92% coverage for recovery_strategy.py, no linting errors, no type errors
+- **Implementation Notes:**
+  - src/core/recovery_strategy.py - Complete recovery strategy framework (197 lines)
+  - tests/core/test_recovery_strategy.py - Comprehensive test suite (30 tests)
+  - RecoveryStrategy enum: RETRY, FALLBACK_AGENT, GRACEFUL_DEGRADATION, CIRCUIT_BREAKER, NONE
+  - CircuitState enum: CLOSED, OPEN, HALF_OPEN
+  - RetryPolicy class: configurable max_attempts, exponential backoff with base_delay and backoff_multiplier
+  - CircuitBreaker class: three-state circuit breaker (CLOSED→OPEN→HALF_OPEN→CLOSED)
+  - FallbackStrategy class: capability-based fallback agent selection
+  - GracefulDegradation class: partial result creation and acceptance threshold checking
+  - RecoveryStrategyEngine class: main orchestrator for recovery strategy application
+  - All components fully typed and documented with docstrings
+- **Design Notes:**
+
+  ```text
+  Recovery Strategy Flow:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  ERROR OCCURS                                                │
+  │  ├─► ErrorContext captured (type, severity, agent, task)    │
+  │  │                                                            │
+  │  STRATEGY SELECTION                                          │
+  │  ├─► CRITICAL error → NONE (no recovery)                     │
+  │  ├─► TIMEOUT → RETRY with exponential backoff                │
+  │  ├─► INVALID_OUTPUT → FALLBACK_AGENT                         │
+  │  ├─► PARTIAL_COMPLETION → GRACEFUL_DEGRADATION               │
+  │  └─► CRASH → FALLBACK_AGENT                                  │
+  │                                                              │
+  │  APPLY RECOVERY                                              │
+  │  ├─► Check circuit breaker (OPEN → block, CLOSED → allow)   │
+  │  ├─► Apply selected strategy                                │
+  │  ├─► Track recovery history                                 │
+  │  └─► Return RecoveryResult                                   │
+  └──────────────────────────────────────────────────────────────┘
+
+  Circuit Breaker States:
+  CLOSED (normal) → OPEN (threshold exceeded) → HALF_OPEN (testing) → CLOSED (recovered)
+                         ↑                           ↓
+                         └───── failure ─────────────┘
+
+  Retry Policy:
+  - Exponential backoff: delay = base_delay * (backoff_multiplier ^ attempt)
+  - Respects max_delay to prevent excessive waiting
+  - Never retries CRITICAL errors
+  - Configurable max_attempts
+
+  Fallback Agent Selection:
+  - Excludes failed agent
+  - Matches required capabilities
+  - Returns None if no suitable agent found
+
+  Graceful Degradation:
+  - Calculates completion percentage from subtask statuses
+  - Configurable acceptance threshold (default 50%)
+  - Returns partial results when acceptable
+  ```
 
 ### Phase 2.7: Agent Behavior Testing Framework (Defeat Tests)
 
