@@ -663,7 +663,7 @@
 
 ### Phase 4.3: Execution Plan Generator
 
-- **Status:** 🔴 Blocked
+- **Status:** ⚪ Not Started
 - **Depends On:** Phase 4.2
 - **Tasks:**
   - [ ] Generate visual/textual execution plan
@@ -861,7 +861,7 @@
 
 ### Phase 6.1: Agent Status Monitoring
 
-- **Status:** 🔴 Blocked
+- **Status:** ⚪ Not Started
 - **Depends On:** Phase 4.2
 - **Tasks:**
   - [ ] Track agent states (idle, working, blocked, completed, failed)
