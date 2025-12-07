@@ -195,24 +195,35 @@ class AgentDashboard:
     def _sync_from_status_file(self) -> None:
         """Sync agent info from agent_status.json (for cross-process visibility)."""
         try:
-            from src.core.agent_naming import get_naming
-            from src.orchestrator.agent_spawner import _load_status
+            import json
+            from pathlib import Path
 
-            status_data = _load_status()
-            naming = get_naming()
+            # Read status file directly (simpler than using _load_status)
+            status_file = Path.cwd() / "config" / "agent_status.json"
+            if not status_file.exists():
+                return
+
+            with open(status_file) as f:
+                status_data = json.load(f)
 
             with self._lock:
-                for agent_name, info in status_data.get("agents", {}).items():
-                    # Use name as agent_id if we don't have a real ID
-                    agent_id = naming.get_agent_id(agent_name) or f"agent-{agent_name}"
-
+                for agent_id, info in status_data.get("agents", {}).items():
                     if agent_id not in self.agents:
                         self.agents[agent_id] = AgentInfo(agent_id=agent_id)
 
                     agent = self.agents[agent_id]
-                    agent.personal_name = agent_name
+
+                    # Use agent_type for display name if no personal_name set
+                    if not agent.personal_name:
+                        agent_type = info.get("agent_type", "agent")
+                        agent.personal_name = agent_type.replace("_", " ").title()
+
                     agent.status = info.get("status", "unknown")
                     agent.last_update = datetime.now()
+
+                    # Store additional details
+                    agent.details["agent_type"] = info.get("agent_type")
+                    agent.details["log_file"] = info.get("log_file")
 
                     # Parse started_at if available
                     started_str = info.get("started_at")

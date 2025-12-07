@@ -242,6 +242,60 @@ print("My stats:", registry.get_agent_contribution_summary(my_chosen_name))
 - Your contributions are remembered across sessions!'''
 
     # -------------------------------------------------------------------------
+    # Agent Registration (for dashboard visibility)
+    # -------------------------------------------------------------------------
+
+    def _register_agent(self) -> None:
+        """Register this agent in the status file for dashboard visibility."""
+        try:
+            import json
+            status_file = self.config.project_root / "config" / "agent_status.json"
+            status_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Load existing status
+            if status_file.exists():
+                with open(status_file) as f:
+                    status = json.load(f)
+            else:
+                status = {"agents": {}}
+
+            # Register this agent (use agent_id as key until they claim a name)
+            status["agents"][self.agent_id] = {
+                "status": "running",
+                "agent_type": self.config.agent_type,
+                "started_at": datetime.now().isoformat(),
+                "log_file": str(self.log_file),
+            }
+
+            with open(status_file, "w") as f:
+                json.dump(status, f, indent=2)
+
+        except Exception as e:
+            self.log_warning(f"Could not register agent: {e}")
+
+    def _update_agent_status(self, status: str) -> None:
+        """Update agent status in the status file."""
+        try:
+            import json
+            status_file = self.config.project_root / "config" / "agent_status.json"
+
+            if not status_file.exists():
+                return
+
+            with open(status_file) as f:
+                data = json.load(f)
+
+            if self.agent_id in data.get("agents", {}):
+                data["agents"][self.agent_id]["status"] = status
+                data["agents"][self.agent_id]["updated_at"] = datetime.now().isoformat()
+
+                with open(status_file, "w") as f:
+                    json.dump(data, f, indent=2)
+
+        except Exception:
+            pass  # Silent fail
+
+    # -------------------------------------------------------------------------
     # Abstract Methods
     # -------------------------------------------------------------------------
 
@@ -264,6 +318,9 @@ print("My stats:", registry.get_agent_contribution_summary(my_chosen_name))
         self.log_info(f"Starting {self.config.agent_type.replace('_', ' ').title()} Agent...")
         self.log_info(f"Project Root: {self.config.effective_project_root}")
         self.log_info(f"Log File: {self.log_file}")
+
+        # Register for dashboard visibility
+        self._register_agent()
 
         self.log_to_file(f"=== {self.config.agent_type.title()} Agent Execution - {self.timestamp} ===")
         self.log_to_file(f"Project Root: {self.config.effective_project_root}")
@@ -319,6 +376,10 @@ print("My stats:", registry.get_agent_contribution_summary(my_chosen_name))
         self.log_to_file("")
         self.log_to_file(f"Agent completed: {datetime.now()}")
         self.log_to_file(f"Exit code: {exit_code}")
+
+        # Update status for dashboard
+        final_status = "failed" if exit_code != 0 else "completed"
+        self._update_agent_status(final_status)
 
         if exit_code != 0:
             self.log_error(f"Agent failed with exit code {exit_code}")
