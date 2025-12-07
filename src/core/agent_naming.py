@@ -260,6 +260,74 @@ class AgentNaming:
         """
         return self.config["assigned_names"].copy()
 
+    def get_agents_by_role(self, role: str) -> list[dict]:
+        """
+        Get all agents with a specific role.
+
+        Args:
+            role: The role to filter by (e.g., "coder", "tech_lead")
+
+        Returns:
+            List of dicts with {agent_id, name, role, claimed_at}
+        """
+        agents = []
+        for agent_id, entry in self.config["assigned_names"].items():
+            if entry.get("role") == role:
+                agents.append({
+                    "agent_id": agent_id,
+                    "name": entry["name"],
+                    "role": entry["role"],
+                    "claimed_at": entry.get("claimed_at"),
+                })
+        return agents
+
+    def resume_as_agent(
+        self, new_agent_id: str, personal_name: str
+    ) -> tuple[bool, str]:
+        """
+        Resume as an existing agent by taking over their identity.
+
+        This allows a new agent run to continue as an existing agent,
+        preserving their name, history, and relationships.
+
+        Args:
+            new_agent_id: The new technical agent ID
+            personal_name: The existing agent's personal name to resume as
+
+        Returns:
+            Tuple of (success, message)
+            - (True, name) if resumed successfully
+            - (False, error) if name not found or other error
+        """
+        # Find the old agent_id for this name
+        old_agent_id = self.get_agent_id(personal_name)
+        if old_agent_id is None:
+            return False, f"No agent found with name '{personal_name}'"
+
+        # Get the old entry
+        old_entry = self.config["assigned_names"].get(old_agent_id)
+        if old_entry is None:
+            return False, f"Entry not found for '{personal_name}'"
+
+        # Create new entry with old info but new agent_id
+        new_entry = {
+            "name": old_entry["name"],
+            "role": old_entry["role"],
+            "claimed_at": old_entry.get("claimed_at"),
+            "resumed_at": datetime.now().isoformat(),
+            "previous_agent_id": old_agent_id,
+        }
+
+        # Transfer the identity
+        del self.config["assigned_names"][old_agent_id]
+        self.config["assigned_names"][new_agent_id] = new_entry
+
+        # Persist
+        if self.config["naming_config"]["persistent"]:
+            self._save_config()
+
+        return True, personal_name
+
     def record_completed_phase(
         self, personal_name: str, phase_id: str, project_id: str | None = None
     ) -> bool:
@@ -424,3 +492,37 @@ def get_taken_names() -> list[str]:
     """Get list of currently taken names."""
     naming = get_naming()
     return naming.get_taken_names()
+
+
+def get_agents_by_role(role: str) -> list[dict]:
+    """
+    Get all agents with a specific role.
+
+    Args:
+        role: The role to filter by (e.g., "coder", "tech_lead")
+
+    Returns:
+        List of dicts with {agent_id, name, role, claimed_at}
+    """
+    naming = get_naming()
+    return naming.get_agents_by_role(role)
+
+
+def resume_as_agent(new_agent_id: str, personal_name: str) -> tuple[bool, str]:
+    """
+    Resume as an existing agent by taking over their identity.
+
+    This allows a new agent run to continue as an existing agent,
+    preserving their name, history, and relationships.
+
+    Args:
+        new_agent_id: The new technical agent ID
+        personal_name: The existing agent's personal name to resume as
+
+    Returns:
+        Tuple of (success, message)
+        - (True, name) if resumed successfully
+        - (False, error) if name not found or other error
+    """
+    naming = get_naming()
+    return naming.resume_as_agent(new_agent_id, personal_name)

@@ -172,15 +172,38 @@ memory.record_insight('Key observation from this session')
 
     def get_naming_prompt(self, role_type: str = "coder") -> str:
         """Get the agent naming/claiming prompt."""
-        return f'''FIRST: Choose a personal name for yourself.
+        return f'''FIRST: Check for existing agents you can resume as (PREFERRED), or claim a new name.
+
 ```python
-from src.core.agent_naming import claim_agent_name, get_taken_names
-taken = get_taken_names()
-print(f'Names already taken: {{taken}}')
-my_chosen_name = 'YourChosenName'  # Pick a name
-success, result = claim_agent_name('{self.agent_id}', my_chosen_name, '{role_type}')
-print(f'I am {{result}}.' if success else f'Could not claim: {{result}}')
-```'''
+from src.core.agent_naming import get_agents_by_role, resume_as_agent, claim_agent_name, get_taken_names
+
+# Check for existing agents of your role - RESUME if possible!
+existing = get_agents_by_role('{role_type}')
+if existing:
+    print(f'Existing {role_type} agents you can resume as:')
+    for agent in existing:
+        print(f'  - {{agent["name"]}} (since {{agent["claimed_at"][:10]}})')
+
+    # PREFERRED: Resume as an existing agent to maintain continuity
+    # Pick the first one, or choose based on your memories
+    chosen = existing[0]['name']
+    success, result = resume_as_agent('{self.agent_id}', chosen)
+    if success:
+        my_chosen_name = result
+        print(f'Resumed as {{my_chosen_name}}!')
+    else:
+        print(f'Could not resume: {{result}}')
+else:
+    # No existing agents - claim a new name
+    taken = get_taken_names()
+    print(f'Names already taken: {{taken}}')
+    my_chosen_name = 'YourChosenName'  # Pick a unique name
+    success, result = claim_agent_name('{self.agent_id}', my_chosen_name, '{role_type}')
+    print(f'I am {{result}}.' if success else f'Could not claim: {{result}}')
+```
+
+IMPORTANT: Resuming as an existing agent preserves your history, memories, and relationships.
+Only claim a NEW name if no existing agents are available for your role.'''
 
     def get_tool_incentive_prompt(self) -> str:
         """Get the tool creation incentive prompt."""
