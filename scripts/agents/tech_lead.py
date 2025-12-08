@@ -228,17 +228,16 @@ Write docs/qa-audit.md with this EXACT format (the human reads this instead of l
 
 ## STEP 4: Reflect and Save Memory
 
-Before committing, reflect on this audit session:
+After writing your report, reflect on this audit session:
 {self.get_reflection_prompt()}
 
-## STEP 5: Commit
+## STEP 5: DO NOT COMMIT
 
-```bash
-git add docs/qa-audit.md
-git commit -m "Tech Lead Report: {{Status}} - {{X}} tests, {{Y}}% coverage
+**IMPORTANT: Do NOT commit docs/qa-audit.md or docs/pm-status.md.**
 
-Co-Authored-By: {{Your Name}} <dwayne.wilkes+{{YourName}}@gmail.com>"
-```
+Status reports are ephemeral and change frequently. They create commit noise.
+Only coders implementing phases should commit. The human will see your report
+directly in the file without needing a commit.
 
 IMPORTANT: The Executive Summary section is THE MOST IMPORTANT PART. The human reads this instead of coder logs. Make it scannable in 30 seconds.
 

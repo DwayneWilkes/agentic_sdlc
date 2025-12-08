@@ -131,25 +131,32 @@ else:
 
 {self.get_reflection_prompt()}
 
-## 9. Commit all changes (status report + documentation updates).
+## 9. Commit ONLY significant documentation changes
 
+**DO NOT commit status reports (docs/pm-status.md, NEXT_STEPS.md)** - they are ephemeral.
+
+**ONLY commit if you made real changes to:**
+- plans/roadmap.md (phase status updates)
+- CLAUDE.md (significant project status changes)
+
+If you made such changes:
 ```bash
-# Add your status report and any docs you updated
-git add docs/pm-status.md
-git add plans/roadmap.md
-# Add any other docs you modified (README.md, NEXT_STEPS.md, AGENTS.md files, etc.)
+# ONLY add documentation with real content changes
+git add plans/roadmap.md  # If you updated phase statuses
 
-# Verify only your changes are staged
+# DO NOT ADD: docs/pm-status.md, NEXT_STEPS.md (status reports create commit noise)
+
+# Verify what you're committing
 git diff --cached --stat
 
-git commit -m "PM Status Report: {{Summary of project health}}
-
-- Roadmap: X/Y phases complete
-- Available for work: N phases
-- Spawned agents: (list or 'none')
+# Only commit if there are real documentation changes
+git commit -m "PM: {{Describe actual changes}}
 
 Co-Authored-By: {{Your Name}} <dwayne.wilkes+{{YourName}}@gmail.com>"
 ```
+
+If there are no significant documentation changes, do NOT commit anything.
+The status reports are visible directly in the files without needing commits.
 
 Begin now.'''
 

@@ -219,6 +219,19 @@ EOF
 investigate_dirty_worktree() {
     local coder_log="${1:-}"
 
+    # Multi-agent awareness: Skip investigation if other agents are running
+    # In parallel execution, dirty files may belong to other agents
+    local claims_file="config/.work_claims.json"
+    if [[ -f "$claims_file" ]]; then
+        local active_claims
+        active_claims=$(jq 'keys | length' "$claims_file" 2>/dev/null || echo "0")
+        if [[ "$active_claims" -gt 1 ]]; then
+            log_warning "Other agents running ($active_claims active claims). Skipping dirty worktree investigation."
+            log_warning "Files may belong to other agents working in parallel."
+            return 0
+        fi
+    fi
+
     log_info "Tech Lead investigating uncommitted changes..."
     log_to_file "=== Tech Lead Investigation ==="
     log_to_file "Starting: $(date)"

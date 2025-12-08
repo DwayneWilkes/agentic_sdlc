@@ -59,7 +59,10 @@ class AgentLauncher(ABC):
     def __init__(self, config: AgentConfig):
         self.config = config
         self.timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.agent_id = f"{config.agent_type}-{int(datetime.now().timestamp())}"
+
+        # Use AGENT_ID from environment if set (passed by AgentRunner)
+        # This ensures consistent IDs across tracking systems (dashboard, claims, status)
+        self.agent_id = os.environ.get("AGENT_ID") or f"{config.agent_type}-{int(datetime.now().timestamp())}"
 
         # Setup logging
         self.log_dir = (
